@@ -69,7 +69,7 @@ final class BenchmarkChatControllerProvider
 }
 
 String _$benchmarkChatControllerHash() =>
-    r'8865e8c49291a1257c0707fc2f6b0cd260939723';
+    r'9c2ccb49b49493d0b77b692ce4db3ca26acb1bf8';
 
 /// Drives a chat with a job's endpoint inside the benchmark focus popup. Seeded
 /// (per job + request) from the clicked benchmark request; each [send] appends

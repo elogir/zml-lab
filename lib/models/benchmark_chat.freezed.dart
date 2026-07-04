@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ChatTurn {
 
- bool get fromUser; String get text; bool get streaming; double get tokensPerSecond;
+ bool get fromUser; String get text; bool get streaming; int get tokens; double get tokensPerSecond; int? get ttftMs; int? get latencyMs;
 /// Create a copy of ChatTurn
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $ChatTurnCopyWith<ChatTurn> get copyWith => _$ChatTurnCopyWithImpl<ChatTurn>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChatTurn&&(identical(other.fromUser, fromUser) || other.fromUser == fromUser)&&(identical(other.text, text) || other.text == text)&&(identical(other.streaming, streaming) || other.streaming == streaming)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChatTurn&&(identical(other.fromUser, fromUser) || other.fromUser == fromUser)&&(identical(other.text, text) || other.text == text)&&(identical(other.streaming, streaming) || other.streaming == streaming)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,fromUser,text,streaming,tokensPerSecond);
+int get hashCode => Object.hash(runtimeType,fromUser,text,streaming,tokens,tokensPerSecond,ttftMs,latencyMs);
 
 @override
 String toString() {
-  return 'ChatTurn(fromUser: $fromUser, text: $text, streaming: $streaming, tokensPerSecond: $tokensPerSecond)';
+  return 'ChatTurn(fromUser: $fromUser, text: $text, streaming: $streaming, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $ChatTurnCopyWith<$Res>  {
   factory $ChatTurnCopyWith(ChatTurn value, $Res Function(ChatTurn) _then) = _$ChatTurnCopyWithImpl;
 @useResult
 $Res call({
- bool fromUser, String text, bool streaming, double tokensPerSecond
+ bool fromUser, String text, bool streaming, int tokens, double tokensPerSecond, int? ttftMs, int? latencyMs
 });
 
 
@@ -62,13 +62,16 @@ class _$ChatTurnCopyWithImpl<$Res>
 
 /// Create a copy of ChatTurn
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? fromUser = null,Object? text = null,Object? streaming = null,Object? tokensPerSecond = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? fromUser = null,Object? text = null,Object? streaming = null,Object? tokens = null,Object? tokensPerSecond = null,Object? ttftMs = freezed,Object? latencyMs = freezed,}) {
   return _then(_self.copyWith(
 fromUser: null == fromUser ? _self.fromUser : fromUser // ignore: cast_nullable_to_non_nullable
 as bool,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
 as String,streaming: null == streaming ? _self.streaming : streaming // ignore: cast_nullable_to_non_nullable
-as bool,tokensPerSecond: null == tokensPerSecond ? _self.tokensPerSecond : tokensPerSecond // ignore: cast_nullable_to_non_nullable
-as double,
+as bool,tokens: null == tokens ? _self.tokens : tokens // ignore: cast_nullable_to_non_nullable
+as int,tokensPerSecond: null == tokensPerSecond ? _self.tokensPerSecond : tokensPerSecond // ignore: cast_nullable_to_non_nullable
+as double,ttftMs: freezed == ttftMs ? _self.ttftMs : ttftMs // ignore: cast_nullable_to_non_nullable
+as int?,latencyMs: freezed == latencyMs ? _self.latencyMs : latencyMs // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 
@@ -153,10 +156,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool fromUser,  String text,  bool streaming,  double tokensPerSecond)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool fromUser,  String text,  bool streaming,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ChatTurn() when $default != null:
-return $default(_that.fromUser,_that.text,_that.streaming,_that.tokensPerSecond);case _:
+return $default(_that.fromUser,_that.text,_that.streaming,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs);case _:
   return orElse();
 
 }
@@ -174,10 +177,10 @@ return $default(_that.fromUser,_that.text,_that.streaming,_that.tokensPerSecond)
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool fromUser,  String text,  bool streaming,  double tokensPerSecond)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool fromUser,  String text,  bool streaming,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs)  $default,) {final _that = this;
 switch (_that) {
 case _ChatTurn():
-return $default(_that.fromUser,_that.text,_that.streaming,_that.tokensPerSecond);case _:
+return $default(_that.fromUser,_that.text,_that.streaming,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -194,10 +197,10 @@ return $default(_that.fromUser,_that.text,_that.streaming,_that.tokensPerSecond)
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool fromUser,  String text,  bool streaming,  double tokensPerSecond)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool fromUser,  String text,  bool streaming,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs)?  $default,) {final _that = this;
 switch (_that) {
 case _ChatTurn() when $default != null:
-return $default(_that.fromUser,_that.text,_that.streaming,_that.tokensPerSecond);case _:
+return $default(_that.fromUser,_that.text,_that.streaming,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs);case _:
   return null;
 
 }
@@ -209,13 +212,16 @@ return $default(_that.fromUser,_that.text,_that.streaming,_that.tokensPerSecond)
 
 
 class _ChatTurn implements ChatTurn {
-  const _ChatTurn({required this.fromUser, this.text = '', this.streaming = false, this.tokensPerSecond = 0.0});
+  const _ChatTurn({required this.fromUser, this.text = '', this.streaming = false, this.tokens = 0, this.tokensPerSecond = 0.0, this.ttftMs, this.latencyMs});
   
 
 @override final  bool fromUser;
 @override@JsonKey() final  String text;
 @override@JsonKey() final  bool streaming;
+@override@JsonKey() final  int tokens;
 @override@JsonKey() final  double tokensPerSecond;
+@override final  int? ttftMs;
+@override final  int? latencyMs;
 
 /// Create a copy of ChatTurn
 /// with the given fields replaced by the non-null parameter values.
@@ -227,16 +233,16 @@ _$ChatTurnCopyWith<_ChatTurn> get copyWith => __$ChatTurnCopyWithImpl<_ChatTurn>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChatTurn&&(identical(other.fromUser, fromUser) || other.fromUser == fromUser)&&(identical(other.text, text) || other.text == text)&&(identical(other.streaming, streaming) || other.streaming == streaming)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChatTurn&&(identical(other.fromUser, fromUser) || other.fromUser == fromUser)&&(identical(other.text, text) || other.text == text)&&(identical(other.streaming, streaming) || other.streaming == streaming)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,fromUser,text,streaming,tokensPerSecond);
+int get hashCode => Object.hash(runtimeType,fromUser,text,streaming,tokens,tokensPerSecond,ttftMs,latencyMs);
 
 @override
 String toString() {
-  return 'ChatTurn(fromUser: $fromUser, text: $text, streaming: $streaming, tokensPerSecond: $tokensPerSecond)';
+  return 'ChatTurn(fromUser: $fromUser, text: $text, streaming: $streaming, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs)';
 }
 
 
@@ -247,7 +253,7 @@ abstract mixin class _$ChatTurnCopyWith<$Res> implements $ChatTurnCopyWith<$Res>
   factory _$ChatTurnCopyWith(_ChatTurn value, $Res Function(_ChatTurn) _then) = __$ChatTurnCopyWithImpl;
 @override @useResult
 $Res call({
- bool fromUser, String text, bool streaming, double tokensPerSecond
+ bool fromUser, String text, bool streaming, int tokens, double tokensPerSecond, int? ttftMs, int? latencyMs
 });
 
 
@@ -264,13 +270,16 @@ class __$ChatTurnCopyWithImpl<$Res>
 
 /// Create a copy of ChatTurn
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? fromUser = null,Object? text = null,Object? streaming = null,Object? tokensPerSecond = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? fromUser = null,Object? text = null,Object? streaming = null,Object? tokens = null,Object? tokensPerSecond = null,Object? ttftMs = freezed,Object? latencyMs = freezed,}) {
   return _then(_ChatTurn(
 fromUser: null == fromUser ? _self.fromUser : fromUser // ignore: cast_nullable_to_non_nullable
 as bool,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
 as String,streaming: null == streaming ? _self.streaming : streaming // ignore: cast_nullable_to_non_nullable
-as bool,tokensPerSecond: null == tokensPerSecond ? _self.tokensPerSecond : tokensPerSecond // ignore: cast_nullable_to_non_nullable
-as double,
+as bool,tokens: null == tokens ? _self.tokens : tokens // ignore: cast_nullable_to_non_nullable
+as int,tokensPerSecond: null == tokensPerSecond ? _self.tokensPerSecond : tokensPerSecond // ignore: cast_nullable_to_non_nullable
+as double,ttftMs: freezed == ttftMs ? _self.ttftMs : ttftMs // ignore: cast_nullable_to_non_nullable
+as int?,latencyMs: freezed == latencyMs ? _self.latencyMs : latencyMs // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 

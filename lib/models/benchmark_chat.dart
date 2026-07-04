@@ -10,7 +10,10 @@ abstract class ChatTurn with _$ChatTurn {
     required bool fromUser,
     @Default('') String text,
     @Default(false) bool streaming,
+    @Default(0) int tokens,
     @Default(0.0) double tokensPerSecond,
+    int? ttftMs,
+    int? latencyMs,
   }) = _ChatTurn;
 }
 

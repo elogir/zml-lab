@@ -63,18 +63,36 @@ class BenchmarkChatController extends _$BenchmarkChatController {
         ChatTurn(
           fromUser: false,
           text: request.text,
+          tokens: request.tokens,
           tokensPerSecond: request.tokensPerSecond,
+          ttftMs: request.ttftMs,
+          latencyMs: request.latencyMs,
         ),
       ],
     );
   }
 
-  /// Fire a single request: append the user's prompt and an empty reply, then
-  /// stream the reply in.
+  /// Fire a single request: append the user's prompt, then stream a reply.
   void send(String prompt) {
     if (prompt.trim().isEmpty || state.isStreaming) return;
-    _ticker?.cancel();
+    state = state.copyWith(
+      turns: [...state.turns, ChatTurn(fromUser: true, text: prompt)],
+    );
+    _startReply();
+  }
 
+  /// Re-run a user message: drop everything after it and stream a fresh reply,
+  /// as if the prompt had just been sent again.
+  void replay(int turnIndex) {
+    if (turnIndex < 0 || turnIndex >= state.turns.length) return;
+    if (!state.turns[turnIndex].fromUser) return;
+    state = state.copyWith(turns: state.turns.sublist(0, turnIndex + 1));
+    _startReply();
+  }
+
+  /// Append an empty reply turn and stream a canned answer into it.
+  void _startReply() {
+    _ticker?.cancel();
     final reply = _replies[_replyCursor % _replies.length];
     _replyCursor++;
     _target = reply.split(' ').length;
@@ -83,11 +101,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
     _turnStart = DateTime.now();
 
     state = state.copyWith(
-      turns: [
-        ...state.turns,
-        ChatTurn(fromUser: true, text: prompt),
-        const ChatTurn(fromUser: false, streaming: true),
-      ],
+      turns: [...state.turns, const ChatTurn(fromUser: false, streaming: true)],
     );
     _ticker = Timer.periodic(
       const Duration(milliseconds: 60),
@@ -109,9 +123,12 @@ class BenchmarkChatController extends _$BenchmarkChatController {
       fromUser: false,
       text: words.take(tokens).join(' '),
       streaming: !done,
+      tokens: tokens,
       tokensPerSecond: done
           ? turns.last.tokensPerSecond
           : (_rate + (_rng.nextDouble() * 6 - 3)).clamp(1, 999),
+      ttftMs: _ttftMs,
+      latencyMs: done ? elapsedMs : null,
     );
     state = state.copyWith(turns: turns);
     if (done) _ticker?.cancel();

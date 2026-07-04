@@ -112,17 +112,19 @@ class _ChatViewState extends ConsumerState<_ChatView> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final maxBubble = constraints.maxWidth * 0.82;
-                      return ListView.separated(
-                        controller: _scroll,
-                        padding: EdgeInsets.zero,
-                        itemCount: chat.turns.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(height: AppSpacing.md),
-                        itemBuilder: (context, i) =>
-                            _Bubble(turn: chat.turns[i], maxWidth: maxBubble),
+                  child: ListView.separated(
+                    controller: _scroll,
+                    padding: EdgeInsets.zero,
+                    itemCount: chat.turns.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.xs),
+                    itemBuilder: (context, i) {
+                      final turn = chat.turns[i];
+                      return _Turn(
+                        turn: turn,
+                        onReplay: turn.fromUser
+                            ? () => _controller.replay(i)
+                            : null,
                       );
                     },
                   ),
@@ -157,89 +159,144 @@ class _ChatViewState extends ConsumerState<_ChatView> {
   }
 }
 
-/// A single chat message — the user's prompt (right, filled) or the model's
-/// reply (left, bordered) with a live tokens/sec readout while it streams.
-class _Bubble extends StatelessWidget {
-  const _Bubble({required this.turn, required this.maxWidth});
+/// One row in the transcript, Codex-style: the user's prompt on a full-width
+/// tinted band (marked `›`, with a replay button on hover), or the model's
+/// reply on the plain background (marked `•`) followed by its metrics.
+class _Turn extends StatelessWidget {
+  const _Turn({required this.turn, this.onReplay});
 
   final ChatTurn turn;
-  final double maxWidth;
+  final VoidCallback? onReplay;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final marker = context.text.mono.copyWith(color: c.textFaint, height: 1.5);
 
     if (turn.fromUser) {
-      return Align(
-        alignment: Alignment.centerRight,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              color: c.surfaceMuted,
-              borderRadius: AppRadius.mdAll,
-              border: Border.all(color: c.border),
-            ),
-            child: Text(
-              turn.text,
-              style: context.text.mono.copyWith(color: c.textPrimary),
-            ),
+      return HoverRegion(
+        cursor: SystemMouseCursors.basic,
+        builder: (context, hovered) => Container(
+          width: double.infinity,
+          color: c.surfaceMuted,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('›', style: marker),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  turn.text,
+                  style: context.text.mono.copyWith(
+                    color: c.textPrimary,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+              if (onReplay != null)
+                // Reserve the slot always so revealing it doesn't reflow the
+                // text; only interactive while hovered.
+                IgnorePointer(
+                  ignoring: !hovered,
+                  child: Opacity(
+                    opacity: hovered ? 1 : 0,
+                    child: AppIconButton(
+                      icon: AppIcons.restart,
+                      size: 13,
+                      padding: const EdgeInsets.all(6),
+                      onPressed: onReplay,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       );
     }
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: c.surface,
-            borderRadius: AppRadius.mdAll,
-            border: Border.all(color: c.borderMuted),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                turn.text.isEmpty ? '…' : turn.text,
-                style: context.text.mono.copyWith(
-                  color: c.textSecondary,
-                  height: 1.5,
-                ),
-              ),
-              if (turn.streaming) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: c.statusStarting,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${turn.tokensPerSecond.toStringAsFixed(0)} t/s',
-                      style: context.text.monoSmall.copyWith(
-                        color: c.statusStarting,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
       ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('•', style: marker),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  turn.text.isEmpty ? '…' : turn.text,
+                  style: context.text.mono.copyWith(
+                    color: c.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _Metrics(turn: turn),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The kept ttft / tokens / latency / throughput readout under a reply.
+class _Metrics extends StatelessWidget {
+  const _Metrics({required this.turn});
+
+  final ChatTurn turn;
+
+  String _ms(int? v) => v == null ? '—' : '${v}ms';
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final tpsColor = turn.streaming ? c.statusStarting : c.textMuted;
+    return Row(
+      children: [
+        _metric(context, 'ttft', _ms(turn.ttftMs)),
+        const SizedBox(width: AppSpacing.lg),
+        _metric(context, 'tok', '${turn.tokens}'),
+        const SizedBox(width: AppSpacing.lg),
+        _metric(context, 'lat', _ms(turn.latencyMs)),
+        const SizedBox(width: AppSpacing.lg),
+        if (turn.streaming) ...[
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: c.statusStarting,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+        ],
+        Text(
+          '${turn.tokensPerSecond.toStringAsFixed(1)} t/s',
+          style: context.text.monoSmall.copyWith(color: tpsColor),
+        ),
+      ],
+    );
+  }
+
+  Widget _metric(BuildContext context, String label, String value) {
+    final c = context.colors;
+    return Row(
+      children: [
+        Text(label, style: context.text.monoSmall.copyWith(color: c.textFaint)),
+        const SizedBox(width: 5),
+        Text(value, style: context.text.monoSmall),
+      ],
     );
   }
 }
