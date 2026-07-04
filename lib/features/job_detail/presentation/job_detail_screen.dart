@@ -156,7 +156,6 @@ class _Header extends StatelessWidget {
         ),
         const Spacer(),
         _Meta(label: 'host', value: machine?.name ?? job.machineId),
-        _Meta(label: 'prog', value: job.program),
         _Meta(label: 'port', value: '${job.port}'),
       ],
     );
