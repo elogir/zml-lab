@@ -1005,10 +1005,11 @@ class _WebViewState extends ConsumerState<_WebView> {
 <!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  html,body{height:100%;margin:0}
+  html,body{margin:0;height:100%}
   body{background:#0B0C0E;color:#8A919B;
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    display:flex;align-items:center;justify-content:center;padding:24px;
+    position:fixed;inset:0;
+    display:flex;align-items:center;justify-content:center;
     -webkit-user-select:none;user-select:none}
   .box{text-align:center}
   .glyph{width:44px;height:44px;margin:0 auto 18px;opacity:.55;
@@ -1017,16 +1018,13 @@ class _WebViewState extends ConsumerState<_WebView> {
   .glyph svg{width:22px;height:22px;stroke:#8A919B;fill:none;stroke-width:1.6}
   .title{color:#E6E8EB;font-size:15px;margin-bottom:10px;letter-spacing:.02em}
   .hint{font-size:12px;line-height:1.9;color:#8A919B}
-  kbd{background:#16181D;border:1px solid #21262D;border-radius:4px;
-    padding:1px 6px;color:#C9D1D9;font-size:11px}
 </style></head><body><div class="box">
   <div class="glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/>
     <line x1="2" y1="12" x2="22" y2="12"/>
     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
     </svg></div>
   <div class="title">New tab</div>
-  <div class="hint">Type an address or search in the bar above.<br>
-    Press <kbd>&#8984;F</kbd> to find on a page.</div>
+  <div class="hint">Type an address or search in the bar above.</div>
 </div></body></html>''';
 
   @override
