@@ -1,0 +1,30 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'benchmark_chat.freezed.dart';
+
+/// One message in a benchmark chat — either the user's prompt or the model's
+/// (streamed) reply.
+@freezed
+abstract class ChatTurn with _$ChatTurn {
+  const factory ChatTurn({
+    required bool fromUser,
+    @Default('') String text,
+    @Default(false) bool streaming,
+    @Default(0.0) double tokensPerSecond,
+  }) = _ChatTurn;
+}
+
+/// A running conversation with a job's endpoint, seeded from the benchmark
+/// request that was opened. Each user prompt fires a single request whose reply
+/// streams in like a real chat.
+@freezed
+abstract class BenchmarkChat with _$BenchmarkChat {
+  const BenchmarkChat._();
+
+  const factory BenchmarkChat({
+    @Default(<ChatTurn>[]) List<ChatTurn> turns,
+  }) = _BenchmarkChat;
+
+  /// True while the latest reply is still streaming in.
+  bool get isStreaming => turns.isNotEmpty && turns.last.streaming;
+}

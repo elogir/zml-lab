@@ -16,6 +16,7 @@ class AppTextField extends StatefulWidget {
     this.prefix,
     this.mono = false,
     this.onChanged,
+    this.onSubmitted,
     this.minLines = 1,
     this.maxLines = 1,
     this.expands = false,
@@ -27,6 +28,7 @@ class AppTextField extends StatefulWidget {
   final String? prefix;
   final bool mono;
   final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
   final int minLines;
   final int maxLines;
 
@@ -120,6 +122,7 @@ class _AppTextFieldState extends State<AppTextField> {
                       ? TextAlignVertical.top
                       : null,
                   onChanged: widget.onChanged,
+                  onSubmitted: widget.onSubmitted,
                   decoration: InputDecoration.collapsed(
                     hintText: widget.placeholder,
                     hintStyle: baseStyle.copyWith(color: c.textFaint),

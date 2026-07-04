@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
-import '../../../models/benchmark.dart';
-import '../application/benchmark_controller.dart';
-import 'benchmark_request_card.dart';
+import '../../../models/benchmark_chat.dart';
+import '../application/benchmark_chat_controller.dart';
 
-/// Expands a single benchmark request to fullscreen, where its response can be
-/// watched large and a request sent manually.
+/// Opens the clicked benchmark request as a chat: its prompt and reply seed the
+/// conversation, and the user can keep sending single requests and watch each
+/// reply stream back.
 Future<void> showBenchmarkFocus(BuildContext context, String jobId, int index) {
   return Navigator.of(context, rootNavigator: true).push(
     PageRouteBuilder<void>(
@@ -17,7 +17,7 @@ Future<void> showBenchmarkFocus(BuildContext context, String jobId, int index) {
       barrierDismissible: true,
       barrierLabel: 'Close',
       transitionDuration: AppDurations.normal,
-      pageBuilder: (context, _, _) => _FocusView(jobId: jobId, index: index),
+      pageBuilder: (context, _, _) => _ChatView(jobId: jobId, index: index),
       transitionsBuilder: (context, anim, _, child) => FadeTransition(
         opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
         child: child,
@@ -26,40 +26,59 @@ Future<void> showBenchmarkFocus(BuildContext context, String jobId, int index) {
   );
 }
 
-class _FocusView extends ConsumerStatefulWidget {
-  const _FocusView({required this.jobId, required this.index});
+class _ChatView extends ConsumerStatefulWidget {
+  const _ChatView({required this.jobId, required this.index});
 
   final String jobId;
   final int index;
 
   @override
-  ConsumerState<_FocusView> createState() => _FocusViewState();
+  ConsumerState<_ChatView> createState() => _ChatViewState();
 }
 
-class _FocusViewState extends ConsumerState<_FocusView> {
-  late final TextEditingController _prompt = TextEditingController(
-    text: defaultBenchmarkPrompt,
-  );
+class _ChatViewState extends ConsumerState<_ChatView> {
+  final TextEditingController _prompt = TextEditingController();
+  final ScrollController _scroll = ScrollController();
 
   @override
   void dispose() {
     _prompt.dispose();
+    _scroll.dispose();
     super.dispose();
+  }
+
+  BenchmarkChatController get _controller => ref.read(
+    benchmarkChatControllerProvider(widget.jobId, widget.index).notifier,
+  );
+
+  void _send() {
+    final text = _prompt.text;
+    if (text.trim().isEmpty) return;
+    _controller.send(text);
+    _prompt.clear();
+    _scrollToBottom();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final run = ref.watch(benchmarkControllerProvider(widget.jobId));
-    final request = run.requests.firstWhere(
-      (r) => r.index == widget.index,
-      orElse: () => BenchmarkRequest(index: widget.index),
+    final chat = ref.watch(
+      benchmarkChatControllerProvider(widget.jobId, widget.index),
     );
-    final dot = benchmarkStatusColor(request.status, c);
+    // Follow the tail as tokens stream in.
+    ref.listen(
+      benchmarkChatControllerProvider(widget.jobId, widget.index),
+      (_, _) => _scrollToBottom(),
+    );
 
-    // Scale with the window (clamped both ways) so it grows on a large display,
-    // matching the prompt editor popup. The route fills the window, so the
-    // media size is the space available to the dialog.
     final size = MediaQuery.sizeOf(context);
     final width = (size.width * 0.62).clamp(480.0, 1100.0);
     final height = (size.height * 0.72).clamp(380.0, 900.0);
@@ -76,33 +95,15 @@ class _FocusViewState extends ConsumerState<_FocusView> {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: dot,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
+                    Icon(AppIcons.benchmark, size: 15, color: c.textSecondary),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text('Chat', style: context.text.bodyStrong),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
-                      'Request ${request.index.toString().padLeft(2, '0')}',
-                      style: context.text.bodyStrong,
+                      'request ${widget.index.toString().padLeft(2, '0')}',
+                      style: context.text.monoSmall.copyWith(color: c.textFaint),
                     ),
-                    const SizedBox(width: AppSpacing.md),
-                    Text(request.status.label,
-                        style: context.text.small.copyWith(color: dot)),
                     const Spacer(),
-                    Text(
-                      request.tokensPerSecond > 0
-                          ? '${request.tokensPerSecond.toStringAsFixed(1)} t/s'
-                          : '—',
-                      style: context.text.mono.copyWith(
-                        color: c.statusRunning,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
                     AppIconButton(
                       icon: AppIcons.close,
                       onPressed: () => Navigator.of(context).pop(),
@@ -111,20 +112,19 @@ class _FocusViewState extends ConsumerState<_FocusView> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Expanded(
-                  child: AppPanel(
-                    color: c.surfaceMuted,
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: SingleChildScrollView(
-                      child: Text(
-                        request.text.isEmpty
-                            ? 'Waiting for tokens…'
-                            : request.text,
-                        style: context.text.mono.copyWith(
-                          color: c.textSecondary,
-                          height: 1.6,
-                        ),
-                      ),
-                    ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final maxBubble = constraints.maxWidth * 0.82;
+                      return ListView.separated(
+                        controller: _scroll,
+                        padding: EdgeInsets.zero,
+                        itemCount: chat.turns.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(height: AppSpacing.md),
+                        itemBuilder: (context, i) =>
+                            _Bubble(turn: chat.turns[i], maxWidth: maxBubble),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
@@ -135,23 +135,108 @@ class _FocusViewState extends ConsumerState<_FocusView> {
                         controller: _prompt,
                         prefix: '>',
                         mono: true,
+                        autofocus: true,
+                        onSubmitted: (_) => _send(),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.md),
                     AppButton(
-                      label: 'Send request',
+                      label: 'Send',
                       icon: AppIcons.send,
                       variant: AppButtonVariant.primary,
-                      onPressed: () => ref
-                          .read(
-                            benchmarkControllerProvider(widget.jobId).notifier,
-                          )
-                          .start(),
+                      onPressed: chat.isStreaming ? null : _send,
                     ),
                   ],
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A single chat message — the user's prompt (right, filled) or the model's
+/// reply (left, bordered) with a live tokens/sec readout while it streams.
+class _Bubble extends StatelessWidget {
+  const _Bubble({required this.turn, required this.maxWidth});
+
+  final ChatTurn turn;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+
+    if (turn.fromUser) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              color: c.surfaceMuted,
+              borderRadius: AppRadius.mdAll,
+              border: Border.all(color: c.border),
+            ),
+            child: Text(
+              turn.text,
+              style: context.text.mono.copyWith(color: c.textPrimary),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: AppRadius.mdAll,
+            border: Border.all(color: c.borderMuted),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                turn.text.isEmpty ? '…' : turn.text,
+                style: context.text.mono.copyWith(
+                  color: c.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              if (turn.streaming) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: c.statusStarting,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${turn.tokensPerSecond.toStringAsFixed(0)} t/s',
+                      style: context.text.monoSmall.copyWith(
+                        color: c.statusStarting,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
           ),
         ),
       ),
