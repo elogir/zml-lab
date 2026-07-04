@@ -13,6 +13,11 @@ class TerminalSession {
 
   bool get isLive => false;
 
+  // No PTY on web, so the shell never exits. These mirror the native API so
+  // the multiplexer's exit-closes-pane wiring compiles on both platforms.
+  bool get hasExited => false;
+  VoidCallback? onExit;
+
   void dispose() {
     focusNode.dispose();
     controller.dispose();

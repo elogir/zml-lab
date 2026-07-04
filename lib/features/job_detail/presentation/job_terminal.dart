@@ -5,6 +5,7 @@ import 'package:flterm/flterm.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart'
     show InputDecoration, Material, MaterialType, TextField;
+import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter/services.dart'
     show
         HardwareKeyboard,
@@ -212,6 +213,20 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
   double _autoScrollDir = 0; // -1 = left, +1 = right, 0 = idle
 
   @override
+  void initState() {
+    super.initState();
+    // A shell that exits (Ctrl+D, `exit`, or a crash) should close its pane
+    // like a real multiplexer. Wire every existing terminal — including ones
+    // the keep-alive provider seeded and ones a previous mount left running —
+    // to close-on-exit against *this* State. Re-wiring on every remount is
+    // intended: the closure captures this instance, and a shell that died
+    // while we were off-screen is caught by the hasExited check in _wireExit.
+    for (final tab in _tabs) {
+      _forEachLeaf(tab.root, _wireExit);
+    }
+  }
+
+  @override
   void dispose() {
     // Leaving the detail view drops fullscreen so it never lingers elsewhere.
     // The sessions themselves are NOT disposed here — they're owned by the
@@ -275,6 +290,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     final leaf =
         (id == null ? null : _findLeaf(tab.root, id)) ?? _firstLeaf(tab.root);
     final newLeaf = _Leaf(_sameKind(leaf.content));
+    _wireExit(newLeaf);
     setState(() {
       tab.root = _replaceNode(tab.root, leaf, _Split(axis, leaf, newLeaf));
       _focusedId = newLeaf.id;
@@ -302,8 +318,74 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     WidgetsBinding.instance.addPostFrameCallback((_) => content.dispose());
   }
 
+  void _forEachLeaf(_Pane pane, void Function(_Leaf) fn) {
+    switch (pane) {
+      case _Leaf l:
+        fn(l);
+      case _Split s:
+        _forEachLeaf(s.first, fn);
+        _forEachLeaf(s.second, fn);
+    }
+  }
+
+  /// Wires a terminal leaf to close its pane when its shell process exits.
+  /// The session holds a single onExit, so this is safe to call again on
+  /// remount. No-op for web panes (no shell to exit).
+  void _wireExit(_Leaf leaf) {
+    final content = leaf.content;
+    if (content is! _TermContent) return;
+    final session = content.session;
+    session.onExit = () => _onLeafExited(leaf);
+    if (session.hasExited) _onLeafExited(leaf); // exited while unwired
+  }
+
+  /// A shell exited → close its pane. Runs directly when the app is idle (the
+  /// usual case: the exit arrives between frames), but defers to a post-frame
+  /// when called mid-build (the hasExited path from initState) so it never
+  /// calls setState during build.
+  void _onLeafExited(_Leaf leaf) {
+    if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
+      _closeExitedLeaf(leaf);
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _closeExitedLeaf(leaf);
+      });
+    }
+  }
+
+  /// Closes [leaf] wherever it lives: collapse its split (promoting the
+  /// sibling) if it has one, otherwise close its whole tab — and if that was
+  /// the last tab, [_closeTab] reseeds a fresh shell. Idempotent: a leaf
+  /// already removed (e.g. a duplicate exit callback) is a no-op.
+  void _closeExitedLeaf(_Leaf leaf) {
+    var tabIndex = -1;
+    for (var i = 0; i < _tabs.length; i++) {
+      if (_findLeaf(_tabs[i].root, leaf.id) != null) {
+        tabIndex = i;
+        break;
+      }
+    }
+    if (tabIndex == -1) return; // already gone
+    final tab = _tabs[tabIndex];
+    final parent = _findParent(tab.root, leaf);
+    if (parent == null) {
+      _closeTab(tabIndex); // sole pane in its tab → close the tab
+      return;
+    }
+    final sibling = identical(parent.first, leaf)
+        ? parent.second
+        : parent.first;
+    setState(() {
+      tab.root = _replaceNode(tab.root, parent, sibling);
+      if (_focusedId == leaf.id) _focusedId = _firstLeaf(sibling).id;
+    });
+    _applyFocus();
+    _disposeLater(leaf.content);
+  }
+
   void _addTab() {
     final leaf = _Leaf(_TermContent(TerminalSession()));
+    _wireExit(leaf);
     setState(() {
       _tabs.add(_Tab(leaf));
       _active = _tabs.length - 1;
@@ -392,7 +474,9 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     setState(() {
       _tabs.removeAt(i);
       if (_tabs.isEmpty) {
-        _tabs.add(_Tab(_Leaf(_TermContent(TerminalSession()))));
+        final leaf = _Leaf(_TermContent(TerminalSession()));
+        _wireExit(leaf);
+        _tabs.add(_Tab(leaf));
       }
       _active = _active.clamp(0, _tabs.length - 1);
       _focusedId = _firstLeaf(_tabs[_active].root).id;

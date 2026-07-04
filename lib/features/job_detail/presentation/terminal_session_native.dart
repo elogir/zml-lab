@@ -20,8 +20,19 @@ class TerminalSession {
 
   Pty? _pty;
   StreamSubscription<Uint8List>? _sub;
+  bool _exited = false;
 
   bool get isLive => _pty != null;
+
+  /// Whether the shell process has already exited (Ctrl+D, `exit`, or a
+  /// crash). Lets a late-attached [onExit] fire immediately if it missed the
+  /// event.
+  bool get hasExited => _exited;
+
+  /// Called once when the shell process exits, so the UI can close the pane.
+  /// Cleared before we kill the PTY ourselves in [dispose] so our own teardown
+  /// doesn't look like a user-initiated exit.
+  VoidCallback? onExit;
 
   void _startShell() {
     try {
@@ -37,12 +48,17 @@ class TerminalSession {
         ..onOutput = pty.write
         ..onResize = (cols, rows) => pty.resize(rows, cols);
       _sub = pty.output.listen(controller.write);
+      pty.exitCode.then((_) {
+        _exited = true;
+        onExit?.call();
+      });
     } catch (e) {
       debugPrint('Failed to start shell PTY: $e');
     }
   }
 
   void dispose() {
+    onExit = null;
     _sub?.cancel();
     try {
       _pty?.kill();
