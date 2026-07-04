@@ -11,7 +11,15 @@ part 'database.g.dart';
 /// On first creation it is seeded with a representative fleet + jobs so the
 /// UI has something to render. Persistence is real; the *logic* that would
 /// mutate this from live SSH sessions is deferred.
-@DriftDatabase(tables: [Machines, LaunchConfigs, Jobs, BrowserHistoryEntries])
+@DriftDatabase(
+  tables: [
+    Machines,
+    LaunchConfigs,
+    Jobs,
+    BrowserHistoryEntries,
+    SavedBenchmarks,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
     : super(
@@ -26,7 +34,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -36,6 +44,7 @@ class AppDatabase extends _$AppDatabase {
     },
     onUpgrade: (m, from, to) async {
       if (from < 2) await m.createTable(browserHistoryEntries);
+      if (from < 3) await m.createTable(savedBenchmarks);
     },
   );
 }

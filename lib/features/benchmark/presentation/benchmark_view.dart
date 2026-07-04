@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/benchmark.dart';
+import '../../saved_benchmarks/presentation/save_benchmark_dialog.dart';
 import '../application/benchmark_controller.dart';
 import 'benchmark_focus.dart';
 import 'benchmark_prompt_editor.dart';
@@ -52,6 +53,11 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
 
   void _send() => _controller.start();
 
+  void _saveBenchmark() {
+    final run = ref.read(benchmarkControllerProvider(widget.jobId));
+    showSaveBenchmarkDialog(context, run: run, endpoint: widget.endpoint);
+  }
+
   Future<void> _editPrompt() async {
     await showBenchmarkPromptEditor(context, widget.jobId);
     if (!mounted) return;
@@ -82,7 +88,12 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
           },
         ),
         const SizedBox(height: AppSpacing.lg),
-        _AggregateBar(run: run),
+        _AggregateBar(
+          run: run,
+          onSave: run.requests.isNotEmpty && !run.isRunning
+              ? _saveBenchmark
+              : null,
+        ),
         const SizedBox(height: AppSpacing.lg),
         Expanded(
           child: run.requests.isEmpty
@@ -169,9 +180,12 @@ class _Controls extends StatelessWidget {
 }
 
 class _AggregateBar extends StatelessWidget {
-  const _AggregateBar({required this.run});
+  const _AggregateBar({required this.run, this.onSave});
 
   final BenchmarkRun run;
+
+  /// Non-null when the current run can be saved (finished, non-empty).
+  final VoidCallback? onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -216,7 +230,14 @@ class _AggregateBar extends StatelessWidget {
             unit: 's',
           ),
           const Spacer(),
-          if (run.isRunning) _StreamingPill(),
+          if (run.isRunning)
+            _StreamingPill()
+          else if (onSave != null)
+            AppButton(
+              label: 'Save',
+              icon: AppIcons.save,
+              onPressed: onSave,
+            ),
         ],
       ),
     );

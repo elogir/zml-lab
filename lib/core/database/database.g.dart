@@ -2086,6 +2086,685 @@ class BrowserHistoryEntriesCompanion
   }
 }
 
+class $SavedBenchmarksTable extends SavedBenchmarks
+    with TableInfo<$SavedBenchmarksTable, SavedBenchmarkRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SavedBenchmarksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endpointMeta = const VerificationMeta(
+    'endpoint',
+  );
+  @override
+  late final GeneratedColumn<String> endpoint = GeneratedColumn<String>(
+    'endpoint',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _promptMeta = const VerificationMeta('prompt');
+  @override
+  late final GeneratedColumn<String> prompt = GeneratedColumn<String>(
+    'prompt',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _batchSizeMeta = const VerificationMeta(
+    'batchSize',
+  );
+  @override
+  late final GeneratedColumn<int> batchSize = GeneratedColumn<int>(
+    'batch_size',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _aggregateTokensPerSecondMeta =
+      const VerificationMeta('aggregateTokensPerSecond');
+  @override
+  late final GeneratedColumn<double> aggregateTokensPerSecond =
+      GeneratedColumn<double>(
+        'aggregate_tokens_per_second',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _completedMeta = const VerificationMeta(
+    'completed',
+  );
+  @override
+  late final GeneratedColumn<int> completed = GeneratedColumn<int>(
+    'completed',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _medianTtftMsMeta = const VerificationMeta(
+    'medianTtftMs',
+  );
+  @override
+  late final GeneratedColumn<int> medianTtftMs = GeneratedColumn<int>(
+    'median_ttft_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _elapsedMsMeta = const VerificationMeta(
+    'elapsedMs',
+  );
+  @override
+  late final GeneratedColumn<int> elapsedMs = GeneratedColumn<int>(
+    'elapsed_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _requestsJsonMeta = const VerificationMeta(
+    'requestsJson',
+  );
+  @override
+  late final GeneratedColumn<String> requestsJson = GeneratedColumn<String>(
+    'requests_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    endpoint,
+    prompt,
+    batchSize,
+    aggregateTokensPerSecond,
+    completed,
+    medianTtftMs,
+    elapsedMs,
+    createdAt,
+    requestsJson,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'saved_benchmarks';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SavedBenchmarkRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('endpoint')) {
+      context.handle(
+        _endpointMeta,
+        endpoint.isAcceptableOrUnknown(data['endpoint']!, _endpointMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_endpointMeta);
+    }
+    if (data.containsKey('prompt')) {
+      context.handle(
+        _promptMeta,
+        prompt.isAcceptableOrUnknown(data['prompt']!, _promptMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_promptMeta);
+    }
+    if (data.containsKey('batch_size')) {
+      context.handle(
+        _batchSizeMeta,
+        batchSize.isAcceptableOrUnknown(data['batch_size']!, _batchSizeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_batchSizeMeta);
+    }
+    if (data.containsKey('aggregate_tokens_per_second')) {
+      context.handle(
+        _aggregateTokensPerSecondMeta,
+        aggregateTokensPerSecond.isAcceptableOrUnknown(
+          data['aggregate_tokens_per_second']!,
+          _aggregateTokensPerSecondMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_aggregateTokensPerSecondMeta);
+    }
+    if (data.containsKey('completed')) {
+      context.handle(
+        _completedMeta,
+        completed.isAcceptableOrUnknown(data['completed']!, _completedMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_completedMeta);
+    }
+    if (data.containsKey('median_ttft_ms')) {
+      context.handle(
+        _medianTtftMsMeta,
+        medianTtftMs.isAcceptableOrUnknown(
+          data['median_ttft_ms']!,
+          _medianTtftMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_medianTtftMsMeta);
+    }
+    if (data.containsKey('elapsed_ms')) {
+      context.handle(
+        _elapsedMsMeta,
+        elapsedMs.isAcceptableOrUnknown(data['elapsed_ms']!, _elapsedMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_elapsedMsMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('requests_json')) {
+      context.handle(
+        _requestsJsonMeta,
+        requestsJson.isAcceptableOrUnknown(
+          data['requests_json']!,
+          _requestsJsonMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SavedBenchmarkRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SavedBenchmarkRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      endpoint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}endpoint'],
+      )!,
+      prompt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}prompt'],
+      )!,
+      batchSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}batch_size'],
+      )!,
+      aggregateTokensPerSecond: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}aggregate_tokens_per_second'],
+      )!,
+      completed: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}completed'],
+      )!,
+      medianTtftMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}median_ttft_ms'],
+      )!,
+      elapsedMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}elapsed_ms'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      requestsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}requests_json'],
+      )!,
+    );
+  }
+
+  @override
+  $SavedBenchmarksTable createAlias(String alias) {
+    return $SavedBenchmarksTable(attachedDatabase, alias);
+  }
+}
+
+class SavedBenchmarkRow extends DataClass
+    implements Insertable<SavedBenchmarkRow> {
+  final String id;
+  final String name;
+  final String endpoint;
+  final String prompt;
+  final int batchSize;
+  final double aggregateTokensPerSecond;
+  final int completed;
+  final int medianTtftMs;
+  final int elapsedMs;
+  final DateTime createdAt;
+
+  /// JSON-encoded `List<BenchmarkRequest>` — the saved per-request responses.
+  final String requestsJson;
+  const SavedBenchmarkRow({
+    required this.id,
+    required this.name,
+    required this.endpoint,
+    required this.prompt,
+    required this.batchSize,
+    required this.aggregateTokensPerSecond,
+    required this.completed,
+    required this.medianTtftMs,
+    required this.elapsedMs,
+    required this.createdAt,
+    required this.requestsJson,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['endpoint'] = Variable<String>(endpoint);
+    map['prompt'] = Variable<String>(prompt);
+    map['batch_size'] = Variable<int>(batchSize);
+    map['aggregate_tokens_per_second'] = Variable<double>(
+      aggregateTokensPerSecond,
+    );
+    map['completed'] = Variable<int>(completed);
+    map['median_ttft_ms'] = Variable<int>(medianTtftMs);
+    map['elapsed_ms'] = Variable<int>(elapsedMs);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['requests_json'] = Variable<String>(requestsJson);
+    return map;
+  }
+
+  SavedBenchmarksCompanion toCompanion(bool nullToAbsent) {
+    return SavedBenchmarksCompanion(
+      id: Value(id),
+      name: Value(name),
+      endpoint: Value(endpoint),
+      prompt: Value(prompt),
+      batchSize: Value(batchSize),
+      aggregateTokensPerSecond: Value(aggregateTokensPerSecond),
+      completed: Value(completed),
+      medianTtftMs: Value(medianTtftMs),
+      elapsedMs: Value(elapsedMs),
+      createdAt: Value(createdAt),
+      requestsJson: Value(requestsJson),
+    );
+  }
+
+  factory SavedBenchmarkRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SavedBenchmarkRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      endpoint: serializer.fromJson<String>(json['endpoint']),
+      prompt: serializer.fromJson<String>(json['prompt']),
+      batchSize: serializer.fromJson<int>(json['batchSize']),
+      aggregateTokensPerSecond: serializer.fromJson<double>(
+        json['aggregateTokensPerSecond'],
+      ),
+      completed: serializer.fromJson<int>(json['completed']),
+      medianTtftMs: serializer.fromJson<int>(json['medianTtftMs']),
+      elapsedMs: serializer.fromJson<int>(json['elapsedMs']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      requestsJson: serializer.fromJson<String>(json['requestsJson']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'endpoint': serializer.toJson<String>(endpoint),
+      'prompt': serializer.toJson<String>(prompt),
+      'batchSize': serializer.toJson<int>(batchSize),
+      'aggregateTokensPerSecond': serializer.toJson<double>(
+        aggregateTokensPerSecond,
+      ),
+      'completed': serializer.toJson<int>(completed),
+      'medianTtftMs': serializer.toJson<int>(medianTtftMs),
+      'elapsedMs': serializer.toJson<int>(elapsedMs),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'requestsJson': serializer.toJson<String>(requestsJson),
+    };
+  }
+
+  SavedBenchmarkRow copyWith({
+    String? id,
+    String? name,
+    String? endpoint,
+    String? prompt,
+    int? batchSize,
+    double? aggregateTokensPerSecond,
+    int? completed,
+    int? medianTtftMs,
+    int? elapsedMs,
+    DateTime? createdAt,
+    String? requestsJson,
+  }) => SavedBenchmarkRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    endpoint: endpoint ?? this.endpoint,
+    prompt: prompt ?? this.prompt,
+    batchSize: batchSize ?? this.batchSize,
+    aggregateTokensPerSecond:
+        aggregateTokensPerSecond ?? this.aggregateTokensPerSecond,
+    completed: completed ?? this.completed,
+    medianTtftMs: medianTtftMs ?? this.medianTtftMs,
+    elapsedMs: elapsedMs ?? this.elapsedMs,
+    createdAt: createdAt ?? this.createdAt,
+    requestsJson: requestsJson ?? this.requestsJson,
+  );
+  SavedBenchmarkRow copyWithCompanion(SavedBenchmarksCompanion data) {
+    return SavedBenchmarkRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      endpoint: data.endpoint.present ? data.endpoint.value : this.endpoint,
+      prompt: data.prompt.present ? data.prompt.value : this.prompt,
+      batchSize: data.batchSize.present ? data.batchSize.value : this.batchSize,
+      aggregateTokensPerSecond: data.aggregateTokensPerSecond.present
+          ? data.aggregateTokensPerSecond.value
+          : this.aggregateTokensPerSecond,
+      completed: data.completed.present ? data.completed.value : this.completed,
+      medianTtftMs: data.medianTtftMs.present
+          ? data.medianTtftMs.value
+          : this.medianTtftMs,
+      elapsedMs: data.elapsedMs.present ? data.elapsedMs.value : this.elapsedMs,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      requestsJson: data.requestsJson.present
+          ? data.requestsJson.value
+          : this.requestsJson,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavedBenchmarkRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('endpoint: $endpoint, ')
+          ..write('prompt: $prompt, ')
+          ..write('batchSize: $batchSize, ')
+          ..write('aggregateTokensPerSecond: $aggregateTokensPerSecond, ')
+          ..write('completed: $completed, ')
+          ..write('medianTtftMs: $medianTtftMs, ')
+          ..write('elapsedMs: $elapsedMs, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('requestsJson: $requestsJson')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    endpoint,
+    prompt,
+    batchSize,
+    aggregateTokensPerSecond,
+    completed,
+    medianTtftMs,
+    elapsedMs,
+    createdAt,
+    requestsJson,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SavedBenchmarkRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.endpoint == this.endpoint &&
+          other.prompt == this.prompt &&
+          other.batchSize == this.batchSize &&
+          other.aggregateTokensPerSecond == this.aggregateTokensPerSecond &&
+          other.completed == this.completed &&
+          other.medianTtftMs == this.medianTtftMs &&
+          other.elapsedMs == this.elapsedMs &&
+          other.createdAt == this.createdAt &&
+          other.requestsJson == this.requestsJson);
+}
+
+class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> endpoint;
+  final Value<String> prompt;
+  final Value<int> batchSize;
+  final Value<double> aggregateTokensPerSecond;
+  final Value<int> completed;
+  final Value<int> medianTtftMs;
+  final Value<int> elapsedMs;
+  final Value<DateTime> createdAt;
+  final Value<String> requestsJson;
+  final Value<int> rowid;
+  const SavedBenchmarksCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.endpoint = const Value.absent(),
+    this.prompt = const Value.absent(),
+    this.batchSize = const Value.absent(),
+    this.aggregateTokensPerSecond = const Value.absent(),
+    this.completed = const Value.absent(),
+    this.medianTtftMs = const Value.absent(),
+    this.elapsedMs = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.requestsJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SavedBenchmarksCompanion.insert({
+    required String id,
+    required String name,
+    required String endpoint,
+    required String prompt,
+    required int batchSize,
+    required double aggregateTokensPerSecond,
+    required int completed,
+    required int medianTtftMs,
+    required int elapsedMs,
+    required DateTime createdAt,
+    this.requestsJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       endpoint = Value(endpoint),
+       prompt = Value(prompt),
+       batchSize = Value(batchSize),
+       aggregateTokensPerSecond = Value(aggregateTokensPerSecond),
+       completed = Value(completed),
+       medianTtftMs = Value(medianTtftMs),
+       elapsedMs = Value(elapsedMs),
+       createdAt = Value(createdAt);
+  static Insertable<SavedBenchmarkRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? endpoint,
+    Expression<String>? prompt,
+    Expression<int>? batchSize,
+    Expression<double>? aggregateTokensPerSecond,
+    Expression<int>? completed,
+    Expression<int>? medianTtftMs,
+    Expression<int>? elapsedMs,
+    Expression<DateTime>? createdAt,
+    Expression<String>? requestsJson,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (endpoint != null) 'endpoint': endpoint,
+      if (prompt != null) 'prompt': prompt,
+      if (batchSize != null) 'batch_size': batchSize,
+      if (aggregateTokensPerSecond != null)
+        'aggregate_tokens_per_second': aggregateTokensPerSecond,
+      if (completed != null) 'completed': completed,
+      if (medianTtftMs != null) 'median_ttft_ms': medianTtftMs,
+      if (elapsedMs != null) 'elapsed_ms': elapsedMs,
+      if (createdAt != null) 'created_at': createdAt,
+      if (requestsJson != null) 'requests_json': requestsJson,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SavedBenchmarksCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? endpoint,
+    Value<String>? prompt,
+    Value<int>? batchSize,
+    Value<double>? aggregateTokensPerSecond,
+    Value<int>? completed,
+    Value<int>? medianTtftMs,
+    Value<int>? elapsedMs,
+    Value<DateTime>? createdAt,
+    Value<String>? requestsJson,
+    Value<int>? rowid,
+  }) {
+    return SavedBenchmarksCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      endpoint: endpoint ?? this.endpoint,
+      prompt: prompt ?? this.prompt,
+      batchSize: batchSize ?? this.batchSize,
+      aggregateTokensPerSecond:
+          aggregateTokensPerSecond ?? this.aggregateTokensPerSecond,
+      completed: completed ?? this.completed,
+      medianTtftMs: medianTtftMs ?? this.medianTtftMs,
+      elapsedMs: elapsedMs ?? this.elapsedMs,
+      createdAt: createdAt ?? this.createdAt,
+      requestsJson: requestsJson ?? this.requestsJson,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (endpoint.present) {
+      map['endpoint'] = Variable<String>(endpoint.value);
+    }
+    if (prompt.present) {
+      map['prompt'] = Variable<String>(prompt.value);
+    }
+    if (batchSize.present) {
+      map['batch_size'] = Variable<int>(batchSize.value);
+    }
+    if (aggregateTokensPerSecond.present) {
+      map['aggregate_tokens_per_second'] = Variable<double>(
+        aggregateTokensPerSecond.value,
+      );
+    }
+    if (completed.present) {
+      map['completed'] = Variable<int>(completed.value);
+    }
+    if (medianTtftMs.present) {
+      map['median_ttft_ms'] = Variable<int>(medianTtftMs.value);
+    }
+    if (elapsedMs.present) {
+      map['elapsed_ms'] = Variable<int>(elapsedMs.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (requestsJson.present) {
+      map['requests_json'] = Variable<String>(requestsJson.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavedBenchmarksCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('endpoint: $endpoint, ')
+          ..write('prompt: $prompt, ')
+          ..write('batchSize: $batchSize, ')
+          ..write('aggregateTokensPerSecond: $aggregateTokensPerSecond, ')
+          ..write('completed: $completed, ')
+          ..write('medianTtftMs: $medianTtftMs, ')
+          ..write('elapsedMs: $elapsedMs, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('requestsJson: $requestsJson, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2094,6 +2773,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $JobsTable jobs = $JobsTable(this);
   late final $BrowserHistoryEntriesTable browserHistoryEntries =
       $BrowserHistoryEntriesTable(this);
+  late final $SavedBenchmarksTable savedBenchmarks = $SavedBenchmarksTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2103,6 +2785,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     launchConfigs,
     jobs,
     browserHistoryEntries,
+    savedBenchmarks,
   ];
 }
 
@@ -3169,6 +3852,332 @@ typedef $$BrowserHistoryEntriesTableProcessedTableManager =
       BrowserHistoryRow,
       PrefetchHooks Function()
     >;
+typedef $$SavedBenchmarksTableCreateCompanionBuilder =
+    SavedBenchmarksCompanion Function({
+      required String id,
+      required String name,
+      required String endpoint,
+      required String prompt,
+      required int batchSize,
+      required double aggregateTokensPerSecond,
+      required int completed,
+      required int medianTtftMs,
+      required int elapsedMs,
+      required DateTime createdAt,
+      Value<String> requestsJson,
+      Value<int> rowid,
+    });
+typedef $$SavedBenchmarksTableUpdateCompanionBuilder =
+    SavedBenchmarksCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> endpoint,
+      Value<String> prompt,
+      Value<int> batchSize,
+      Value<double> aggregateTokensPerSecond,
+      Value<int> completed,
+      Value<int> medianTtftMs,
+      Value<int> elapsedMs,
+      Value<DateTime> createdAt,
+      Value<String> requestsJson,
+      Value<int> rowid,
+    });
+
+class $$SavedBenchmarksTableFilterComposer
+    extends Composer<_$AppDatabase, $SavedBenchmarksTable> {
+  $$SavedBenchmarksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endpoint => $composableBuilder(
+    column: $table.endpoint,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get prompt => $composableBuilder(
+    column: $table.prompt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get batchSize => $composableBuilder(
+    column: $table.batchSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get aggregateTokensPerSecond => $composableBuilder(
+    column: $table.aggregateTokensPerSecond,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get completed => $composableBuilder(
+    column: $table.completed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get medianTtftMs => $composableBuilder(
+    column: $table.medianTtftMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get elapsedMs => $composableBuilder(
+    column: $table.elapsedMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get requestsJson => $composableBuilder(
+    column: $table.requestsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SavedBenchmarksTableOrderingComposer
+    extends Composer<_$AppDatabase, $SavedBenchmarksTable> {
+  $$SavedBenchmarksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endpoint => $composableBuilder(
+    column: $table.endpoint,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get prompt => $composableBuilder(
+    column: $table.prompt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get batchSize => $composableBuilder(
+    column: $table.batchSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get aggregateTokensPerSecond => $composableBuilder(
+    column: $table.aggregateTokensPerSecond,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get completed => $composableBuilder(
+    column: $table.completed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get medianTtftMs => $composableBuilder(
+    column: $table.medianTtftMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get elapsedMs => $composableBuilder(
+    column: $table.elapsedMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get requestsJson => $composableBuilder(
+    column: $table.requestsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SavedBenchmarksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SavedBenchmarksTable> {
+  $$SavedBenchmarksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get endpoint =>
+      $composableBuilder(column: $table.endpoint, builder: (column) => column);
+
+  GeneratedColumn<String> get prompt =>
+      $composableBuilder(column: $table.prompt, builder: (column) => column);
+
+  GeneratedColumn<int> get batchSize =>
+      $composableBuilder(column: $table.batchSize, builder: (column) => column);
+
+  GeneratedColumn<double> get aggregateTokensPerSecond => $composableBuilder(
+    column: $table.aggregateTokensPerSecond,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get completed =>
+      $composableBuilder(column: $table.completed, builder: (column) => column);
+
+  GeneratedColumn<int> get medianTtftMs => $composableBuilder(
+    column: $table.medianTtftMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get elapsedMs =>
+      $composableBuilder(column: $table.elapsedMs, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get requestsJson => $composableBuilder(
+    column: $table.requestsJson,
+    builder: (column) => column,
+  );
+}
+
+class $$SavedBenchmarksTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SavedBenchmarksTable,
+          SavedBenchmarkRow,
+          $$SavedBenchmarksTableFilterComposer,
+          $$SavedBenchmarksTableOrderingComposer,
+          $$SavedBenchmarksTableAnnotationComposer,
+          $$SavedBenchmarksTableCreateCompanionBuilder,
+          $$SavedBenchmarksTableUpdateCompanionBuilder,
+          (
+            SavedBenchmarkRow,
+            BaseReferences<
+              _$AppDatabase,
+              $SavedBenchmarksTable,
+              SavedBenchmarkRow
+            >,
+          ),
+          SavedBenchmarkRow,
+          PrefetchHooks Function()
+        > {
+  $$SavedBenchmarksTableTableManager(
+    _$AppDatabase db,
+    $SavedBenchmarksTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SavedBenchmarksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SavedBenchmarksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SavedBenchmarksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> endpoint = const Value.absent(),
+                Value<String> prompt = const Value.absent(),
+                Value<int> batchSize = const Value.absent(),
+                Value<double> aggregateTokensPerSecond = const Value.absent(),
+                Value<int> completed = const Value.absent(),
+                Value<int> medianTtftMs = const Value.absent(),
+                Value<int> elapsedMs = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<String> requestsJson = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SavedBenchmarksCompanion(
+                id: id,
+                name: name,
+                endpoint: endpoint,
+                prompt: prompt,
+                batchSize: batchSize,
+                aggregateTokensPerSecond: aggregateTokensPerSecond,
+                completed: completed,
+                medianTtftMs: medianTtftMs,
+                elapsedMs: elapsedMs,
+                createdAt: createdAt,
+                requestsJson: requestsJson,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String endpoint,
+                required String prompt,
+                required int batchSize,
+                required double aggregateTokensPerSecond,
+                required int completed,
+                required int medianTtftMs,
+                required int elapsedMs,
+                required DateTime createdAt,
+                Value<String> requestsJson = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SavedBenchmarksCompanion.insert(
+                id: id,
+                name: name,
+                endpoint: endpoint,
+                prompt: prompt,
+                batchSize: batchSize,
+                aggregateTokensPerSecond: aggregateTokensPerSecond,
+                completed: completed,
+                medianTtftMs: medianTtftMs,
+                elapsedMs: elapsedMs,
+                createdAt: createdAt,
+                requestsJson: requestsJson,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SavedBenchmarksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SavedBenchmarksTable,
+      SavedBenchmarkRow,
+      $$SavedBenchmarksTableFilterComposer,
+      $$SavedBenchmarksTableOrderingComposer,
+      $$SavedBenchmarksTableAnnotationComposer,
+      $$SavedBenchmarksTableCreateCompanionBuilder,
+      $$SavedBenchmarksTableUpdateCompanionBuilder,
+      (
+        SavedBenchmarkRow,
+        BaseReferences<_$AppDatabase, $SavedBenchmarksTable, SavedBenchmarkRow>,
+      ),
+      SavedBenchmarkRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3180,4 +4189,6 @@ class $AppDatabaseManager {
   $$JobsTableTableManager get jobs => $$JobsTableTableManager(_db, _db.jobs);
   $$BrowserHistoryEntriesTableTableManager get browserHistoryEntries =>
       $$BrowserHistoryEntriesTableTableManager(_db, _db.browserHistoryEntries);
+  $$SavedBenchmarksTableTableManager get savedBenchmarks =>
+      $$SavedBenchmarksTableTableManager(_db, _db.savedBenchmarks);
 }

@@ -13,6 +13,10 @@ RouteBase get $appShellRoute => ShellRouteData.$route(
   routes: [
     GoRouteData.$route(path: '/', factory: $JobsRoute._fromState),
     GoRouteData.$route(path: '/configs', factory: $ConfigsRoute._fromState),
+    GoRouteData.$route(
+      path: '/benchmarks',
+      factory: $SavedBenchmarksRoute._fromState,
+    ),
     GoRouteData.$route(path: '/machines', factory: $MachinesRoute._fromState),
     GoRouteData.$route(
       path: '/machines/new',
@@ -59,6 +63,27 @@ mixin $ConfigsRoute on GoRouteData {
 
   @override
   String get location => GoRouteData.$location('/configs');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $SavedBenchmarksRoute on GoRouteData {
+  static SavedBenchmarksRoute _fromState(GoRouterState state) =>
+      const SavedBenchmarksRoute();
+
+  @override
+  String get location => GoRouteData.$location('/benchmarks');
 
   @override
   void go(BuildContext context) => context.go(location);

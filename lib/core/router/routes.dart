@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/configs/presentation/configs_screen.dart';
 import '../../features/job_detail/presentation/job_detail_screen.dart';
 import '../../features/jobs/presentation/jobs_screen.dart';
+import '../../features/saved_benchmarks/presentation/saved_benchmarks_screen.dart';
 import '../../features/machines/presentation/add_machine_screen.dart';
 import '../../features/machines/presentation/machines_screen.dart';
 import '../../features/new_job/presentation/custom_job_screen.dart';
@@ -16,6 +17,7 @@ part 'routes.g.dart';
   routes: [
     TypedGoRoute<JobsRoute>(path: '/'),
     TypedGoRoute<ConfigsRoute>(path: '/configs'),
+    TypedGoRoute<SavedBenchmarksRoute>(path: '/benchmarks'),
     TypedGoRoute<MachinesRoute>(path: '/machines'),
     TypedGoRoute<AddMachineRoute>(path: '/machines/new'),
     TypedGoRoute<EditMachineRoute>(path: '/machines/:id/edit'),
@@ -45,6 +47,14 @@ class ConfigsRoute extends GoRouteData with $ConfigsRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) =>
       const ConfigsScreen();
+}
+
+class SavedBenchmarksRoute extends GoRouteData with $SavedBenchmarksRoute {
+  const SavedBenchmarksRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) =>
+      const SavedBenchmarksScreen();
 }
 
 class MachinesRoute extends GoRouteData with $MachinesRoute {

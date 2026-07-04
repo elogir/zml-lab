@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/configs/application/configs_providers.dart';
 import '../../features/jobs/application/jobs_providers.dart';
 import '../../features/machines/application/machines_providers.dart';
+import '../../features/saved_benchmarks/application/saved_benchmarks_providers.dart';
 import '../theme/app_theme.dart';
 import '../widgets/widgets.dart';
 
@@ -46,6 +47,8 @@ class Sidebar extends ConsumerWidget {
     final running = ref.watch(jobCountsProvider).running;
     final configCount =
         ref.watch(configsStreamProvider).value?.length ?? 0;
+    final benchmarkCount =
+        ref.watch(savedBenchmarksStreamProvider).value?.length ?? 0;
     final machineCount =
         ref.watch(machinesStreamProvider).value?.length ?? 0;
 
@@ -82,6 +85,14 @@ class Sidebar extends ConsumerWidget {
                 badge: configCount,
                 active: loc.startsWith('/configs'),
                 onTap: () => context.go('/configs'),
+              ),
+              _NavItem(
+                t: t,
+                icon: AppIcons.savedBenchmarks,
+                label: 'Saved benchmarks',
+                badge: benchmarkCount,
+                active: loc.startsWith('/benchmarks'),
+                onTap: () => context.go('/benchmarks'),
               ),
               _NavItem(
                 t: t,

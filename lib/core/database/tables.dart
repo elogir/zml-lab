@@ -39,6 +39,27 @@ class LaunchConfigs extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Named snapshots of completed benchmark runs.
+@DataClassName('SavedBenchmarkRow')
+class SavedBenchmarks extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get endpoint => text()();
+  TextColumn get prompt => text()();
+  IntColumn get batchSize => integer()();
+  RealColumn get aggregateTokensPerSecond => real()();
+  IntColumn get completed => integer()();
+  IntColumn get medianTtftMs => integer()();
+  IntColumn get elapsedMs => integer()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  /// JSON-encoded `List<BenchmarkRequest>` — the saved per-request responses.
+  TextColumn get requestsJson => text().withDefault(const Constant('[]'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// Visited URLs for the web-tab address bar history/autocomplete.
 @DataClassName('BrowserHistoryRow')
 class BrowserHistoryEntries extends Table {

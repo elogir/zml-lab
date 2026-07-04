@@ -1,11 +1,13 @@
 import 'dart:convert';
 
 import '../core/database/database.dart';
+import '../models/benchmark.dart';
 import '../models/env_var.dart';
 import '../models/enums.dart';
 import '../models/job.dart';
 import '../models/launch_config.dart';
 import '../models/machine.dart';
+import '../models/saved_benchmark.dart';
 
 /// Conversions between drift rows and the domain models the UI consumes.
 ///
@@ -22,6 +24,44 @@ List<EnvVar> decodeEnv(String json) {
 
 String encodeEnv(List<EnvVar> env) =>
     jsonEncode(env.map((e) => e.toJson()).toList());
+
+BenchmarkRequestStatus _benchmarkStatusFromName(String? name) {
+  for (final s in BenchmarkRequestStatus.values) {
+    if (s.name == name) return s;
+  }
+  return BenchmarkRequestStatus.done;
+}
+
+/// The benchmark's per-request responses persist as a JSON blob (no codegen on
+/// [BenchmarkRequest]); only the display-relevant fields are kept.
+String encodeBenchmarkRequests(List<BenchmarkRequest> requests) => jsonEncode([
+  for (final r in requests)
+    {
+      'index': r.index,
+      'status': r.status.name,
+      'text': r.text,
+      'tokens': r.tokens,
+      'tokensPerSecond': r.tokensPerSecond,
+      'ttftMs': r.ttftMs,
+      'latencyMs': r.latencyMs,
+    },
+]);
+
+List<BenchmarkRequest> decodeBenchmarkRequests(String json) {
+  final decoded = jsonDecode(json);
+  if (decoded is! List) return const [];
+  return decoded.whereType<Map<String, dynamic>>().map((m) {
+    return BenchmarkRequest(
+      index: (m['index'] as num?)?.toInt() ?? 0,
+      status: _benchmarkStatusFromName(m['status'] as String?),
+      text: m['text'] as String? ?? '',
+      tokens: (m['tokens'] as num?)?.toInt() ?? 0,
+      tokensPerSecond: (m['tokensPerSecond'] as num?)?.toDouble() ?? 0,
+      ttftMs: (m['ttftMs'] as num?)?.toInt(),
+      latencyMs: (m['latencyMs'] as num?)?.toInt(),
+    );
+  }).toList();
+}
 
 Vendor? _vendorFromName(String? name) {
   if (name == null) return null;
@@ -64,6 +104,22 @@ extension LaunchConfigRowMapper on LaunchConfigRow {
     workingDir: workingDir,
     port: port,
     env: decodeEnv(envJson),
+  );
+}
+
+extension SavedBenchmarkRowMapper on SavedBenchmarkRow {
+  SavedBenchmark toModel() => SavedBenchmark(
+    id: id,
+    name: name,
+    endpoint: endpoint,
+    prompt: prompt,
+    batchSize: batchSize,
+    aggregateTokensPerSecond: aggregateTokensPerSecond,
+    completed: completed,
+    medianTtftMs: medianTtftMs,
+    elapsedMs: elapsedMs,
+    createdAt: createdAt,
+    requests: decodeBenchmarkRequests(requestsJson),
   );
 }
 

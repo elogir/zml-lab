@@ -1,0 +1,167 @@
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/theme/app_theme.dart';
+import '../../../core/util/format.dart';
+import '../../../core/widgets/widgets.dart';
+import '../../../models/saved_benchmark.dart';
+import '../../../repositories/saved_benchmark_repository.dart';
+import '../application/saved_benchmarks_providers.dart';
+import 'saved_benchmark_detail.dart';
+
+class SavedBenchmarksScreen extends ConsumerWidget {
+  const SavedBenchmarksScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final benchmarks = ref.watch(savedBenchmarksStreamProvider).value ?? const [];
+
+    return Padding(
+      padding: AppSpacing.screen,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const ScreenHeader(
+            title: 'Saved benchmarks',
+            subtitle:
+                'Named snapshots of past runs. Open one to review its responses.',
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          Expanded(
+            child: benchmarks.isEmpty
+                ? _EmptyState()
+                : SingleChildScrollView(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        const gap = AppSpacing.lg;
+                        final width = (constraints.maxWidth - gap) / 2;
+                        return Wrap(
+                          spacing: gap,
+                          runSpacing: gap,
+                          children: [
+                            for (final b in benchmarks)
+                              SizedBox(
+                                width: width,
+                                child: _BenchmarkCard(benchmark: b),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BenchmarkCard extends ConsumerWidget {
+  const _BenchmarkCard({required this.benchmark});
+
+  final SavedBenchmark benchmark;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final b = benchmark;
+
+    return AppCard(
+      onTap: () => showSavedBenchmarkDetail(context, b),
+      onDelete: () =>
+          ref.read(savedBenchmarkRepositoryProvider).delete(b.id),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  b.name,
+                  style: context.text.body.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(formatAgo(b.createdAt), style: context.text.smallMuted),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Text(b.endpoint, style: context.text.monoSmall),
+              const SizedBox(width: AppSpacing.md),
+              Text('batch ${b.batchSize}', style: context.text.smallMuted),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                b.aggregateTokensPerSecond.toStringAsFixed(1),
+                style: context.text.mono.copyWith(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: c.statusRunning,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text('tok/s', style: context.text.monoSmall),
+              const Spacer(),
+              _Metric(label: 'ttft', value: '${b.medianTtftMs}ms'),
+              const SizedBox(width: AppSpacing.lg),
+              _Metric(
+                label: 'elapsed',
+                value: '${(b.elapsedMs / 1000).toStringAsFixed(1)}s',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Metric extends StatelessWidget {
+  const _Metric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Row(
+      children: [
+        Text(label, style: context.text.monoSmall.copyWith(color: c.textFaint)),
+        const SizedBox(width: 5),
+        Text(value, style: context.text.monoSmall),
+      ],
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(AppIcons.savedBenchmarks, size: 26, color: c.textFaint),
+          const SizedBox(height: AppSpacing.md),
+          Text('No saved benchmarks', style: context.text.bodySecondary),
+          const SizedBox(height: 4),
+          Text(
+            'Run a benchmark on a job, then Save it to keep it here.',
+            style: context.text.smallMuted,
+          ),
+        ],
+      ),
+    );
+  }
+}

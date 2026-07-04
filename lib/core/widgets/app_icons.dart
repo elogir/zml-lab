@@ -8,6 +8,7 @@ abstract final class AppIcons {
   static const IconData jobs = LucideIcons.list;
   static const IconData configs = LucideIcons.settings2;
   static const IconData machines = LucideIcons.monitor;
+  static const IconData savedBenchmarks = LucideIcons.chartColumnBig;
   static const IconData collapseSidebar = LucideIcons.panelLeft;
   static const IconData chevronRight = LucideIcons.chevronRight;
   static const IconData chevronLeft = LucideIcons.chevronLeft;
@@ -25,6 +26,7 @@ abstract final class AppIcons {
   static const IconData restart = LucideIcons.rotateCw;
   static const IconData copy = LucideIcons.copy;
   static const IconData testEndpoint = LucideIcons.externalLink;
+  static const IconData save = LucideIcons.bookmark;
 
   // Terminal multiplexer chrome
   static const IconData splitHorizontal = LucideIcons.columns2;
