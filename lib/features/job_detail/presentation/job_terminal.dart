@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:flterm/flterm.dart';
@@ -15,6 +16,7 @@ import 'package:flutter/services.dart'
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/providers/terminal_font.dart';
 import '../../../core/theme/app_theme.dart';
@@ -24,6 +26,17 @@ import '../../../models/machine.dart';
 import '../application/browser_history.dart';
 import '../application/terminal_fullscreen.dart';
 import 'terminal_session.dart';
+
+part 'job_terminal.g.dart';
+
+/// Fixed width of a tab chip. When the tabs (plus the pinned add buttons) no
+/// longer fit, the tab strip scrolls horizontally instead of shrinking them.
+const double _kTabWidth = 150;
+
+/// Width the bar reserves for the two pinned "add tab" buttons when deciding
+/// whether the strip fits — a slight overestimate so the strip switches to
+/// scrolling just before the row could ever overflow.
+const double _kAddButtonsWidth = 80;
 
 // ── Pane tree ────────────────────────────────────────────────────────────
 // A tab holds a tree of panes: a leaf is one pane (a terminal *or* a web
@@ -103,11 +116,57 @@ class _WebSession {
   static String _normalize(String raw) =>
       raw.startsWith('http') ? raw : 'http://$raw';
 
-  /// A genuine desktop Safari UA so sites serve their real (desktop) pages
-  /// rather than a stripped-down or "unsupported browser" variant.
+  /// A genuine, current desktop Safari user agent (macOS 26 / Safari 26) so
+  /// sites serve their real desktop pages. The platform WebView's own default
+  /// UA omits the "Version/x Safari/x" tokens, which makes some sites (e.g.
+  /// Google) fall back to a stripped-down page — hence the explicit string.
   static const String userAgent =
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
-      'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15';
+      'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15';
+}
+
+/// Disposes every session in a pane subtree (kills PTYs / frees web views).
+void _disposePaneTree(_Pane pane) {
+  switch (pane) {
+    case _Leaf l:
+      l.content.dispose();
+    case _Split s:
+      _disposePaneTree(s.first);
+      _disposePaneTree(s.second);
+  }
+}
+
+/// The persistent multiplexer state for one job: its tabs, the pane tree in
+/// each, and which pane/tab is active. Held outside the widget (in a keep-alive
+/// provider) so the live sessions — running shells and loaded web pages — and
+/// the split layout survive navigating away from the detail view and back.
+class TerminalMuxState {
+  // Internal pane model; the holder is only ever reached through the provider
+  // within this library, so the private element type doesn't actually leak.
+  // ignore: library_private_types_in_public_api
+  final List<_Tab> tabs = [];
+  int active = 0;
+  String? focusedId;
+
+  void disposeAll() {
+    for (final tab in tabs) {
+      _disposePaneTree(tab.root);
+    }
+  }
+}
+
+/// Keep-alive so a job's terminals, web views and layout persist across
+/// navigation. Keyed by job id; seeded with a single shell tab on first read.
+/// The sessions live here, not in [JobTerminal], so unmounting the widget no
+/// longer tears them down — only invalidating the provider does.
+@Riverpod(keepAlive: true)
+TerminalMuxState terminalMux(Ref ref, String jobId) {
+  final state = TerminalMuxState();
+  final leaf = _Leaf(_TermContent(TerminalSession()));
+  state.tabs.add(_Tab(leaf));
+  state.focusedId = leaf.id;
+  ref.onDispose(state.disposeAll);
+  return state;
 }
 
 /// The terminal region of the job detail view: a real terminal multiplexer —
@@ -125,37 +184,39 @@ class JobTerminal extends ConsumerStatefulWidget {
 }
 
 class _JobTerminalState extends ConsumerState<JobTerminal> {
-  final List<_Tab> _tabs = [];
-  int _active = 0;
-  String? _focusedId;
+  // The tabs / panes / sessions live in a keep-alive provider (seeded on first
+  // read), so they and their live sessions survive this widget being unmounted
+  // when the user navigates back to the jobs list and returns.
+  late final TerminalMuxState _s = ref.read(
+    terminalMuxProvider(widget.job.id),
+  );
 
-  @override
-  void initState() {
-    super.initState();
-    final leaf = _Leaf(_TermContent(TerminalSession()));
-    _tabs.add(_Tab(leaf));
-    _focusedId = leaf.id;
-  }
+  List<_Tab> get _tabs => _s.tabs;
+  int get _active => _s.active;
+  set _active(int v) => _s.active = v;
+  String? get _focusedId => _s.focusedId;
+  set _focusedId(String? v) => _s.focusedId = v;
+
+  // Scrolls the tab strip when the tabs overflow; used to reveal a freshly
+  // added tab (appended at the end) that would otherwise open off-screen, and
+  // to auto-scroll while dragging a tab near an edge.
+  final ScrollController _tabScroll = ScrollController();
+  // Identifies the scrollable strip so drag-over positions can be measured
+  // against its bounds (attached only when the tabs overflow).
+  final GlobalKey _stripKey = GlobalKey();
+  Timer? _autoScrollTimer;
+  double _autoScrollDir = 0; // -1 = left, +1 = right, 0 = idle
 
   @override
   void dispose() {
     // Leaving the detail view drops fullscreen so it never lingers elsewhere.
+    // The sessions themselves are NOT disposed here — they're owned by the
+    // keep-alive provider so the layout persists across navigation.
     final fullscreen = ref.read(terminalFullscreenProvider.notifier);
     WidgetsBinding.instance.addPostFrameCallback((_) => fullscreen.exit());
-    for (final tab in _tabs) {
-      _disposePane(tab.root);
-    }
+    _autoScrollTimer?.cancel();
+    _tabScroll.dispose();
     super.dispose();
-  }
-
-  void _disposePane(_Pane pane) {
-    switch (pane) {
-      case _Leaf l:
-        l.content.dispose();
-      case _Split s:
-        _disposePane(s.first);
-        _disposePane(s.second);
-    }
   }
 
   _Leaf _firstLeaf(_Pane pane) => switch (pane) {
@@ -242,6 +303,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
       _active = _tabs.length - 1;
       _focusedId = leaf.id;
     });
+    _revealLastTab();
   }
 
   void _addWebTab() {
@@ -251,6 +313,63 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
       _active = _tabs.length - 1;
       _focusedId = leaf.id;
     });
+    _revealLastTab();
+  }
+
+  /// After a tab is appended, scroll the strip to its end so the new (now
+  /// active) tab is visible even when the tabs overflow. No-op when they fit
+  /// (the scroll view isn't mounted, so there are no clients to drive).
+  void _revealLastTab() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_tabScroll.hasClients) return;
+      _tabScroll.animateTo(
+        _tabScroll.position.maxScrollExtent,
+        duration: AppDurations.normal,
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  // ── Drag-to-reorder edge auto-scroll ─────────────────────────────────────
+  // While dragging a tab, scroll the overflowing strip when the pointer nears
+  // an edge, so tabs can be reordered past the visible range.
+  static const double _dragEdge = 52; // edge hot-zone width
+  static const double _dragScrollStep = 14; // px per tick
+
+  void _onTabDragUpdate(Offset globalPos) {
+    final box = _stripKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !_tabScroll.hasClients) {
+      _stopAutoScroll();
+      return;
+    }
+    final left = box.localToGlobal(Offset.zero).dx;
+    final right = left + box.size.width;
+    if (globalPos.dx < left + _dragEdge) {
+      _startAutoScroll(-1);
+    } else if (globalPos.dx > right - _dragEdge) {
+      _startAutoScroll(1);
+    } else {
+      _stopAutoScroll();
+    }
+  }
+
+  void _startAutoScroll(double dir) {
+    if (_autoScrollDir == dir && _autoScrollTimer != null) return;
+    _autoScrollDir = dir;
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!_tabScroll.hasClients) return;
+      final pos = _tabScroll.position;
+      final next = (pos.pixels + dir * _dragScrollStep)
+          .clamp(0.0, pos.maxScrollExtent);
+      if (next != pos.pixels) _tabScroll.jumpTo(next);
+    });
+  }
+
+  void _stopAutoScroll() {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = null;
+    _autoScrollDir = 0;
   }
 
   void _selectTab(int i) => setState(() {
@@ -268,7 +387,9 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
       _active = _active.clamp(0, _tabs.length - 1);
       _focusedId = _firstLeaf(_tabs[_active].root).id;
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _disposePane(removed));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _disposePaneTree(removed),
+    );
   }
 
   void _reorderTab(int from, int to) {
@@ -330,10 +451,9 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (var i = 0; i < _tabs.length; i++) _buildTab(i),
-          _BarButton(icon: AppIcons.add, onPressed: _addTab),
-          _BarButton(icon: AppIcons.web, onPressed: _addWebTab),
-          const Spacer(),
+          // The tab strip takes the free space and scrolls horizontally when
+          // the tabs overflow; the two add buttons stay pinned just after it.
+          Expanded(child: _buildTabStrip()),
           Center(
             child: AppIconButton(
               icon: AppIcons.splitHorizontal,
@@ -363,6 +483,45 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     );
   }
 
+  /// The tabs followed by the two pinned add-tab buttons. When the tabs fit,
+  /// the strip sits at its natural width (buttons hugging the last tab, free
+  /// space trailing); when they don't, the tabs scroll horizontally while the
+  /// buttons stay pinned to the right of the scroll area.
+  Widget _buildTabStrip() {
+    final addButtons = <Widget>[
+      _BarButton(icon: AppIcons.add, onPressed: _addTab),
+      _BarButton(icon: AppIcons.web, onPressed: _addWebTab),
+    ];
+    return LayoutBuilder(
+      builder: (context, cons) {
+        final tabs = Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [for (var i = 0; i < _tabs.length; i++) _buildTab(i)],
+        );
+        final fits =
+            _tabs.length * _kTabWidth + _kAddButtonsWidth <= cons.maxWidth;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (fits)
+              tabs
+            else
+              Expanded(
+                child: SingleChildScrollView(
+                  key: _stripKey,
+                  controller: _tabScroll,
+                  scrollDirection: Axis.horizontal,
+                  child: tabs,
+                ),
+              ),
+            ...addButtons,
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildTab(int i) {
     return DragTarget<int>(
       onWillAcceptWithDetails: (d) => d.data != i,
@@ -372,6 +531,9 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
         return Draggable<int>(
           data: i,
           axis: Axis.horizontal,
+          onDragUpdate: (d) => _onTabDragUpdate(d.globalPosition),
+          onDragEnd: (_) => _stopAutoScroll(),
+          onDraggableCanceled: (_, _) => _stopAutoScroll(),
           feedback: _tabFeedback(i),
           childWhenDragging: Opacity(opacity: 0.3, child: tab),
           child: tab,
@@ -423,7 +585,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
                   ? c.accent.withValues(alpha: 0.5)
                   : const Color(0x00000000));
         return Container(
-          width: 150,
+          width: _kTabWidth,
           padding: const EdgeInsets.only(left: 10, right: 8),
           decoration: BoxDecoration(
             color: active

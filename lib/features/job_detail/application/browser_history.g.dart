@@ -50,7 +50,7 @@ final class BrowserHistoryProvider
   }
 }
 
-String _$browserHistoryHash() => r'f90297597e8ced79db27edd18fe1249e988af599';
+String _$browserHistoryHash() => r'2d025750c8bc872a64ea7c49e2f628e0033f93d2';
 
 /// Visited-URL history for the web tabs' address bar, most-recent first.
 /// Backed by drift so it persists across restarts; the in-memory list is a
