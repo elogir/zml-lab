@@ -65,6 +65,7 @@ class Sidebar extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _ToggleBar(t: t, onToggle: onToggleCollapsed),
+              _Logo(t: t),
               const SizedBox(height: AppSpacing.xs),
               _NavItem(
                 t: t,
@@ -94,6 +95,43 @@ class Sidebar extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Brand mark shown under the collapse toggle, above the nav items. Only
+/// visible when the sidebar is expanded — it fades and collapses its height to
+/// zero (via [t]) so the rail leaves no gap when narrow.
+class _Logo extends StatelessWidget {
+  const _Logo({required this.t});
+
+  final double t;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: Align(
+        alignment: Alignment.center,
+        heightFactor: t,
+        child: Opacity(
+          opacity: t,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.lg,
+            ),
+            child: Center(
+              child: Image.asset(
+                'assets/images/zml_logo.png',
+                width: 84,
+                filterQuality: FilterQuality.medium,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
