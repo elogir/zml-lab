@@ -68,6 +68,10 @@ class _Leaf extends _Pane {
   _Leaf(this.content) : id = 'leaf-${_counter++}';
   final _Content content;
   final String id;
+  // A GlobalKey so the leaf's live view element (TerminalView / web view and
+  // its FocusNode) is *moved* rather than rebuilt when a split restructures
+  // the pane tree — see [_buildPane]. Created once and persists with the leaf.
+  final GlobalKey viewKey = GlobalKey();
   static int _counter = 0;
 }
 
@@ -701,13 +705,23 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
   }
 
   Widget _buildPane(_Pane pane, Uint8List? font, {required bool closable}) {
-    // Key each pane by identity so its view element maps 1:1 to its session and
-    // is never reused across sessions on relayout/resize.
-    final (String id, Widget child) = switch (pane) {
-      _Leaf l => (l.id, _buildLeaf(l, font, closable: closable)),
-      _Split s => (s.id, _buildSplit(s, font)),
+    // Leaves carry a GlobalKey, splits a ValueKey. The GlobalKey lets Flutter
+    // *move* a leaf's element when a split wraps it in a new Row (or a close
+    // promotes a sibling up the tree) instead of tearing it down and rebuilding
+    // it. A rebuild would detach and reattach the terminal's FocusNode, churning
+    // the focus tree so a refocused pane's block cursor renders hollow — and
+    // would reset the flterm view. Splits hold no widget state, so a local key
+    // (identity, never reused across sessions) is enough for them.
+    return switch (pane) {
+      _Leaf l => KeyedSubtree(
+        key: l.viewKey,
+        child: _buildLeaf(l, font, closable: closable),
+      ),
+      _Split s => KeyedSubtree(
+        key: ValueKey(s.id),
+        child: _buildSplit(s, font),
+      ),
     };
-    return KeyedSubtree(key: ValueKey(id), child: child);
   }
 
   Widget _buildSplit(_Split split, Uint8List? font) {
