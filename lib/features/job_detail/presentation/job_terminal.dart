@@ -275,6 +275,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
       tab.root = _replaceNode(tab.root, leaf, _Split(axis, leaf, newLeaf));
       _focusedId = newLeaf.id;
     });
+    _applyFocus();
   }
 
   void _closeLeaf(_Leaf leaf) {
@@ -288,6 +289,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
       tab.root = _replaceNode(tab.root, parent, sibling);
       if (_focusedId == leaf.id) _focusedId = _firstLeaf(sibling).id;
     });
+    _applyFocus();
     // Dispose after the closed pane's view has unmounted this frame.
     _disposeLater(leaf.content);
   }
@@ -303,6 +305,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
       _active = _tabs.length - 1;
       _focusedId = leaf.id;
     });
+    _applyFocus();
     _revealLastTab();
   }
 
@@ -372,10 +375,13 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     _autoScrollDir = 0;
   }
 
-  void _selectTab(int i) => setState(() {
-    _active = i;
-    _focusedId = _firstLeaf(_tabs[i].root).id;
-  });
+  void _selectTab(int i) {
+    setState(() {
+      _active = i;
+      _focusedId = _firstLeaf(_tabs[i].root).id;
+    });
+    _applyFocus();
+  }
 
   void _closeTab(int i) {
     final removed = _tabs[i].root;
@@ -387,6 +393,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
       _active = _active.clamp(0, _tabs.length - 1);
       _focusedId = _firstLeaf(_tabs[_active].root).id;
     });
+    _applyFocus();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _disposePaneTree(removed),
     );
@@ -405,6 +412,37 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
 
   void _focus(_Leaf leaf) {
     if (_focusedId != leaf.id) setState(() => _focusedId = leaf.id);
+    _applyFocus();
+  }
+
+  /// Drives real keyboard focus from [_focusedId] so the pane wearing the focus
+  /// frame is always the one that receives keystrokes. Without this the visual
+  /// state and Flutter's focus tree drift apart: a split leaves keyboard focus
+  /// on the old pane (its autofocus is ignored while another node holds focus),
+  /// and clicking between panes can highlight one while typing lands in another.
+  ///
+  /// Runs twice on purpose: immediately, for panes already on screen — this
+  /// moves focus on the same pointer-down, closing the "typed into the old
+  /// pane" gap when switching splits fast — and again after the next frame, for
+  /// panes a split / new tab just created and haven't mounted their FocusNode
+  /// yet. Web panes own their own keyboard focus (the native view / address
+  /// bar), so we leave them alone.
+  void _applyFocus() {
+    void focusNow() {
+      if (!mounted) return;
+      final id = _focusedId;
+      if (id == null) return;
+      final content = _findLeaf(_tabs[_active].root, id)?.content;
+      if (content is _TermContent) {
+        final node = content.session.focusNode;
+        // Only if it's attached to a live Focus widget — a not-yet-mounted
+        // pane (fresh split/tab) is picked up by the post-frame pass below.
+        if (node.context != null) node.requestFocus();
+      }
+    }
+
+    focusNow();
+    WidgetsBinding.instance.addPostFrameCallback((_) => focusNow());
   }
 
   @override
