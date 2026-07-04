@@ -220,9 +220,9 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     // the keep-alive provider seeded and ones a previous mount left running —
     // to close-on-exit against *this* State. Re-wiring on every remount is
     // intended: the closure captures this instance, and a shell that died
-    // while we were off-screen is caught by the hasExited check in _wireExit.
+    // while we were off-screen is caught by the hasExited check in _wireLeaf.
     for (final tab in _tabs) {
-      _forEachLeaf(tab.root, _wireExit);
+      _forEachLeaf(tab.root, _wireLeaf);
     }
   }
 
@@ -290,7 +290,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     final leaf =
         (id == null ? null : _findLeaf(tab.root, id)) ?? _firstLeaf(tab.root);
     final newLeaf = _Leaf(_sameKind(leaf.content));
-    _wireExit(newLeaf);
+    _wireLeaf(newLeaf);
     setState(() {
       tab.root = _replaceNode(tab.root, leaf, _Split(axis, leaf, newLeaf));
       _focusedId = newLeaf.id;
@@ -328,15 +328,19 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     }
   }
 
-  /// Wires a terminal leaf to close its pane when its shell process exits.
-  /// The session holds a single onExit, so this is safe to call again on
-  /// remount. No-op for web panes (no shell to exit).
-  void _wireExit(_Leaf leaf) {
+  /// Wires a terminal leaf's live hooks: close its pane when the shell exits,
+  /// and refresh the tab label when the running program sets a new title. The
+  /// session holds a single callback each, so this is safe to call again on
+  /// remount. No-op for web panes (no shell).
+  void _wireLeaf(_Leaf leaf) {
     final content = leaf.content;
     if (content is! _TermContent) return;
     final session = content.session;
     session.onExit = () => _onLeafExited(leaf);
     if (session.hasExited) _onLeafExited(leaf); // exited while unwired
+    session.onTitleChanged = () {
+      if (mounted) setState(() {}); // the tab label reads session.title
+    };
   }
 
   /// A shell exited → close its pane. Runs directly when the app is idle (the
@@ -385,7 +389,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
 
   void _addTab() {
     final leaf = _Leaf(_TermContent(TerminalSession()));
-    _wireExit(leaf);
+    _wireLeaf(leaf);
     setState(() {
       _tabs.add(_Tab(leaf));
       _active = _tabs.length - 1;
@@ -475,7 +479,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
       _tabs.removeAt(i);
       if (_tabs.isEmpty) {
         final leaf = _Leaf(_TermContent(TerminalSession()));
-        _wireExit(leaf);
+        _wireLeaf(leaf);
         _tabs.add(_Tab(leaf));
       }
       _active = _active.clamp(0, _tabs.length - 1);
@@ -671,7 +675,12 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
   ({IconData icon, String label}) _tabInfo(int i) {
     final leaf = _firstLeaf(_tabs[i].root);
     return switch (leaf.content) {
-      _TermContent _ => (icon: AppIcons.terminal, label: 'shell'),
+      // The title the running program reports (OSC), falling back to 'shell'
+      // until one is set.
+      _TermContent t => (
+        icon: AppIcons.terminal,
+        label: t.session.title.isEmpty ? 'shell' : t.session.title,
+      ),
       _WebContent w => (icon: AppIcons.web, label: w.session.label),
     };
   }

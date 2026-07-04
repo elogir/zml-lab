@@ -13,10 +13,12 @@ class TerminalSession {
 
   bool get isLive => false;
 
-  // No PTY on web, so the shell never exits. These mirror the native API so
-  // the multiplexer's exit-closes-pane wiring compiles on both platforms.
+  // No PTY on web, so the shell never exits and no program sets a title. These
+  // mirror the native API so the multiplexer's wiring compiles on both.
   bool get hasExited => false;
   VoidCallback? onExit;
+  String get title => '';
+  VoidCallback? onTitleChanged;
 
   void dispose() {
     focusNode.dispose();

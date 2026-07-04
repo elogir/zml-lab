@@ -12,6 +12,10 @@ import 'package:flutter_pty/flutter_pty.dart';
 class TerminalSession {
   TerminalSession() {
     focusNode = FocusNode(debugLabel: 'terminal');
+    controller.onTitleChanged = () {
+      _title = controller.title;
+      onTitleChanged?.call();
+    };
     _startShell();
   }
 
@@ -21,8 +25,14 @@ class TerminalSession {
   Pty? _pty;
   StreamSubscription<Uint8List>? _sub;
   bool _exited = false;
+  String _title = '';
 
   bool get isLive => _pty != null;
+
+  /// The window title the running program set via an OSC escape (empty until
+  /// one is set). Used as the tab label. [onTitleChanged] fires when it moves.
+  String get title => _title;
+  VoidCallback? onTitleChanged;
 
   /// Whether the shell process has already exited (Ctrl+D, `exit`, or a
   /// crash). Lets a late-attached [onExit] fire immediately if it missed the
@@ -59,6 +69,7 @@ class TerminalSession {
 
   void dispose() {
     onExit = null;
+    onTitleChanged = null;
     _sub?.cancel();
     try {
       _pty?.kill();
