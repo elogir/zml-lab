@@ -4,7 +4,13 @@ import 'package:flterm/flterm.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart'
     show InputDecoration, Material, MaterialType, TextField;
-import 'package:flutter/services.dart' show LogicalKeyboardKey, TextInputAction;
+import 'package:flutter/services.dart'
+    show
+        HardwareKeyboard,
+        KeyDownEvent,
+        KeyEvent,
+        LogicalKeyboardKey,
+        TextInputAction;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -151,8 +157,10 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     }
   }
 
-  _Leaf _firstLeaf(_Pane pane) =>
-      switch (pane) { _Leaf l => l, _Split s => _firstLeaf(s.first) };
+  _Leaf _firstLeaf(_Pane pane) => switch (pane) {
+    _Leaf l => l,
+    _Split s => _firstLeaf(s.first),
+  };
 
   _Leaf? _findLeaf(_Pane pane, String id) => switch (pane) {
     _Leaf l => l.id == id ? l : null,
@@ -302,11 +310,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
           children: [
             _buildTabBar(fullscreen: fullscreen),
             Expanded(
-              child: _buildPane(
-                tab.root,
-                font,
-                closable: tab.root is _Split,
-              ),
+              child: _buildPane(tab.root, font, closable: tab.root is _Split),
             ),
           ],
         ),
@@ -383,7 +387,11 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     };
   }
 
-  Widget _tabBadge(BuildContext context, IconData icon, {required bool active}) {
+  Widget _tabBadge(
+    BuildContext context,
+    IconData icon, {
+    required bool active,
+  }) {
     final c = context.colors;
     return Container(
       width: 19,
@@ -724,6 +732,7 @@ class _WebViewState extends ConsumerState<_WebView> {
   bool _canForward = false;
   String? _lastRequested;
   List<String> _suggestions = const [];
+  bool _paneHovered = false;
 
   // In-page find.
   late final FindInteractionController _find;
@@ -775,6 +784,21 @@ class _WebViewState extends ConsumerState<_WebView> {
             });
           },
     );
+    // A hover-gated global key handler so Cmd/Ctrl+F opens find whenever the
+    // pointer is over this pane — no click-to-focus needed first.
+    HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  bool _onKey(KeyEvent event) {
+    if (!_paneHovered || _findOpen) return false;
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.keyF &&
+        (HardwareKeyboard.instance.isMetaPressed ||
+            HardwareKeyboard.instance.isControlPressed)) {
+      _openFind();
+      return true;
+    }
+    return false;
   }
 
   void _onUrl(String? url) {
@@ -875,7 +899,9 @@ class _WebViewState extends ConsumerState<_WebView> {
   /// A dark, terminal-matching error page shown in place of a failed load.
   String _errorHtml(String url, String description) {
     final u = _escapeHtml(url);
-    final d = _escapeHtml(description.isEmpty ? 'The page could not be loaded.' : description);
+    final d = _escapeHtml(
+      description.isEmpty ? 'The page could not be loaded.' : description,
+    );
     return '''
 <!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -902,6 +928,7 @@ class _WebViewState extends ConsumerState<_WebView> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
     _addr.dispose();
     _addrFocus.dispose();
     _findText.dispose();
@@ -913,62 +940,83 @@ class _WebViewState extends ConsumerState<_WebView> {
   Widget build(BuildContext context) {
     final initial = _session.currentUrl;
     // Cmd+F opens find / Esc closes it when the Flutter chrome holds focus;
-    // the injected script covers the case where the page holds focus.
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyF, meta: true): _openFind,
-        const SingleActivator(LogicalKeyboardKey.escape): () {
-          if (_findOpen) _closeFind();
+    // the hover key handler + injected script cover the page-focused case.
+    return MouseRegion(
+      onEnter: (_) => _paneHovered = true,
+      onExit: (_) => _paneHovered = false,
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyF, meta: true): _openFind,
+          const SingleActivator(LogicalKeyboardKey.escape): () {
+            if (_findOpen) _closeFind();
+          },
         },
-      },
-      child: Column(
-        children: [
-          _toolbar(),
-          if (_findOpen) _findBar(),
-          if (_addrFocused && _suggestions.isNotEmpty) _suggestionsPanel(),
-          Expanded(
-            child: InAppWebView(
-              keepAlive: _session.keepAlive,
-              findInteractionController: _find,
-              initialUrlRequest: initial.isEmpty
-                  ? null
-                  : URLRequest(url: WebUri(initial)),
-              initialUserScripts: UnmodifiableListView([_findKeyScript]),
-              initialSettings: InAppWebViewSettings(
-                userAgent: _WebSession.userAgent,
+        child: Column(
+          children: [
+            _toolbar(),
+            if (_findOpen) _findBar(),
+            // While the history dropdown is open the native web view is removed
+            // (keepAlive preserves its page) and replaced by the dropdown over a
+            // plain backdrop. A Flutter panel placed over/near the live native
+            // view can't reliably receive taps — its phantom hit region eats
+            // them — so we take the view out of the way entirely.
+            if (_addrFocused && _suggestions.isNotEmpty)
+              Expanded(
+                child: ColoredBox(
+                  color: context.colors.terminalBackground,
+                  child: Column(
+                    children: [
+                      _suggestionsPanel(),
+                      const Expanded(child: SizedBox.expand()),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: InAppWebView(
+                  keepAlive: _session.keepAlive,
+                  findInteractionController: _find,
+                  initialUrlRequest: initial.isEmpty
+                      ? null
+                      : URLRequest(url: WebUri(initial)),
+                  initialUserScripts: UnmodifiableListView([_findKeyScript]),
+                  initialSettings: InAppWebViewSettings(
+                    userAgent: _WebSession.userAgent,
+                  ),
+                  onWebViewCreated: (controller) {
+                    _session.controller = controller;
+                    controller.addJavaScriptHandler(
+                      handlerName: 'zmlFind',
+                      callback: (_) {
+                        _openFind();
+                        return null;
+                      },
+                    );
+                    controller.addJavaScriptHandler(
+                      handlerName: 'zmlFindClose',
+                      callback: (_) {
+                        if (_findOpen) _closeFind();
+                        return null;
+                      },
+                    );
+                    _syncNav();
+                  },
+                  onLoadStart: (controller, url) => _onUrl(url?.toString()),
+                  onLoadStop: (controller, url) => _onUrl(url?.toString()),
+                  onUpdateVisitedHistory: (controller, url, isReload) =>
+                      _onUrl(url?.toString()),
+                  onReceivedError: (controller, request, error) {
+                    // Only replace the page when the main frame itself fails,
+                    // and never for a load cancelled by navigating away.
+                    if (request.isForMainFrame != true) return;
+                    if (error.type == WebResourceErrorType.CANCELLED) return;
+                    _showError(request.url.toString(), error.description);
+                  },
+                ),
               ),
-              onWebViewCreated: (controller) {
-                _session.controller = controller;
-                controller.addJavaScriptHandler(
-                  handlerName: 'zmlFind',
-                  callback: (_) {
-                    _openFind();
-                    return null;
-                  },
-                );
-                controller.addJavaScriptHandler(
-                  handlerName: 'zmlFindClose',
-                  callback: (_) {
-                    if (_findOpen) _closeFind();
-                    return null;
-                  },
-                );
-                _syncNav();
-              },
-              onLoadStart: (controller, url) => _onUrl(url?.toString()),
-              onLoadStop: (controller, url) => _onUrl(url?.toString()),
-              onUpdateVisitedHistory: (controller, url, isReload) =>
-                  _onUrl(url?.toString()),
-              onReceivedError: (controller, request, error) {
-                // Only replace the page when the main frame itself fails, and
-                // never for a load the user cancelled by navigating away.
-                if (request.isForMainFrame != true) return;
-                if (error.type == WebResourceErrorType.CANCELLED) return;
-                _showError(request.url.toString(), error.description);
-              },
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1046,18 +1094,30 @@ class _WebViewState extends ConsumerState<_WebView> {
       ),
       child: Row(
         children: [
-          _navButton(AppIcons.navBack, enabled: _canBack, onTap: () {
-            widget.onActivate();
-            _controller?.goBack();
-          }),
-          _navButton(AppIcons.navForward, enabled: _canForward, onTap: () {
-            widget.onActivate();
-            _controller?.goForward();
-          }),
-          _navButton(AppIcons.refresh, enabled: true, onTap: () {
-            widget.onActivate();
-            _controller?.reload();
-          }),
+          _navButton(
+            AppIcons.navBack,
+            enabled: _canBack,
+            onTap: () {
+              widget.onActivate();
+              _controller?.goBack();
+            },
+          ),
+          _navButton(
+            AppIcons.navForward,
+            enabled: _canForward,
+            onTap: () {
+              widget.onActivate();
+              _controller?.goForward();
+            },
+          ),
+          _navButton(
+            AppIcons.refresh,
+            enabled: true,
+            onTap: () {
+              widget.onActivate();
+              _controller?.reload();
+            },
+          ),
           const SizedBox(width: 4),
           Expanded(child: _addressBar()),
           if (widget.closable) ...[
@@ -1124,21 +1184,32 @@ class _WebViewState extends ConsumerState<_WebView> {
     );
   }
 
-  /// History suggestions, rendered in-layout (not as an overlay) so taps land
-  /// reliably — a Flutter overlay over the native web view doesn't get clicks.
+  /// History dropdown card, shown below the browser bar while the web view is
+  /// swapped out (so its rows reliably receive taps).
   Widget _suggestionsPanel() {
     final c = context.colors;
-    return Container(
-      constraints: const BoxConstraints(maxHeight: 240),
-      decoration: BoxDecoration(
-        color: c.surface,
-        border: Border(bottom: BorderSide(color: c.terminalBorder)),
-      ),
-      child: ListView.builder(
-        padding: EdgeInsets.zero,
-        shrinkWrap: true,
-        itemCount: _suggestions.length,
-        itemBuilder: (context, i) => _historyRow(_suggestions[i]),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 4, 6, 6),
+      child: Container(
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: AppRadius.smAll,
+          border: Border.all(color: c.borderStrong),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x40000000),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: AppRadius.smAll,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [for (final url in _suggestions) _historyRow(url)],
+          ),
+        ),
       ),
     );
   }
@@ -1156,7 +1227,7 @@ class _WebViewState extends ConsumerState<_WebView> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           child: Row(
             children: [
-              Icon(AppIcons.web, size: 12, color: c.textMuted),
+              _favicon(url),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -1171,6 +1242,27 @@ class _WebViewState extends ConsumerState<_WebView> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// The site's favicon (via a favicon service), falling back to a globe.
+  Widget _favicon(String url) {
+    final c = context.colors;
+    final host = Uri.tryParse(url)?.host ?? '';
+    final fallback = Icon(AppIcons.web, size: 13, color: c.textMuted);
+    if (host.isEmpty) return SizedBox(width: 14, height: 14, child: fallback);
+    return SizedBox(
+      width: 14,
+      height: 14,
+      child: Image.network(
+        'https://www.google.com/s2/favicons?sz=64&domain=$host',
+        width: 14,
+        height: 14,
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => fallback,
+        loadingBuilder: (context, child, progress) =>
+            progress == null ? child : fallback,
       ),
     );
   }

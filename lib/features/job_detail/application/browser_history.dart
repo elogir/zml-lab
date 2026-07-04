@@ -26,6 +26,6 @@ class BrowserHistory extends _$BrowserHistory {
     final matches = q.isEmpty
         ? state
         : state.where((u) => u.toLowerCase().contains(q));
-    return matches.take(8).toList();
+    return matches.take(5).toList();
   }
 }
