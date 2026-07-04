@@ -13,6 +13,9 @@ abstract interface class BrowserHistoryRepository {
 
   /// Records a visit to [url] (upserts its timestamp to now).
   Future<void> record(String url);
+
+  /// Removes [url] from history.
+  Future<void> remove(String url);
 }
 
 class DriftBrowserHistoryRepository implements BrowserHistoryRepository {
@@ -44,6 +47,12 @@ class DriftBrowserHistoryRepository implements BrowserHistoryRepository {
           visitedAt: DateTime.now(),
         ),
       );
+
+  @override
+  Future<void> remove(String url) =>
+      (_db.delete(_db.browserHistoryEntries)
+            ..where((t) => t.url.equals(url)))
+          .go();
 }
 
 @Riverpod(keepAlive: true)

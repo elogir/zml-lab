@@ -1301,15 +1301,19 @@ class _WebViewState extends ConsumerState<_WebView> {
   /// address bar. Lives above the native web view (top-level layer) so it
   /// floats over the visible page without snapshotting it.
   Widget _suggestionsOverlay() {
-    return CompositedTransformFollower(
-      link: _addrLink,
-      showWhenUnlinked: false,
-      targetAnchor: Alignment.bottomLeft,
-      followerAnchor: Alignment.topLeft,
-      offset: const Offset(0, 4),
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: SizedBox(width: _fieldWidth, child: _suggestionsPanel()),
+    // TextFieldTapRegion keeps taps on the dropdown from unfocusing the address
+    // field, so deleting a row leaves the field focused and the dropdown open.
+    return TextFieldTapRegion(
+      child: CompositedTransformFollower(
+        link: _addrLink,
+        showWhenUnlinked: false,
+        targetAnchor: Alignment.bottomLeft,
+        followerAnchor: Alignment.topLeft,
+        offset: const Offset(0, 4),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(width: _fieldWidth, child: _suggestionsPanel()),
+        ),
       ),
     );
   }
@@ -1345,34 +1349,75 @@ class _WebViewState extends ConsumerState<_WebView> {
 
   Widget _historyRow(String url, bool highlighted) {
     final c = context.colors;
-    return Listener(
-      behavior: HitTestBehavior.opaque,
-      onPointerDown: (_) => _submit(url),
-      child: HoverRegion(
-        builder: (context, hovered) => Container(
-          color: highlighted
-              ? c.surfaceSelected
-              : (hovered ? c.surfaceHover : null),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-          child: Row(
-            children: [
-              _favicon(url),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  url,
-                  style: context.text.monoSmall.copyWith(
-                    color: highlighted ? c.textPrimary : c.textSecondary,
+    return HoverRegion(
+      builder: (context, rowHovered) => Container(
+        color: highlighted
+            ? c.surfaceSelected
+            : (rowHovered ? c.surfaceHover : null),
+        child: Row(
+          children: [
+            // Main area selects the URL.
+            Expanded(
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: (_) => _submit(url),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 9, 4, 9),
+                  child: Row(
+                    children: [
+                      _favicon(url),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          url,
+                          style: context.text.monoSmall.copyWith(
+                            color: highlighted
+                                ? c.textPrimary
+                                : c.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ],
-          ),
+            ),
+            // Delete button removes this entry from history (separate Listener
+            // so its pointer-down doesn't also select the row).
+            Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: (_) => _deleteHistory(url),
+              child: HoverRegion(
+                builder: (context, xHovered) => Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: xHovered ? c.surfaceHover : null,
+                      borderRadius: AppRadius.smAll,
+                    ),
+                    child: Icon(
+                      AppIcons.close,
+                      size: 12,
+                      color: xHovered ? c.textPrimary : c.textMuted,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  void _deleteHistory(String url) {
+    ref.read(browserHistoryProvider.notifier).remove(url);
+    // Refresh the visible suggestions; the field keeps focus (TextFieldTapRegion)
+    // so the dropdown stays open unless it's now empty.
+    _syncSuggestions();
   }
 
   /// The site's favicon (via a favicon service), falling back to a globe.

@@ -32,6 +32,11 @@ class BrowserHistory extends _$BrowserHistory {
     ref.read(browserHistoryRepositoryProvider).record(url);
   }
 
+  void remove(String url) {
+    state = state.where((u) => u != url).toList();
+    ref.read(browserHistoryRepositoryProvider).remove(url);
+  }
+
   /// History entries matching [query] (case-insensitive substring), or the most
   /// recent entries when the query is empty. Capped for a tidy dropdown.
   List<String> suggestions(String query) {
