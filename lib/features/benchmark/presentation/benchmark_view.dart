@@ -6,6 +6,7 @@ import '../../../core/widgets/widgets.dart';
 import '../../../models/benchmark.dart';
 import '../application/benchmark_controller.dart';
 import 'benchmark_focus.dart';
+import 'benchmark_prompt_editor.dart';
 import 'benchmark_request_card.dart';
 
 /// Benchmark/test mode for a running job: fire a batch of requests and watch
@@ -51,6 +52,15 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
 
   void _send() => _controller.start();
 
+  Future<void> _editPrompt() async {
+    await showBenchmarkPromptEditor(context, widget.jobId);
+    if (!mounted) return;
+    // The editor writes through to run state; mirror it back into the inline
+    // field so the two stay in sync once the popup closes.
+    final prompt = ref.read(benchmarkControllerProvider(widget.jobId)).prompt;
+    if (_prompt.text != prompt) _prompt.text = prompt;
+  }
+
   @override
   Widget build(BuildContext context) {
     final run = ref.watch(benchmarkControllerProvider(widget.jobId));
@@ -64,6 +74,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
           running: run.isRunning,
           onSend: _send,
           onCancel: _controller.cancel,
+          onExpandPrompt: _editPrompt,
           onPromptChanged: _controller.setPrompt,
           onBatchChanged: (v) {
             final n = int.tryParse(v);
@@ -90,6 +101,7 @@ class _Controls extends StatelessWidget {
     required this.running,
     required this.onSend,
     required this.onCancel,
+    required this.onExpandPrompt,
     required this.onPromptChanged,
     required this.onBatchChanged,
   });
@@ -99,6 +111,7 @@ class _Controls extends StatelessWidget {
   final bool running;
   final VoidCallback onSend;
   final VoidCallback onCancel;
+  final VoidCallback onExpandPrompt;
   final ValueChanged<String> onPromptChanged;
   final ValueChanged<String> onBatchChanged;
 
@@ -114,6 +127,13 @@ class _Controls extends StatelessWidget {
             mono: true,
             onChanged: onPromptChanged,
           ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        AppIconButton(
+          icon: AppIcons.fullscreen,
+          size: 15,
+          padding: const EdgeInsets.all(9),
+          onPressed: onExpandPrompt,
         ),
         const SizedBox(width: AppSpacing.lg),
         Text('Batch size', style: context.text.smallMuted),

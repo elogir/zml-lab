@@ -18,6 +18,7 @@ class AppTextField extends StatefulWidget {
     this.onChanged,
     this.minLines = 1,
     this.maxLines = 1,
+    this.expands = false,
     this.autofocus = false,
   });
 
@@ -28,6 +29,10 @@ class AppTextField extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final int minLines;
   final int maxLines;
+
+  /// Fill the height of a bounded parent (e.g. an [Expanded]) instead of
+  /// sizing to the text. Use for a full-height editor; overrides min/maxLines.
+  final bool expands;
   final bool autofocus;
 
   @override
@@ -57,27 +62,37 @@ class _AppTextFieldState extends State<AppTextField> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final baseStyle = widget.mono ? context.text.mono : context.text.body;
-    final multiline = widget.maxLines > 1;
+    final multiline = widget.maxLines > 1 || widget.expands;
+
+    // A Container folds its border width into its effective padding, so the
+    // thicker focus border would grow the box and nudge every widget laid out
+    // around the field by a pixel or two. Trim the padding by the same delta so
+    // the outer size stays put whether or not the field is focused.
+    const focusBorder = 1.4;
+    final borderWidth = _focused ? focusBorder : 1.0;
+    final borderInset = focusBorder - borderWidth;
 
     return DefaultSelectionStyle(
       cursorColor: c.accent,
       selectionColor: c.accent.withValues(alpha: 0.28),
       child: AnimatedContainer(
         duration: AppDurations.fast,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: 11,
+        padding: EdgeInsets.symmetric(
+          horizontal: AppSpacing.md + borderInset,
+          vertical: 11 + borderInset,
         ),
         decoration: BoxDecoration(
           color: c.surfaceMuted,
           borderRadius: AppRadius.mdAll,
           border: Border.all(
             color: _focused ? c.accent : c.border,
-            width: _focused ? 1.4 : 1,
+            width: borderWidth,
           ),
         ),
         child: Row(
-          crossAxisAlignment: multiline
+          crossAxisAlignment: widget.expands
+              ? CrossAxisAlignment.stretch
+              : multiline
               ? CrossAxisAlignment.start
               : CrossAxisAlignment.center,
           children: [
@@ -98,8 +113,12 @@ class _AppTextFieldState extends State<AppTextField> {
                   cursorColor: c.accent,
                   cursorWidth: 1.6,
                   autofocus: widget.autofocus,
-                  minLines: widget.minLines,
-                  maxLines: widget.maxLines,
+                  minLines: widget.expands ? null : widget.minLines,
+                  maxLines: widget.expands ? null : widget.maxLines,
+                  expands: widget.expands,
+                  textAlignVertical: widget.expands
+                      ? TextAlignVertical.top
+                      : null,
                   onChanged: widget.onChanged,
                   decoration: InputDecoration.collapsed(
                     hintText: widget.placeholder,
