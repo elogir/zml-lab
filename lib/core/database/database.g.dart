@@ -1868,12 +1868,232 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
   }
 }
 
+class $BrowserHistoryEntriesTable extends BrowserHistoryEntries
+    with TableInfo<$BrowserHistoryEntriesTable, BrowserHistoryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BrowserHistoryEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  @override
+  late final GeneratedColumn<String> url = GeneratedColumn<String>(
+    'url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _visitedAtMeta = const VerificationMeta(
+    'visitedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> visitedAt = GeneratedColumn<DateTime>(
+    'visited_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [url, visitedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'browser_history_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BrowserHistoryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('url')) {
+      context.handle(
+        _urlMeta,
+        url.isAcceptableOrUnknown(data['url']!, _urlMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_urlMeta);
+    }
+    if (data.containsKey('visited_at')) {
+      context.handle(
+        _visitedAtMeta,
+        visitedAt.isAcceptableOrUnknown(data['visited_at']!, _visitedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_visitedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {url};
+  @override
+  BrowserHistoryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BrowserHistoryRow(
+      url: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}url'],
+      )!,
+      visitedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}visited_at'],
+      )!,
+    );
+  }
+
+  @override
+  $BrowserHistoryEntriesTable createAlias(String alias) {
+    return $BrowserHistoryEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class BrowserHistoryRow extends DataClass
+    implements Insertable<BrowserHistoryRow> {
+  final String url;
+  final DateTime visitedAt;
+  const BrowserHistoryRow({required this.url, required this.visitedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['url'] = Variable<String>(url);
+    map['visited_at'] = Variable<DateTime>(visitedAt);
+    return map;
+  }
+
+  BrowserHistoryEntriesCompanion toCompanion(bool nullToAbsent) {
+    return BrowserHistoryEntriesCompanion(
+      url: Value(url),
+      visitedAt: Value(visitedAt),
+    );
+  }
+
+  factory BrowserHistoryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BrowserHistoryRow(
+      url: serializer.fromJson<String>(json['url']),
+      visitedAt: serializer.fromJson<DateTime>(json['visitedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'url': serializer.toJson<String>(url),
+      'visitedAt': serializer.toJson<DateTime>(visitedAt),
+    };
+  }
+
+  BrowserHistoryRow copyWith({String? url, DateTime? visitedAt}) =>
+      BrowserHistoryRow(
+        url: url ?? this.url,
+        visitedAt: visitedAt ?? this.visitedAt,
+      );
+  BrowserHistoryRow copyWithCompanion(BrowserHistoryEntriesCompanion data) {
+    return BrowserHistoryRow(
+      url: data.url.present ? data.url.value : this.url,
+      visitedAt: data.visitedAt.present ? data.visitedAt.value : this.visitedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BrowserHistoryRow(')
+          ..write('url: $url, ')
+          ..write('visitedAt: $visitedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(url, visitedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BrowserHistoryRow &&
+          other.url == this.url &&
+          other.visitedAt == this.visitedAt);
+}
+
+class BrowserHistoryEntriesCompanion
+    extends UpdateCompanion<BrowserHistoryRow> {
+  final Value<String> url;
+  final Value<DateTime> visitedAt;
+  final Value<int> rowid;
+  const BrowserHistoryEntriesCompanion({
+    this.url = const Value.absent(),
+    this.visitedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BrowserHistoryEntriesCompanion.insert({
+    required String url,
+    required DateTime visitedAt,
+    this.rowid = const Value.absent(),
+  }) : url = Value(url),
+       visitedAt = Value(visitedAt);
+  static Insertable<BrowserHistoryRow> custom({
+    Expression<String>? url,
+    Expression<DateTime>? visitedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (url != null) 'url': url,
+      if (visitedAt != null) 'visited_at': visitedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BrowserHistoryEntriesCompanion copyWith({
+    Value<String>? url,
+    Value<DateTime>? visitedAt,
+    Value<int>? rowid,
+  }) {
+    return BrowserHistoryEntriesCompanion(
+      url: url ?? this.url,
+      visitedAt: visitedAt ?? this.visitedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (url.present) {
+      map['url'] = Variable<String>(url.value);
+    }
+    if (visitedAt.present) {
+      map['visited_at'] = Variable<DateTime>(visitedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BrowserHistoryEntriesCompanion(')
+          ..write('url: $url, ')
+          ..write('visitedAt: $visitedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $MachinesTable machines = $MachinesTable(this);
   late final $LaunchConfigsTable launchConfigs = $LaunchConfigsTable(this);
   late final $JobsTable jobs = $JobsTable(this);
+  late final $BrowserHistoryEntriesTable browserHistoryEntries =
+      $BrowserHistoryEntriesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1882,6 +2102,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     machines,
     launchConfigs,
     jobs,
+    browserHistoryEntries,
   ];
 }
 
@@ -2786,6 +3007,168 @@ typedef $$JobsTableProcessedTableManager =
       JobRow,
       PrefetchHooks Function()
     >;
+typedef $$BrowserHistoryEntriesTableCreateCompanionBuilder =
+    BrowserHistoryEntriesCompanion Function({
+      required String url,
+      required DateTime visitedAt,
+      Value<int> rowid,
+    });
+typedef $$BrowserHistoryEntriesTableUpdateCompanionBuilder =
+    BrowserHistoryEntriesCompanion Function({
+      Value<String> url,
+      Value<DateTime> visitedAt,
+      Value<int> rowid,
+    });
+
+class $$BrowserHistoryEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $BrowserHistoryEntriesTable> {
+  $$BrowserHistoryEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get visitedAt => $composableBuilder(
+    column: $table.visitedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BrowserHistoryEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $BrowserHistoryEntriesTable> {
+  $$BrowserHistoryEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get visitedAt => $composableBuilder(
+    column: $table.visitedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BrowserHistoryEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BrowserHistoryEntriesTable> {
+  $$BrowserHistoryEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get visitedAt =>
+      $composableBuilder(column: $table.visitedAt, builder: (column) => column);
+}
+
+class $$BrowserHistoryEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BrowserHistoryEntriesTable,
+          BrowserHistoryRow,
+          $$BrowserHistoryEntriesTableFilterComposer,
+          $$BrowserHistoryEntriesTableOrderingComposer,
+          $$BrowserHistoryEntriesTableAnnotationComposer,
+          $$BrowserHistoryEntriesTableCreateCompanionBuilder,
+          $$BrowserHistoryEntriesTableUpdateCompanionBuilder,
+          (
+            BrowserHistoryRow,
+            BaseReferences<
+              _$AppDatabase,
+              $BrowserHistoryEntriesTable,
+              BrowserHistoryRow
+            >,
+          ),
+          BrowserHistoryRow,
+          PrefetchHooks Function()
+        > {
+  $$BrowserHistoryEntriesTableTableManager(
+    _$AppDatabase db,
+    $BrowserHistoryEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BrowserHistoryEntriesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$BrowserHistoryEntriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$BrowserHistoryEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> url = const Value.absent(),
+                Value<DateTime> visitedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BrowserHistoryEntriesCompanion(
+                url: url,
+                visitedAt: visitedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String url,
+                required DateTime visitedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => BrowserHistoryEntriesCompanion.insert(
+                url: url,
+                visitedAt: visitedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BrowserHistoryEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BrowserHistoryEntriesTable,
+      BrowserHistoryRow,
+      $$BrowserHistoryEntriesTableFilterComposer,
+      $$BrowserHistoryEntriesTableOrderingComposer,
+      $$BrowserHistoryEntriesTableAnnotationComposer,
+      $$BrowserHistoryEntriesTableCreateCompanionBuilder,
+      $$BrowserHistoryEntriesTableUpdateCompanionBuilder,
+      (
+        BrowserHistoryRow,
+        BaseReferences<
+          _$AppDatabase,
+          $BrowserHistoryEntriesTable,
+          BrowserHistoryRow
+        >,
+      ),
+      BrowserHistoryRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2795,4 +3178,6 @@ class $AppDatabaseManager {
   $$LaunchConfigsTableTableManager get launchConfigs =>
       $$LaunchConfigsTableTableManager(_db, _db.launchConfigs);
   $$JobsTableTableManager get jobs => $$JobsTableTableManager(_db, _db.jobs);
+  $$BrowserHistoryEntriesTableTableManager get browserHistoryEntries =>
+      $$BrowserHistoryEntriesTableTableManager(_db, _db.browserHistoryEntries);
 }

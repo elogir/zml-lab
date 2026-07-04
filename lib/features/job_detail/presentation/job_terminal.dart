@@ -9,6 +9,7 @@ import 'package:flutter/services.dart'
         HardwareKeyboard,
         KeyDownEvent,
         KeyEvent,
+        KeyRepeatEvent,
         LogicalKeyboardKey,
         TextInputAction;
 import 'package:flutter/widgets.dart';
@@ -732,7 +733,14 @@ class _WebViewState extends ConsumerState<_WebView> {
   bool _canForward = false;
   String? _lastRequested;
   List<String> _suggestions = const [];
+  int _highlight = -1; // keyboard-highlighted suggestion, -1 = none
   bool _paneHovered = false;
+  final LayerLink _addrLink = LayerLink();
+  double _fieldWidth = 320;
+  // The suggestions render in the app's top-level Overlay (not the web view's
+  // own layer) so they float over the visible page without snapshotting it
+  // into black bars.
+  final OverlayPortalController _portalCtrl = OverlayPortalController();
 
   // In-page find.
   late final FindInteractionController _find;
@@ -790,13 +798,41 @@ class _WebViewState extends ConsumerState<_WebView> {
   }
 
   bool _onKey(KeyEvent event) {
-    if (!_paneHovered || _findOpen) return false;
-    if (event is KeyDownEvent &&
+    final down = event is KeyDownEvent;
+    // Cmd/Ctrl+F opens find when merely hovering the pane.
+    if (down &&
+        _paneHovered &&
+        !_findOpen &&
         event.logicalKey == LogicalKeyboardKey.keyF &&
         (HardwareKeyboard.instance.isMetaPressed ||
             HardwareKeyboard.instance.isControlPressed)) {
       _openFind();
       return true;
+    }
+    // Escape: close find, else restore the current URL and unfocus the address
+    // bar (the focused field consumes it before Shortcuts, so handle it here).
+    if (down && event.logicalKey == LogicalKeyboardKey.escape) {
+      if (_findOpen) {
+        _closeFind();
+        return true;
+      }
+      if (_addrFocused) {
+        _addr.text = _session.currentUrl;
+        _addrFocus.unfocus();
+        return true;
+      }
+    }
+    // Arrow keys move the address-bar suggestion highlight. We move the
+    // highlight but let the event fall through (return false) — claiming it
+    // wedges the macOS text-input session and drops the following Enter.
+    if ((down || event is KeyRepeatEvent) &&
+        _addrFocused &&
+        _suggestions.isNotEmpty) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        _highlightNext();
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        _highlightPrev();
+      }
     }
     return false;
   }
@@ -843,11 +879,49 @@ class _WebViewState extends ConsumerState<_WebView> {
   }
 
   void _syncSuggestions() {
+    // Drop the page we're already on — suggesting it is pointless.
     final next = _addrFocus.hasFocus
-        ? ref.read(browserHistoryProvider.notifier).suggestions(_addr.text)
+        ? ref
+              .read(browserHistoryProvider.notifier)
+              .suggestions(_addr.text)
+              .where((u) => u != _session.currentUrl)
+              .toList()
         : const <String>[];
     if (!listEquals(next, _suggestions)) {
-      setState(() => _suggestions = next);
+      setState(() {
+        _suggestions = next;
+        _highlight = -1;
+      });
+    }
+    _updatePortal();
+  }
+
+  void _updatePortal() {
+    final show = _addrFocused && _suggestions.isNotEmpty;
+    if (show && !_portalCtrl.isShowing) {
+      _portalCtrl.show();
+    } else if (!show && _portalCtrl.isShowing) {
+      _portalCtrl.hide();
+    }
+  }
+
+  void _highlightNext() {
+    if (!_addrFocused || _suggestions.isEmpty) return;
+    setState(
+      () => _highlight = (_highlight + 1).clamp(0, _suggestions.length - 1),
+    );
+  }
+
+  void _highlightPrev() {
+    if (!_addrFocused || _suggestions.isEmpty) return;
+    setState(() => _highlight = _highlight <= 0 ? -1 : _highlight - 1);
+  }
+
+  void _submitAddress() {
+    if (_highlight >= 0 && _highlight < _suggestions.length) {
+      _submit(_suggestions[_highlight]);
+    } else {
+      _submit(_addr.text);
     }
   }
 
@@ -947,78 +1021,66 @@ class _WebViewState extends ConsumerState<_WebView> {
       child: CallbackShortcuts(
         bindings: {
           const SingleActivator(LogicalKeyboardKey.keyF, meta: true): _openFind,
-          const SingleActivator(LogicalKeyboardKey.escape): () {
-            if (_findOpen) _closeFind();
-          },
+          const SingleActivator(LogicalKeyboardKey.escape): _onEscape,
         },
         child: Column(
           children: [
             _toolbar(),
             if (_findOpen) _findBar(),
-            // While the history dropdown is open the native web view is removed
-            // (keepAlive preserves its page) and replaced by the dropdown over a
-            // plain backdrop. A Flutter panel placed over/near the live native
-            // view can't reliably receive taps — its phantom hit region eats
-            // them — so we take the view out of the way entirely.
-            if (_addrFocused && _suggestions.isNotEmpty)
-              Expanded(
-                child: ColoredBox(
-                  color: context.colors.terminalBackground,
-                  child: Column(
-                    children: [
-                      _suggestionsPanel(),
-                      const Expanded(child: SizedBox.expand()),
-                    ],
-                  ),
+            Expanded(
+              child: InAppWebView(
+                keepAlive: _session.keepAlive,
+                findInteractionController: _find,
+                initialUrlRequest: initial.isEmpty
+                    ? null
+                    : URLRequest(url: WebUri(initial)),
+                initialUserScripts: UnmodifiableListView([_findKeyScript]),
+                initialSettings: InAppWebViewSettings(
+                  userAgent: _WebSession.userAgent,
                 ),
-              )
-            else
-              Expanded(
-                child: InAppWebView(
-                  keepAlive: _session.keepAlive,
-                  findInteractionController: _find,
-                  initialUrlRequest: initial.isEmpty
-                      ? null
-                      : URLRequest(url: WebUri(initial)),
-                  initialUserScripts: UnmodifiableListView([_findKeyScript]),
-                  initialSettings: InAppWebViewSettings(
-                    userAgent: _WebSession.userAgent,
-                  ),
-                  onWebViewCreated: (controller) {
-                    _session.controller = controller;
-                    controller.addJavaScriptHandler(
-                      handlerName: 'zmlFind',
-                      callback: (_) {
-                        _openFind();
-                        return null;
-                      },
-                    );
-                    controller.addJavaScriptHandler(
-                      handlerName: 'zmlFindClose',
-                      callback: (_) {
-                        if (_findOpen) _closeFind();
-                        return null;
-                      },
-                    );
-                    _syncNav();
-                  },
-                  onLoadStart: (controller, url) => _onUrl(url?.toString()),
-                  onLoadStop: (controller, url) => _onUrl(url?.toString()),
-                  onUpdateVisitedHistory: (controller, url, isReload) =>
-                      _onUrl(url?.toString()),
-                  onReceivedError: (controller, request, error) {
-                    // Only replace the page when the main frame itself fails,
-                    // and never for a load cancelled by navigating away.
-                    if (request.isForMainFrame != true) return;
-                    if (error.type == WebResourceErrorType.CANCELLED) return;
-                    _showError(request.url.toString(), error.description);
-                  },
-                ),
+                onWebViewCreated: (controller) {
+                  _session.controller = controller;
+                  controller.addJavaScriptHandler(
+                    handlerName: 'zmlFind',
+                    callback: (_) {
+                      _openFind();
+                      return null;
+                    },
+                  );
+                  controller.addJavaScriptHandler(
+                    handlerName: 'zmlFindClose',
+                    callback: (_) {
+                      if (_findOpen) _closeFind();
+                      return null;
+                    },
+                  );
+                  _syncNav();
+                },
+                onLoadStart: (controller, url) => _onUrl(url?.toString()),
+                onLoadStop: (controller, url) => _onUrl(url?.toString()),
+                onUpdateVisitedHistory: (controller, url, isReload) =>
+                    _onUrl(url?.toString()),
+                onReceivedError: (controller, request, error) {
+                  // Only replace the page when the main frame itself fails,
+                  // and never for a load cancelled by navigating away.
+                  if (request.isForMainFrame != true) return;
+                  if (error.type == WebResourceErrorType.CANCELLED) return;
+                  _showError(request.url.toString(), error.description);
+                },
               ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  void _onEscape() {
+    if (_findOpen) {
+      _closeFind();
+    } else if (_addrFocused) {
+      _addrFocus.unfocus();
+    }
   }
 
   Widget _findBar() {
@@ -1051,7 +1113,11 @@ class _WebViewState extends ConsumerState<_WebView> {
                   cursorColor: c.accent,
                   cursorWidth: 1.6,
                   onChanged: _runFind,
-                  onSubmitted: (_) => _find.findNext(forward: true),
+                  // Keep focus so repeated Enter cycles to the next match.
+                  onSubmitted: (_) {
+                    _find.findNext(forward: true);
+                    _findFocus.requestFocus();
+                  },
                   decoration: InputDecoration.collapsed(
                     hintText: 'Find in page',
                     hintStyle: context.text.monoSmall.copyWith(
@@ -1149,81 +1215,113 @@ class _WebViewState extends ConsumerState<_WebView> {
 
   Widget _addressBar() {
     final c = context.colors;
-    return DefaultSelectionStyle(
-      cursorColor: c.accent,
-      selectionColor: c.accent.withValues(alpha: 0.28),
-      child: Container(
-        height: 26,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        alignment: Alignment.centerLeft,
-        decoration: BoxDecoration(
-          color: c.surfaceMuted,
-          borderRadius: AppRadius.smAll,
-          border: Border.all(
-            color: _addrFocused ? c.accent : c.border,
-            width: _addrFocused ? 1.2 : 1,
-          ),
-        ),
-        child: Material(
-          type: MaterialType.transparency,
-          child: TextField(
-            controller: _addr,
-            focusNode: _addrFocus,
-            style: context.text.monoSmall.copyWith(color: c.textPrimary),
-            cursorColor: c.accent,
-            cursorWidth: 1.6,
-            textInputAction: TextInputAction.go,
-            onSubmitted: _submit,
-            decoration: InputDecoration.collapsed(
-              hintText: 'Search or enter address',
-              hintStyle: context.text.monoSmall.copyWith(color: c.textFaint),
-            ),
-          ),
+    return CompositedTransformTarget(
+      link: _addrLink,
+      child: OverlayPortal(
+        controller: _portalCtrl,
+        overlayChildBuilder: (context) => _suggestionsOverlay(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            _fieldWidth = constraints.maxWidth;
+            return DefaultSelectionStyle(
+              cursorColor: c.accent,
+              selectionColor: c.accent.withValues(alpha: 0.28),
+              child: Container(
+                height: 26,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                alignment: Alignment.centerLeft,
+                decoration: BoxDecoration(
+                  color: c.surfaceMuted,
+                  borderRadius: AppRadius.smAll,
+                  border: Border.all(
+                    color: _addrFocused ? c.accent : c.border,
+                    width: _addrFocused ? 1.2 : 1,
+                  ),
+                ),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: TextField(
+                    controller: _addr,
+                    focusNode: _addrFocus,
+                    style: context.text.monoSmall.copyWith(
+                      color: c.textPrimary,
+                    ),
+                    cursorColor: c.accent,
+                    cursorWidth: 1.6,
+                    textInputAction: TextInputAction.go,
+                    onSubmitted: (_) => _submitAddress(),
+                    decoration: InputDecoration.collapsed(
+                      hintText: 'Search or enter address',
+                      hintStyle: context.text.monoSmall.copyWith(
+                        color: c.textFaint,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  /// History dropdown card, shown below the browser bar while the web view is
-  /// swapped out (so its rows reliably receive taps).
+  /// The suggestions dropdown placed in the app Overlay, anchored under the
+  /// address bar. Lives above the native web view (top-level layer) so it
+  /// floats over the visible page without snapshotting it.
+  Widget _suggestionsOverlay() {
+    return CompositedTransformFollower(
+      link: _addrLink,
+      showWhenUnlinked: false,
+      targetAnchor: Alignment.bottomLeft,
+      followerAnchor: Alignment.topLeft,
+      offset: const Offset(0, 4),
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: SizedBox(width: _fieldWidth, child: _suggestionsPanel()),
+      ),
+    );
+  }
+
+  /// History dropdown card, floated under the address bar over the page.
   Widget _suggestionsPanel() {
     final c = context.colors;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 4, 6, 6),
-      child: Container(
-        decoration: BoxDecoration(
-          color: c.surface,
-          borderRadius: AppRadius.smAll,
-          border: Border.all(color: c.borderStrong),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x40000000),
-              blurRadius: 12,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: AppRadius.smAll,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [for (final url in _suggestions) _historyRow(url)],
+    return Container(
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: AppRadius.smAll,
+        border: Border.all(color: c.borderStrong),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x40000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: AppRadius.smAll,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < _suggestions.length; i++)
+              _historyRow(_suggestions[i], i == _highlight),
+          ],
         ),
       ),
     );
   }
 
-  Widget _historyRow(String url) {
+  Widget _historyRow(String url, bool highlighted) {
     final c = context.colors;
     return Listener(
-      // Select on pointer-down: tapping the row unfocuses the address bar,
-      // which rebuilds and removes this panel — by pointer-up it's gone.
       behavior: HitTestBehavior.opaque,
       onPointerDown: (_) => _submit(url),
       child: HoverRegion(
         builder: (context, hovered) => Container(
-          color: hovered ? c.surfaceHover : null,
+          color: highlighted
+              ? c.surfaceSelected
+              : (hovered ? c.surfaceHover : null),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           child: Row(
             children: [
@@ -1233,7 +1331,7 @@ class _WebViewState extends ConsumerState<_WebView> {
                 child: Text(
                   url,
                   style: context.text.monoSmall.copyWith(
-                    color: c.textSecondary,
+                    color: highlighted ? c.textPrimary : c.textSecondary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

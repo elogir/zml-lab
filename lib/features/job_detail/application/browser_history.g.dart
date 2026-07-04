@@ -8,18 +8,21 @@ part of 'browser_history.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Session-wide visited-URL history for the web tabs, most-recent first.
-/// Shared across every web pane so the address bar can autocomplete from it.
+/// Visited-URL history for the web tabs' address bar, most-recent first.
+/// Backed by drift so it persists across restarts; the in-memory list is a
+/// live cache kept in sync as pages are visited.
 
 @ProviderFor(BrowserHistory)
 final browserHistoryProvider = BrowserHistoryProvider._();
 
-/// Session-wide visited-URL history for the web tabs, most-recent first.
-/// Shared across every web pane so the address bar can autocomplete from it.
+/// Visited-URL history for the web tabs' address bar, most-recent first.
+/// Backed by drift so it persists across restarts; the in-memory list is a
+/// live cache kept in sync as pages are visited.
 final class BrowserHistoryProvider
     extends $NotifierProvider<BrowserHistory, List<String>> {
-  /// Session-wide visited-URL history for the web tabs, most-recent first.
-  /// Shared across every web pane so the address bar can autocomplete from it.
+  /// Visited-URL history for the web tabs' address bar, most-recent first.
+  /// Backed by drift so it persists across restarts; the in-memory list is a
+  /// live cache kept in sync as pages are visited.
   BrowserHistoryProvider._()
     : super(
         from: null,
@@ -47,10 +50,11 @@ final class BrowserHistoryProvider
   }
 }
 
-String _$browserHistoryHash() => r'462452e9495f29911c34e471000c35917c16d837';
+String _$browserHistoryHash() => r'f90297597e8ced79db27edd18fe1249e988af599';
 
-/// Session-wide visited-URL history for the web tabs, most-recent first.
-/// Shared across every web pane so the address bar can autocomplete from it.
+/// Visited-URL history for the web tabs' address bar, most-recent first.
+/// Backed by drift so it persists across restarts; the in-memory list is a
+/// live cache kept in sync as pages are visited.
 
 abstract class _$BrowserHistory extends $Notifier<List<String>> {
   List<String> build();

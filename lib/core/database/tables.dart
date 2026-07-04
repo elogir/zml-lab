@@ -39,6 +39,16 @@ class LaunchConfigs extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Visited URLs for the web-tab address bar history/autocomplete.
+@DataClassName('BrowserHistoryRow')
+class BrowserHistoryEntries extends Table {
+  TextColumn get url => text()();
+  DateTimeColumn get visitedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {url};
+}
+
 /// Launched (or once-launched) processes.
 @DataClassName('JobRow')
 class Jobs extends Table {

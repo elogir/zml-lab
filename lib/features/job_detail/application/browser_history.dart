@@ -1,15 +1,27 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../repositories/browser_history_repository.dart';
+
 part 'browser_history.g.dart';
 
-/// Session-wide visited-URL history for the web tabs, most-recent first.
-/// Shared across every web pane so the address bar can autocomplete from it.
+/// Visited-URL history for the web tabs' address bar, most-recent first.
+/// Backed by drift so it persists across restarts; the in-memory list is a
+/// live cache kept in sync as pages are visited.
 @Riverpod(keepAlive: true)
 class BrowserHistory extends _$BrowserHistory {
   static const _limit = 200;
 
   @override
-  List<String> build() => const [];
+  List<String> build() {
+    _load();
+    return const [];
+  }
+
+  Future<void> _load() async {
+    state = await ref
+        .read(browserHistoryRepositoryProvider)
+        .recent(limit: _limit);
+  }
 
   void add(String url) {
     if (url.isEmpty || url.startsWith('about:') || url.startsWith('data:')) {
@@ -17,6 +29,7 @@ class BrowserHistory extends _$BrowserHistory {
     }
     final next = [url, ...state.where((u) => u != url)];
     state = next.length > _limit ? next.sublist(0, _limit) : next;
+    ref.read(browserHistoryRepositoryProvider).record(url);
   }
 
   /// History entries matching [query] (case-insensitive substring), or the most
