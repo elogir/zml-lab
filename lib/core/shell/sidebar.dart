@@ -116,16 +116,11 @@ class _Logo extends StatelessWidget {
         child: Opacity(
           opacity: t,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.md,
-              AppSpacing.md,
-              AppSpacing.lg,
-            ),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: Center(
               child: Image.asset(
                 'assets/images/zml_logo.png',
-                width: 84,
+                width: 160,
                 filterQuality: FilterQuality.medium,
               ),
             ),
