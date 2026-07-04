@@ -127,34 +127,41 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        StatusDot(job.status, size: 9),
-        const SizedBox(width: AppSpacing.md),
-        Flexible(
-          child: Text(
-            job.name,
-            style: context.text.title.copyWith(fontSize: 19),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        // Left group takes all the free space (so the meta below sits flush
+        // right); the name shrinks within it if the row gets tight.
+        Expanded(
+          child: Row(
+            children: [
+              StatusDot(job.status, size: 9),
+              const SizedBox(width: AppSpacing.md),
+              Flexible(
+                child: Text(
+                  job.name,
+                  style: context.text.title.copyWith(fontSize: 19),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xl),
+              SegmentedControl<_DetailMode>(
+                value: mode,
+                onChanged: onModeChanged,
+                options: const [
+                  SegmentOption(
+                    value: _DetailMode.terminal,
+                    label: 'Terminal',
+                    icon: AppIcons.terminal,
+                  ),
+                  SegmentOption(
+                    value: _DetailMode.benchmark,
+                    label: 'Benchmark',
+                    icon: AppIcons.benchmark,
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: AppSpacing.xl),
-        SegmentedControl<_DetailMode>(
-          value: mode,
-          onChanged: onModeChanged,
-          options: const [
-            SegmentOption(
-              value: _DetailMode.terminal,
-              label: 'Terminal',
-              icon: AppIcons.terminal,
-            ),
-            SegmentOption(
-              value: _DetailMode.benchmark,
-              label: 'Benchmark',
-              icon: AppIcons.benchmark,
-            ),
-          ],
-        ),
-        const Spacer(),
         _Meta(label: 'host', value: machine?.name ?? job.machineId),
         _Meta(label: 'port', value: '${job.port}'),
       ],

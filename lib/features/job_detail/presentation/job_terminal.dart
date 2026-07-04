@@ -817,8 +817,8 @@ class _WebViewState extends ConsumerState<_WebView> {
         return true;
       }
       if (_addrFocused) {
-        _addr.text = _session.currentUrl;
         _addrFocus.unfocus();
+        _addr.text = _session.currentUrl;
         return true;
       }
     }
