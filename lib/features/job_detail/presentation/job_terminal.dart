@@ -1,8 +1,10 @@
+import 'dart:collection';
+
 import 'package:flterm/flterm.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart'
     show InputDecoration, Material, MaterialType, TextField;
-import 'package:flutter/services.dart' show TextInputAction;
+import 'package:flutter/services.dart' show LogicalKeyboardKey, TextInputAction;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +14,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/job.dart';
 import '../../../models/machine.dart';
+import '../application/browser_history.dart';
 import '../application/terminal_fullscreen.dart';
 import 'terminal_session.dart';
 
@@ -691,9 +694,10 @@ class _Separator extends StatelessWidget {
   }
 }
 
-/// An embedded web view with a browser chrome bar: back / forward / reload and
-/// an address bar that doubles as a search box.
-class _WebView extends StatefulWidget {
+/// An embedded web view with a browser chrome bar: back / forward / reload, an
+/// address bar that doubles as a search box (with history autocomplete), and a
+/// Cmd+F in-page find bar.
+class _WebView extends ConsumerStatefulWidget {
   const _WebView({
     required this.session,
     required this.closable,
@@ -709,16 +713,42 @@ class _WebView extends StatefulWidget {
   final VoidCallback onNavigated;
 
   @override
-  State<_WebView> createState() => _WebViewState();
+  ConsumerState<_WebView> createState() => _WebViewState();
 }
 
-class _WebViewState extends State<_WebView> {
+class _WebViewState extends ConsumerState<_WebView> {
   late final TextEditingController _addr;
   late final FocusNode _addrFocus;
   bool _addrFocused = false;
   bool _canBack = false;
   bool _canForward = false;
   String? _lastRequested;
+  List<String> _suggestions = const [];
+
+  // In-page find.
+  late final FindInteractionController _find;
+  final TextEditingController _findText = TextEditingController();
+  late final FocusNode _findFocus;
+  bool _findOpen = false;
+  int _findMatches = 0;
+  int _findActive = 0;
+
+  // A document-start script so Cmd/Ctrl+F opens our find bar even while the
+  // page (not the Flutter chrome) holds keyboard focus.
+  static final _findKeyScript = UserScript(
+    source: '''
+(function(){
+  document.addEventListener('keydown', function(e){
+    if ((e.metaKey||e.ctrlKey) && (e.key==='f'||e.key==='F')) {
+      e.preventDefault();
+      window.flutter_inappwebview.callHandler('zmlFind');
+    } else if (e.key==='Escape') {
+      window.flutter_inappwebview.callHandler('zmlFindClose');
+    }
+  }, true);
+})();''',
+    injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+  );
 
   _WebSession get _session => widget.session;
   InAppWebViewController? get _controller => _session.controller;
@@ -726,12 +756,25 @@ class _WebViewState extends State<_WebView> {
   @override
   void initState() {
     super.initState();
-    _addr = TextEditingController(text: _session.currentUrl);
+    _addr = TextEditingController(text: _session.currentUrl)
+      ..addListener(_syncSuggestions);
     _addrFocus = FocusNode()
       ..addListener(() {
         if (_addrFocus.hasFocus) widget.onActivate();
         setState(() => _addrFocused = _addrFocus.hasFocus);
+        _syncSuggestions();
       });
+    _findFocus = FocusNode();
+    _find = FindInteractionController(
+      onFindResultReceived:
+          (controller, activeMatchOrdinal, numberOfMatches, isDoneCounting) {
+            if (!mounted) return;
+            setState(() {
+              _findMatches = numberOfMatches;
+              _findActive = numberOfMatches == 0 ? 0 : activeMatchOrdinal + 1;
+            });
+          },
+    );
   }
 
   void _onUrl(String? url) {
@@ -740,10 +783,48 @@ class _WebViewState extends State<_WebView> {
     if (url == null || url.isEmpty) return;
     if (url == 'about:blank' || url.startsWith('data:')) return;
     _session.currentUrl = url;
+    ref.read(browserHistoryProvider.notifier).add(url);
     // Don't stomp on the user mid-edit.
     if (!_addrFocus.hasFocus && _addr.text != url) _addr.text = url;
     _syncNav();
     widget.onNavigated();
+  }
+
+  // ── Find ────────────────────────────────────────────────────────────────
+  void _openFind() {
+    setState(() => _findOpen = true);
+    _findFocus.requestFocus();
+    if (_findText.text.isNotEmpty) _find.findAll(find: _findText.text);
+  }
+
+  void _closeFind() {
+    _find.clearMatches();
+    setState(() {
+      _findOpen = false;
+      _findMatches = 0;
+      _findActive = 0;
+    });
+  }
+
+  void _runFind(String query) {
+    if (query.isEmpty) {
+      _find.clearMatches();
+      setState(() {
+        _findMatches = 0;
+        _findActive = 0;
+      });
+      return;
+    }
+    _find.findAll(find: query);
+  }
+
+  void _syncSuggestions() {
+    final next = _addrFocus.hasFocus
+        ? ref.read(browserHistoryProvider.notifier).suggestions(_addr.text)
+        : const <String>[];
+    if (!listEquals(next, _suggestions)) {
+      setState(() => _suggestions = next);
+    }
   }
 
   void _showError(String? failedUrl, String description) {
@@ -823,42 +904,134 @@ class _WebViewState extends State<_WebView> {
   void dispose() {
     _addr.dispose();
     _addrFocus.dispose();
+    _findText.dispose();
+    _findFocus.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final initial = _session.currentUrl;
-    return Column(
-      children: [
-        _toolbar(),
-        Expanded(
-          child: InAppWebView(
-            keepAlive: _session.keepAlive,
-            initialUrlRequest: initial.isEmpty
-                ? null
-                : URLRequest(url: WebUri(initial)),
-            initialSettings: InAppWebViewSettings(
-              userAgent: _WebSession.userAgent,
+    // Cmd+F opens find / Esc closes it when the Flutter chrome holds focus;
+    // the injected script covers the case where the page holds focus.
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyF, meta: true): _openFind,
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          if (_findOpen) _closeFind();
+        },
+      },
+      child: Column(
+        children: [
+          _toolbar(),
+          if (_findOpen) _findBar(),
+          if (_addrFocused && _suggestions.isNotEmpty) _suggestionsPanel(),
+          Expanded(
+            child: InAppWebView(
+              keepAlive: _session.keepAlive,
+              findInteractionController: _find,
+              initialUrlRequest: initial.isEmpty
+                  ? null
+                  : URLRequest(url: WebUri(initial)),
+              initialUserScripts: UnmodifiableListView([_findKeyScript]),
+              initialSettings: InAppWebViewSettings(
+                userAgent: _WebSession.userAgent,
+              ),
+              onWebViewCreated: (controller) {
+                _session.controller = controller;
+                controller.addJavaScriptHandler(
+                  handlerName: 'zmlFind',
+                  callback: (_) {
+                    _openFind();
+                    return null;
+                  },
+                );
+                controller.addJavaScriptHandler(
+                  handlerName: 'zmlFindClose',
+                  callback: (_) {
+                    if (_findOpen) _closeFind();
+                    return null;
+                  },
+                );
+                _syncNav();
+              },
+              onLoadStart: (controller, url) => _onUrl(url?.toString()),
+              onLoadStop: (controller, url) => _onUrl(url?.toString()),
+              onUpdateVisitedHistory: (controller, url, isReload) =>
+                  _onUrl(url?.toString()),
+              onReceivedError: (controller, request, error) {
+                // Only replace the page when the main frame itself fails, and
+                // never for a load the user cancelled by navigating away.
+                if (request.isForMainFrame != true) return;
+                if (error.type == WebResourceErrorType.CANCELLED) return;
+                _showError(request.url.toString(), error.description);
+              },
             ),
-            onWebViewCreated: (controller) {
-              _session.controller = controller;
-              _syncNav();
-            },
-            onLoadStart: (controller, url) => _onUrl(url?.toString()),
-            onLoadStop: (controller, url) => _onUrl(url?.toString()),
-            onUpdateVisitedHistory: (controller, url, isReload) =>
-                _onUrl(url?.toString()),
-            onReceivedError: (controller, request, error) {
-              // Only replace the page when the main frame itself fails, and
-              // never for a load the user cancelled by navigating away.
-              if (request.isForMainFrame != true) return;
-              if (error.type == WebResourceErrorType.CANCELLED) return;
-              _showError(request.url.toString(), error.description);
-            },
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+
+  Widget _findBar() {
+    final c = context.colors;
+    final count = _findMatches == 0
+        ? (_findText.text.isEmpty ? '' : 'No results')
+        : '$_findActive/$_findMatches';
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: c.surface,
+        border: Border(bottom: BorderSide(color: c.terminalBorder)),
+      ),
+      child: Row(
+        children: [
+          Icon(AppIcons.search, size: 13, color: c.textMuted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DefaultSelectionStyle(
+              cursorColor: c.accent,
+              selectionColor: c.accent.withValues(alpha: 0.28),
+              child: Material(
+                type: MaterialType.transparency,
+                child: TextField(
+                  controller: _findText,
+                  focusNode: _findFocus,
+                  autofocus: true,
+                  style: context.text.monoSmall.copyWith(color: c.textPrimary),
+                  cursorColor: c.accent,
+                  cursorWidth: 1.6,
+                  onChanged: _runFind,
+                  onSubmitted: (_) => _find.findNext(forward: true),
+                  decoration: InputDecoration.collapsed(
+                    hintText: 'Find in page',
+                    hintStyle: context.text.monoSmall.copyWith(
+                      color: c.textFaint,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (count.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            Text(count, style: context.text.smallMuted),
+          ],
+          const SizedBox(width: 4),
+          AppIconButton(
+            icon: AppIcons.findPrev,
+            size: 15,
+            onPressed: () => _find.findNext(forward: false),
+          ),
+          AppIconButton(
+            icon: AppIcons.findNext,
+            size: 15,
+            onPressed: () => _find.findNext(forward: true),
+          ),
+          AppIconButton(icon: AppIcons.close, size: 14, onPressed: _closeFind),
+        ],
+      ),
     );
   }
 
@@ -945,6 +1118,57 @@ class _WebViewState extends State<_WebView> {
               hintText: 'Search or enter address',
               hintStyle: context.text.monoSmall.copyWith(color: c.textFaint),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// History suggestions, rendered in-layout (not as an overlay) so taps land
+  /// reliably — a Flutter overlay over the native web view doesn't get clicks.
+  Widget _suggestionsPanel() {
+    final c = context.colors;
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 240),
+      decoration: BoxDecoration(
+        color: c.surface,
+        border: Border(bottom: BorderSide(color: c.terminalBorder)),
+      ),
+      child: ListView.builder(
+        padding: EdgeInsets.zero,
+        shrinkWrap: true,
+        itemCount: _suggestions.length,
+        itemBuilder: (context, i) => _historyRow(_suggestions[i]),
+      ),
+    );
+  }
+
+  Widget _historyRow(String url) {
+    final c = context.colors;
+    return Listener(
+      // Select on pointer-down: tapping the row unfocuses the address bar,
+      // which rebuilds and removes this panel — by pointer-up it's gone.
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) => _submit(url),
+      child: HoverRegion(
+        builder: (context, hovered) => Container(
+          color: hovered ? c.surfaceHover : null,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          child: Row(
+            children: [
+              Icon(AppIcons.web, size: 12, color: c.textMuted),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  url,
+                  style: context.text.monoSmall.copyWith(
+                    color: c.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
       ),

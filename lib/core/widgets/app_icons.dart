@@ -37,6 +37,9 @@ abstract final class AppIcons {
   static const IconData navBack = LucideIcons.arrowLeft;
   static const IconData navForward = LucideIcons.arrowRight;
   static const IconData refresh = LucideIcons.rotateCw;
+  static const IconData search = LucideIcons.search;
+  static const IconData findPrev = LucideIcons.chevronUp;
+  static const IconData findNext = LucideIcons.chevronDown;
 
   // Machine details
   static const IconData gpu = LucideIcons.cpu;
