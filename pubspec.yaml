@@ -1,0 +1,78 @@
+name: zml_lab
+description: "Desktop control panel for launching and babysitting ML inference jobs on a small fleet of remote machines."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+# NOTE: dependency versions are intentionally left unconstrained — `pub get`
+# resolves the best compatible versions.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Terminal (Ghostty VT engine as a Flutter widget) + PTY backend
+  flterm:
+  flutter_pty:
+
+  # State management — riverpod, generator-based (no manual providers)
+  flutter_riverpod:
+  riverpod_annotation:
+
+  # Routing — typed routes via go_router_builder
+  go_router:
+
+  # Models
+  freezed_annotation:
+  json_annotation:
+
+  # Persistence
+  drift:
+  drift_flutter:
+
+  # Desktop window chrome
+  window_manager:
+
+  # Icons + type
+  lucide_icons_flutter:
+  google_fonts:
+
+  # Utilities
+  collection:
+  flutter_inappwebview: ^6.1.5
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints:
+
+  build_runner:
+  custom_lint:
+
+  # riverpod codegen + lints
+  riverpod_generator:
+  riverpod_lint:
+
+  # freezed / json codegen
+  freezed:
+  json_serializable:
+
+  # routing codegen
+  go_router_builder:
+
+  # drift codegen
+  drift_dev:
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/
+    - assets/libghostty-wasm32-freestanding.wasm
+
+  fonts:
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+        - asset: assets/fonts/JetBrainsMono-Bold.ttf
+          weight: 700

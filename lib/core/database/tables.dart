@@ -1,0 +1,62 @@
+import 'package:drift/drift.dart';
+
+/// Remote hosts jobs run on.
+@DataClassName('MachineRow')
+class Machines extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get address => text()();
+  IntColumn get sshPort => integer().withDefault(const Constant(22))();
+  TextColumn get user => text().nullable()();
+  TextColumn get sshKey => text().nullable()();
+
+  /// [Vendor.name], or null if unknown.
+  TextColumn get vendor => text().nullable()();
+  TextColumn get gpus => text().nullable()();
+  TextColumn get memory => text().nullable()();
+  BoolColumn get online => boolean().withDefault(const Constant(true))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Reusable saved launch presets.
+@DataClassName('LaunchConfigRow')
+class LaunchConfigs extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get machineId => text()();
+  TextColumn get program => text()();
+  TextColumn get command => text()();
+  TextColumn get workingDir => text().nullable()();
+  IntColumn get port => integer()();
+
+  /// JSON-encoded `List<EnvVar>`.
+  TextColumn get envJson => text().withDefault(const Constant('[]'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Launched (or once-launched) processes.
+@DataClassName('JobRow')
+class Jobs extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get machineId => text()();
+  TextColumn get program => text()();
+  TextColumn get command => text()();
+  TextColumn get workingDir => text().nullable()();
+  IntColumn get port => integer()();
+
+  /// [JobStatus.name].
+  TextColumn get status => text()();
+  TextColumn get envJson => text().withDefault(const Constant('[]'))();
+  IntColumn get pid => integer().nullable()();
+  DateTimeColumn get startedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}

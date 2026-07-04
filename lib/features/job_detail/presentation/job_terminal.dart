@@ -1,0 +1,965 @@
+import 'package:flterm/flterm.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart'
+    show InputDecoration, Material, MaterialType, TextField;
+import 'package:flutter/services.dart' show TextInputAction;
+import 'package:flutter/widgets.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/providers/terminal_font.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/widgets.dart';
+import '../../../models/job.dart';
+import '../../../models/machine.dart';
+import '../application/terminal_fullscreen.dart';
+import 'terminal_session.dart';
+
+// ── Pane tree ────────────────────────────────────────────────────────────
+// A tab holds a tree of panes: a leaf is one pane (a terminal *or* a web
+// view), a split holds two children side-by-side (Axis.horizontal) or stacked
+// (Axis.vertical). Splitting works on any leaf regardless of its content.
+
+/// The content of a single leaf: either a live terminal or a web view.
+sealed class _Content {
+  void dispose();
+}
+
+class _TermContent extends _Content {
+  _TermContent(this.session);
+  final TerminalSession session;
+  @override
+  void dispose() => session.dispose();
+}
+
+class _WebContent extends _Content {
+  _WebContent(this.session);
+  final _WebSession session;
+  @override
+  void dispose() {} // WebViewController has no dispose; freed on unmount.
+}
+
+sealed class _Pane {}
+
+class _Leaf extends _Pane {
+  _Leaf(this.content) : id = 'leaf-${_counter++}';
+  final _Content content;
+  final String id;
+  static int _counter = 0;
+}
+
+class _Split extends _Pane {
+  _Split(this.axis, this.first, this.second) : id = 'split-${_counter++}';
+  final String id;
+  final Axis axis;
+  _Pane first;
+  _Pane second;
+  double ratio = 0.5;
+  static int _counter = 0;
+}
+
+class _Tab {
+  _Tab(this.root) : id = 'tab-${_counter++}';
+  _Pane root;
+  final String id;
+  static int _counter = 0;
+}
+
+/// A single web view. The native webview is owned by an [InAppWebView] widget;
+/// [keepAlive] keeps it (and its loaded page) alive when the tab is switched
+/// away and the widget unmounts. [currentUrl] tracks the live location.
+class _WebSession {
+  _WebSession([String? url])
+    : id = 'web-${_counter++}',
+      currentUrl = (url == null || url.isEmpty) ? '' : _normalize(url);
+
+  final String id;
+  String currentUrl;
+  final InAppWebViewKeepAlive keepAlive = InAppWebViewKeepAlive();
+  InAppWebViewController? controller;
+  static int _counter = 0;
+
+  // Interactive webview is native-only; the (degraded) web build shows a note.
+  bool get isLive => !kIsWeb;
+
+  /// A compact host:port label for the tab; 'web' until an address is entered.
+  String get label {
+    if (currentUrl.isEmpty) return 'web';
+    final uri = Uri.tryParse(currentUrl);
+    if (uri == null || uri.host.isEmpty) return currentUrl;
+    return uri.hasPort ? '${uri.host}:${uri.port}' : uri.host;
+  }
+
+  static String _normalize(String raw) =>
+      raw.startsWith('http') ? raw : 'http://$raw';
+
+  /// A genuine desktop Safari UA so sites serve their real (desktop) pages
+  /// rather than a stripped-down or "unsupported browser" variant.
+  static const String userAgent =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+      'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15';
+}
+
+/// The terminal region of the job detail view: a real terminal multiplexer —
+/// tabs, split panes (draggable dividers). Each pane is either a live
+/// interactive flterm terminal running the user's shell, or an embedded web
+/// view with its own browser chrome.
+class JobTerminal extends ConsumerStatefulWidget {
+  const JobTerminal({super.key, required this.job, required this.machine});
+
+  final Job job;
+  final Machine? machine;
+
+  @override
+  ConsumerState<JobTerminal> createState() => _JobTerminalState();
+}
+
+class _JobTerminalState extends ConsumerState<JobTerminal> {
+  final List<_Tab> _tabs = [];
+  int _active = 0;
+  String? _focusedId;
+
+  @override
+  void initState() {
+    super.initState();
+    final leaf = _Leaf(_TermContent(TerminalSession()));
+    _tabs.add(_Tab(leaf));
+    _focusedId = leaf.id;
+  }
+
+  @override
+  void dispose() {
+    // Leaving the detail view drops fullscreen so it never lingers elsewhere.
+    final fullscreen = ref.read(terminalFullscreenProvider.notifier);
+    WidgetsBinding.instance.addPostFrameCallback((_) => fullscreen.exit());
+    for (final tab in _tabs) {
+      _disposePane(tab.root);
+    }
+    super.dispose();
+  }
+
+  void _disposePane(_Pane pane) {
+    switch (pane) {
+      case _Leaf l:
+        l.content.dispose();
+      case _Split s:
+        _disposePane(s.first);
+        _disposePane(s.second);
+    }
+  }
+
+  _Leaf _firstLeaf(_Pane pane) =>
+      switch (pane) { _Leaf l => l, _Split s => _firstLeaf(s.first) };
+
+  _Leaf? _findLeaf(_Pane pane, String id) => switch (pane) {
+    _Leaf l => l.id == id ? l : null,
+    _Split s => _findLeaf(s.first, id) ?? _findLeaf(s.second, id),
+  };
+
+  _Split? _findParent(_Pane node, _Pane child) {
+    if (node is _Split) {
+      if (identical(node.first, child) || identical(node.second, child)) {
+        return node;
+      }
+      return _findParent(node.first, child) ?? _findParent(node.second, child);
+    }
+    return null;
+  }
+
+  /// Replaces [target] with [replacement] in the tree, mutating splits in
+  /// place so their ratios stay stable. Returns the (possibly new) root.
+  _Pane _replaceNode(_Pane root, _Pane target, _Pane replacement) {
+    if (identical(root, target)) return replacement;
+    if (root is _Split) {
+      if (identical(root.first, target)) {
+        root.first = replacement;
+      } else if (identical(root.second, target)) {
+        root.second = replacement;
+      } else {
+        _replaceNode(root.first, target, replacement);
+        _replaceNode(root.second, target, replacement);
+      }
+    }
+    return root;
+  }
+
+  /// A new pane of the same kind as [source] — splitting a terminal yields a
+  /// terminal, splitting a web view yields another web view at the same URL.
+  _Content _sameKind(_Content source) => switch (source) {
+    _TermContent _ => _TermContent(TerminalSession()),
+    _WebContent w => _WebContent(
+      _WebSession(w.session.currentUrl.isEmpty ? null : w.session.currentUrl),
+    ),
+  };
+
+  void _split(Axis axis) {
+    final tab = _tabs[_active];
+    final id = _focusedId;
+    final leaf =
+        (id == null ? null : _findLeaf(tab.root, id)) ?? _firstLeaf(tab.root);
+    final newLeaf = _Leaf(_sameKind(leaf.content));
+    setState(() {
+      tab.root = _replaceNode(tab.root, leaf, _Split(axis, leaf, newLeaf));
+      _focusedId = newLeaf.id;
+    });
+  }
+
+  void _closeLeaf(_Leaf leaf) {
+    final tab = _tabs[_active];
+    final parent = _findParent(tab.root, leaf);
+    if (parent == null) return; // sole pane — not closable
+    final sibling = identical(parent.first, leaf)
+        ? parent.second
+        : parent.first;
+    setState(() {
+      tab.root = _replaceNode(tab.root, parent, sibling);
+      if (_focusedId == leaf.id) _focusedId = _firstLeaf(sibling).id;
+    });
+    // Dispose after the closed pane's view has unmounted this frame.
+    _disposeLater(leaf.content);
+  }
+
+  void _disposeLater(_Content content) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => content.dispose());
+  }
+
+  void _addTab() {
+    final leaf = _Leaf(_TermContent(TerminalSession()));
+    setState(() {
+      _tabs.add(_Tab(leaf));
+      _active = _tabs.length - 1;
+      _focusedId = leaf.id;
+    });
+  }
+
+  void _addWebTab() {
+    final leaf = _Leaf(_WebContent(_WebSession()));
+    setState(() {
+      _tabs.add(_Tab(leaf));
+      _active = _tabs.length - 1;
+      _focusedId = leaf.id;
+    });
+  }
+
+  void _selectTab(int i) => setState(() {
+    _active = i;
+    _focusedId = _firstLeaf(_tabs[i].root).id;
+  });
+
+  void _closeTab(int i) {
+    final removed = _tabs[i].root;
+    setState(() {
+      _tabs.removeAt(i);
+      if (_tabs.isEmpty) {
+        _tabs.add(_Tab(_Leaf(_TermContent(TerminalSession()))));
+      }
+      _active = _active.clamp(0, _tabs.length - 1);
+      _focusedId = _firstLeaf(_tabs[_active].root).id;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _disposePane(removed));
+  }
+
+  void _reorderTab(int from, int to) {
+    if (from == to) return;
+    setState(() {
+      final activeTab = _tabs[_active];
+      final moved = _tabs.removeAt(from);
+      final target = from < to ? to - 1 : to;
+      _tabs.insert(target.clamp(0, _tabs.length), moved);
+      _active = _tabs.indexOf(activeTab);
+    });
+  }
+
+  void _focus(_Leaf leaf) {
+    if (_focusedId != leaf.id) setState(() => _focusedId = leaf.id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final font = ref.watch(terminalFontProvider).value;
+    final fullscreen = ref.watch(terminalFullscreenProvider);
+    final tab = _tabs[_active];
+
+    // The border must paint *behind* the content, never in the foreground:
+    // a Flutter layer painted over an embedded web view forces macOS to
+    // snapshot it into a non-interactive texture (no clicks/scroll). Using a
+    // Container border (which insets the child) keeps the border visible while
+    // staying in the background paint pass.
+    final radius = fullscreen ? BorderRadius.zero : AppRadius.lgAll;
+    return Container(
+      decoration: BoxDecoration(
+        color: c.terminalBackground,
+        borderRadius: radius,
+        border: Border.all(color: c.terminalBorder, width: 1.2),
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: Column(
+          children: [
+            _buildTabBar(fullscreen: fullscreen),
+            Expanded(
+              child: _buildPane(
+                tab.root,
+                font,
+                closable: tab.root is _Split,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabBar({required bool fullscreen}) {
+    final c = context.colors;
+    return Container(
+      height: 34,
+      decoration: BoxDecoration(
+        color: c.surface,
+        border: Border(bottom: BorderSide(color: c.terminalBorder)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < _tabs.length; i++) _buildTab(i),
+          _BarButton(icon: AppIcons.add, onPressed: _addTab),
+          _BarButton(icon: AppIcons.web, onPressed: _addWebTab),
+          const Spacer(),
+          Center(
+            child: AppIconButton(
+              icon: AppIcons.splitHorizontal,
+              size: 15,
+              onPressed: () => _split(Axis.horizontal),
+            ),
+          ),
+          Center(
+            child: AppIconButton(
+              icon: AppIcons.splitVertical,
+              size: 15,
+              onPressed: () => _split(Axis.vertical),
+            ),
+          ),
+          _Separator(color: c.terminalBorder),
+          Center(
+            child: AppIconButton(
+              icon: fullscreen ? AppIcons.exitFullscreen : AppIcons.fullscreen,
+              size: 15,
+              onPressed: () =>
+                  ref.read(terminalFullscreenProvider.notifier).toggle(),
+            ),
+          ),
+          const SizedBox(width: 6),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTab(int i) {
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (d) => d.data != i,
+      onAcceptWithDetails: (d) => _reorderTab(d.data, i),
+      builder: (context, candidate, rejected) {
+        final tab = _tabVisual(i, dropTarget: candidate.isNotEmpty);
+        return Draggable<int>(
+          data: i,
+          axis: Axis.horizontal,
+          feedback: _tabFeedback(i),
+          childWhenDragging: Opacity(opacity: 0.3, child: tab),
+          child: tab,
+        );
+      },
+    );
+  }
+
+  ({IconData icon, String label}) _tabInfo(int i) {
+    final leaf = _firstLeaf(_tabs[i].root);
+    return switch (leaf.content) {
+      _TermContent _ => (icon: AppIcons.terminal, label: 'shell'),
+      _WebContent w => (icon: AppIcons.web, label: w.session.label),
+    };
+  }
+
+  Widget _tabBadge(BuildContext context, IconData icon, {required bool active}) {
+    final c = context.colors;
+    return Container(
+      width: 19,
+      height: 19,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.all(Radius.circular(5)),
+        border: Border.all(color: c.border),
+      ),
+      child: Icon(
+        icon,
+        size: 11,
+        color: active ? c.textSecondary : c.textMuted,
+      ),
+    );
+  }
+
+  Widget _tabVisual(int i, {required bool dropTarget}) {
+    final c = context.colors;
+    final active = i == _active;
+    final info = _tabInfo(i);
+    return HoverRegion(
+      onTap: () => _selectTab(i),
+      builder: (context, hovered) {
+        final indicator = active
+            ? c.accent
+            : (dropTarget
+                  ? c.accent.withValues(alpha: 0.5)
+                  : const Color(0x00000000));
+        return Container(
+          width: 150,
+          padding: const EdgeInsets.only(left: 10, right: 8),
+          decoration: BoxDecoration(
+            color: active
+                ? c.terminalBackground
+                : (hovered ? c.surfaceHover : null),
+            border: Border(
+              right: BorderSide(color: c.terminalBorder),
+              bottom: BorderSide(color: indicator, width: 2),
+            ),
+          ),
+          child: Row(
+            children: [
+              _tabBadge(context, info.icon, active: active),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  info.label,
+                  style: context.text.monoSmall.copyWith(
+                    color: active ? c.textSecondary : c.textMuted,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Pinned to the right; reserved so the row doesn't jump.
+              SizedBox(
+                width: 16,
+                child: hovered && _tabs.length > 1
+                    ? AppIconButton(
+                        icon: AppIcons.close,
+                        size: 12,
+                        padding: const EdgeInsets.all(3),
+                        onPressed: () => _closeTab(i),
+                      )
+                    : null,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// The floating tab shown while dragging to reorder.
+  Widget _tabFeedback(int i) {
+    final c = context.colors;
+    final info = _tabInfo(i);
+    return DefaultTextStyle(
+      style: context.text.monoSmall.copyWith(color: c.textSecondary),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: AppRadius.smAll,
+          border: Border.all(color: c.borderStrong),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x40000000),
+              blurRadius: 10,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _tabBadge(context, info.icon, active: true),
+            const SizedBox(width: AppSpacing.sm),
+            Text(info.label),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPane(_Pane pane, Uint8List? font, {required bool closable}) {
+    // Key each pane by identity so its view element maps 1:1 to its session and
+    // is never reused across sessions on relayout/resize.
+    final (String id, Widget child) = switch (pane) {
+      _Leaf l => (l.id, _buildLeaf(l, font, closable: closable)),
+      _Split s => (s.id, _buildSplit(s, font)),
+    };
+    return KeyedSubtree(key: ValueKey(id), child: child);
+  }
+
+  Widget _buildSplit(_Split split, Uint8List? font) {
+    final c = context.colors;
+    final horizontal = split.axis == Axis.horizontal;
+    const dividerSize = 6.0;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final extent = horizontal
+            ? constraints.maxWidth
+            : constraints.maxHeight;
+        final usable = (extent - dividerSize).clamp(0.0, double.infinity);
+        final firstExtent = usable * split.ratio;
+        final secondExtent = usable * (1 - split.ratio);
+
+        SizedBox sized(double e, Widget child) => SizedBox(
+          width: horizontal ? e : null,
+          height: horizontal ? null : e,
+          child: child,
+        );
+
+        final divider = MouseRegion(
+          cursor: horizontal
+              ? SystemMouseCursors.resizeLeftRight
+              : SystemMouseCursors.resizeUpDown,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onPanUpdate: (d) {
+              final delta = horizontal ? d.delta.dx : d.delta.dy;
+              setState(() {
+                split.ratio = (split.ratio + delta / extent).clamp(0.08, 0.92);
+              });
+            },
+            child: Container(
+              width: horizontal ? dividerSize : null,
+              height: horizontal ? null : dividerSize,
+              color: c.border,
+            ),
+          ),
+        );
+
+        final children = [
+          sized(firstExtent, _buildPane(split.first, font, closable: true)),
+          divider,
+          sized(secondExtent, _buildPane(split.second, font, closable: true)),
+        ];
+
+        return horizontal
+            ? Row(children: children)
+            : Column(children: children);
+      },
+    );
+  }
+
+  Widget _buildLeaf(_Leaf leaf, Uint8List? font, {required bool closable}) {
+    return switch (leaf.content) {
+      _TermContent t => _buildTermLeaf(
+        leaf,
+        t.session,
+        font,
+        closable: closable,
+      ),
+      _WebContent w => _buildWebLeaf(leaf, w.session, closable: closable),
+    };
+  }
+
+  Widget _buildTermLeaf(
+    _Leaf leaf,
+    TerminalSession session,
+    Uint8List? font, {
+    required bool closable,
+  }) {
+    final focused = leaf.id == _focusedId;
+
+    final Widget inner = session.isLive
+        ? TerminalView(
+            controller: session.controller,
+            focusNode: session.focusNode,
+            theme: TerminalTheme.dark(),
+            fontData: font,
+            autofocus: focused,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          )
+        : const _NativeOnlyNotice(
+            label: 'Interactive terminal runs on the native desktop build.',
+          );
+
+    return HoverRegion(
+      builder: (context, hovered) => Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) => _focus(leaf),
+        child: Stack(
+          children: [
+            Positioned.fill(child: _focusFrame(focused && closable, inner)),
+            if (closable && hovered)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: AppIconButton(
+                  icon: AppIcons.close,
+                  size: 13,
+                  onPressed: () => _closeLeaf(leaf),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWebLeaf(
+    _Leaf leaf,
+    _WebSession session, {
+    required bool closable,
+  }) {
+    final focused = leaf.id == _focusedId;
+    final Widget inner = session.isLive
+        ? _WebView(
+            session: session,
+            closable: closable,
+            onActivate: () => _focus(leaf),
+            onClose: () => _closeLeaf(leaf),
+            onNavigated: () {
+              if (mounted) setState(() {}); // refresh the tab label
+            },
+          )
+        : const _NativeOnlyNotice(
+            label: 'Web view runs on the native desktop build.',
+          );
+
+    // Focus-follows-mouse (via MouseRegion) rather than an intercepting
+    // Listener — a pointer Listener over the native web view swallows the
+    // clicks/scroll the page needs.
+    return MouseRegion(
+      onEnter: (_) => _focus(leaf),
+      child: _focusFrame(focused && closable, inner),
+    );
+  }
+
+  /// A 1px accent frame marking the focused pane (only meaningful when split).
+  Widget _focusFrame(bool focused, Widget child) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: focused
+              ? context.colors.accent.withValues(alpha: 0.6)
+              : const Color(0x00000000),
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// A small icon button in the tab bar with even margins around it.
+class _BarButton extends StatelessWidget {
+  const _BarButton({required this.icon, required this.onPressed});
+
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: Center(
+        child: AppIconButton(
+          icon: icon,
+          size: 15,
+          padding: const EdgeInsets.all(5),
+          onPressed: onPressed,
+        ),
+      ),
+    );
+  }
+}
+
+/// A short vertical rule between the split controls and the fullscreen button.
+class _Separator extends StatelessWidget {
+  const _Separator({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      child: Center(
+        child: SizedBox(width: 1, height: 16, child: ColoredBox(color: color)),
+      ),
+    );
+  }
+}
+
+/// An embedded web view with a browser chrome bar: back / forward / reload and
+/// an address bar that doubles as a search box.
+class _WebView extends StatefulWidget {
+  const _WebView({
+    required this.session,
+    required this.closable,
+    required this.onActivate,
+    required this.onClose,
+    required this.onNavigated,
+  });
+
+  final _WebSession session;
+  final bool closable;
+  final VoidCallback onActivate;
+  final VoidCallback onClose;
+  final VoidCallback onNavigated;
+
+  @override
+  State<_WebView> createState() => _WebViewState();
+}
+
+class _WebViewState extends State<_WebView> {
+  late final TextEditingController _addr;
+  late final FocusNode _addrFocus;
+  bool _addrFocused = false;
+  bool _canBack = false;
+  bool _canForward = false;
+  String? _lastRequested;
+
+  _WebSession get _session => widget.session;
+  InAppWebViewController? get _controller => _session.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _addr = TextEditingController(text: _session.currentUrl);
+    _addrFocus = FocusNode()
+      ..addListener(() {
+        if (_addrFocus.hasFocus) widget.onActivate();
+        setState(() => _addrFocused = _addrFocus.hasFocus);
+      });
+  }
+
+  void _onUrl(String? url) {
+    // The inline error page loads as about:blank / a data: URL — keep showing
+    // the address the user actually asked for instead.
+    if (url == null || url.isEmpty) return;
+    if (url == 'about:blank' || url.startsWith('data:')) return;
+    _session.currentUrl = url;
+    // Don't stomp on the user mid-edit.
+    if (!_addrFocus.hasFocus && _addr.text != url) _addr.text = url;
+    _syncNav();
+    widget.onNavigated();
+  }
+
+  void _showError(String? failedUrl, String description) {
+    final target = failedUrl ?? _lastRequested ?? _session.currentUrl;
+    _controller?.loadData(
+      data: _errorHtml(target, description),
+      mimeType: 'text/html',
+      baseUrl: WebUri('about:blank'),
+    );
+    widget.onNavigated();
+  }
+
+  Future<void> _syncNav() async {
+    final ctrl = _controller;
+    if (ctrl == null) return;
+    final back = await ctrl.canGoBack();
+    final fwd = await ctrl.canGoForward();
+    if (!mounted) return;
+    if (back != _canBack || fwd != _canForward) {
+      setState(() {
+        _canBack = back;
+        _canForward = fwd;
+      });
+    }
+  }
+
+  void _submit(String raw) {
+    widget.onActivate();
+    final url = _resolve(raw);
+    if (url.isEmpty) return;
+    _addr.text = url;
+    _session.currentUrl = url;
+    _lastRequested = url;
+    _controller?.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+    _addrFocus.unfocus();
+  }
+
+  /// A URL as typed, or a Google search when it isn't one.
+  String _resolve(String raw) {
+    final t = raw.trim();
+    if (t.isEmpty) return _session.currentUrl;
+    if (t.startsWith('http://') || t.startsWith('https://')) return t;
+    final looksLikeHost = !t.contains(' ') && t.contains('.');
+    if (looksLikeHost) return 'https://$t';
+    return 'https://www.google.com/search?q=${Uri.encodeQueryComponent(t)}';
+  }
+
+  /// A dark, terminal-matching error page shown in place of a failed load.
+  String _errorHtml(String url, String description) {
+    final u = _escapeHtml(url);
+    final d = _escapeHtml(description.isEmpty ? 'The page could not be loaded.' : description);
+    return '''
+<!DOCTYPE html><html><head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html,body{height:100%;margin:0}
+  body{background:#0B0C0E;color:#8A919B;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    display:flex;align-items:center;justify-content:center;padding:24px}
+  .box{max-width:520px;text-align:center}
+  .title{color:#E6E8EB;font-size:15px;margin-bottom:12px}
+  .url{color:#6EA8FF;font-size:13px;word-break:break-all;margin-bottom:14px}
+  .desc{font-size:12px;line-height:1.6;color:#8A919B}
+</style></head><body><div class="box">
+  <div class="title">Can't reach this page</div>
+  <div class="url">$u</div>
+  <div class="desc">$d</div>
+</div></body></html>''';
+  }
+
+  String _escapeHtml(String s) => s
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
+
+  @override
+  void dispose() {
+    _addr.dispose();
+    _addrFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = _session.currentUrl;
+    return Column(
+      children: [
+        _toolbar(),
+        Expanded(
+          child: InAppWebView(
+            keepAlive: _session.keepAlive,
+            initialUrlRequest: initial.isEmpty
+                ? null
+                : URLRequest(url: WebUri(initial)),
+            initialSettings: InAppWebViewSettings(
+              userAgent: _WebSession.userAgent,
+            ),
+            onWebViewCreated: (controller) {
+              _session.controller = controller;
+              _syncNav();
+            },
+            onLoadStart: (controller, url) => _onUrl(url?.toString()),
+            onLoadStop: (controller, url) => _onUrl(url?.toString()),
+            onUpdateVisitedHistory: (controller, url, isReload) =>
+                _onUrl(url?.toString()),
+            onReceivedError: (controller, request, error) {
+              // Only replace the page when the main frame itself fails, and
+              // never for a load the user cancelled by navigating away.
+              if (request.isForMainFrame != true) return;
+              if (error.type == WebResourceErrorType.CANCELLED) return;
+              _showError(request.url.toString(), error.description);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _toolbar() {
+    final c = context.colors;
+    return Container(
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: c.surface,
+        border: Border(bottom: BorderSide(color: c.terminalBorder)),
+      ),
+      child: Row(
+        children: [
+          _navButton(AppIcons.navBack, enabled: _canBack, onTap: () {
+            widget.onActivate();
+            _controller?.goBack();
+          }),
+          _navButton(AppIcons.navForward, enabled: _canForward, onTap: () {
+            widget.onActivate();
+            _controller?.goForward();
+          }),
+          _navButton(AppIcons.refresh, enabled: true, onTap: () {
+            widget.onActivate();
+            _controller?.reload();
+          }),
+          const SizedBox(width: 4),
+          Expanded(child: _addressBar()),
+          if (widget.closable) ...[
+            const SizedBox(width: 4),
+            AppIconButton(
+              icon: AppIcons.close,
+              size: 14,
+              onPressed: widget.onClose,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _navButton(
+    IconData icon, {
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    if (!enabled) {
+      return Padding(
+        padding: const EdgeInsets.all(6),
+        child: Icon(icon, size: 15, color: context.colors.textFaint),
+      );
+    }
+    return AppIconButton(icon: icon, size: 15, onPressed: onTap);
+  }
+
+  Widget _addressBar() {
+    final c = context.colors;
+    return DefaultSelectionStyle(
+      cursorColor: c.accent,
+      selectionColor: c.accent.withValues(alpha: 0.28),
+      child: Container(
+        height: 26,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        alignment: Alignment.centerLeft,
+        decoration: BoxDecoration(
+          color: c.surfaceMuted,
+          borderRadius: AppRadius.smAll,
+          border: Border.all(
+            color: _addrFocused ? c.accent : c.border,
+            width: _addrFocused ? 1.2 : 1,
+          ),
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: TextField(
+            controller: _addr,
+            focusNode: _addrFocus,
+            style: context.text.monoSmall.copyWith(color: c.textPrimary),
+            cursorColor: c.accent,
+            cursorWidth: 1.6,
+            textInputAction: TextInputAction.go,
+            onSubmitted: _submit,
+            decoration: InputDecoration.collapsed(
+              hintText: 'Search or enter address',
+              hintStyle: context.text.monoSmall.copyWith(color: c.textFaint),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder shown on the (unsupported) web build for a terminal or web pane.
+class _NativeOnlyNotice extends StatelessWidget {
+  const _NativeOnlyNotice({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(child: Text(label, style: context.text.monoSmall));
+  }
+}
