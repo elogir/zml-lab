@@ -14,6 +14,8 @@ class AppTextField extends StatefulWidget {
     this.controller,
     this.placeholder,
     this.prefix,
+    this.prefixIcon,
+    this.suffix,
     this.mono = false,
     this.onChanged,
     this.onSubmitted,
@@ -26,6 +28,12 @@ class AppTextField extends StatefulWidget {
   final TextEditingController? controller;
   final String? placeholder;
   final String? prefix;
+
+  /// A leading icon (e.g. a magnifier for search), drawn before the text.
+  final IconData? prefixIcon;
+
+  /// A trailing widget (e.g. a clear button), drawn after the text.
+  final Widget? suffix;
   final bool mono;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
@@ -98,6 +106,10 @@ class _AppTextFieldState extends State<AppTextField> {
               ? CrossAxisAlignment.start
               : CrossAxisAlignment.center,
           children: [
+            if (widget.prefixIcon != null) ...[
+              Icon(widget.prefixIcon, size: 15, color: c.textMuted),
+              const SizedBox(width: 8),
+            ],
             if (widget.prefix != null) ...[
               Text(
                 widget.prefix!,
@@ -130,6 +142,10 @@ class _AppTextFieldState extends State<AppTextField> {
                 ),
               ),
             ),
+            if (widget.suffix != null) ...[
+              const SizedBox(width: 8),
+              widget.suffix!,
+            ],
           ],
         ),
       ),

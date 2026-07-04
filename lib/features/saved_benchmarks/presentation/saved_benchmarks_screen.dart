@@ -9,12 +9,29 @@ import '../../../repositories/saved_benchmark_repository.dart';
 import '../application/saved_benchmarks_providers.dart';
 import 'saved_benchmark_detail.dart';
 
-class SavedBenchmarksScreen extends ConsumerWidget {
+class SavedBenchmarksScreen extends ConsumerStatefulWidget {
   const SavedBenchmarksScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final benchmarks = ref.watch(savedBenchmarksStreamProvider).value ?? const [];
+  ConsumerState<SavedBenchmarksScreen> createState() =>
+      _SavedBenchmarksScreenState();
+}
+
+class _SavedBenchmarksScreenState extends ConsumerState<SavedBenchmarksScreen> {
+  String _query = '';
+
+  bool _matches(SavedBenchmark b, String q) =>
+      b.name.toLowerCase().contains(q) ||
+      b.endpoint.toLowerCase().contains(q) ||
+      b.prompt.toLowerCase().contains(q);
+
+  @override
+  Widget build(BuildContext context) {
+    final all = ref.watch(savedBenchmarksStreamProvider).value ?? const [];
+    final q = _query.trim().toLowerCase();
+    final benchmarks = q.isEmpty
+        ? all
+        : all.where((b) => _matches(b, q)).toList();
 
     return Padding(
       padding: AppSpacing.screen,
@@ -26,10 +43,15 @@ class SavedBenchmarksScreen extends ConsumerWidget {
             subtitle:
                 'Named snapshots of past runs. Open one to review its responses.',
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
+          AppSearchField(
+            hintText: 'Search benchmarks',
+            onChanged: (v) => setState(() => _query = v),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           Expanded(
             child: benchmarks.isEmpty
-                ? _EmptyState()
+                ? _EmptyState(searching: q.isNotEmpty)
                 : SingleChildScrollView(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
@@ -145,6 +167,10 @@ class _Metric extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
+  const _EmptyState({this.searching = false});
+
+  final bool searching;
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -154,10 +180,15 @@ class _EmptyState extends StatelessWidget {
         children: [
           Icon(AppIcons.savedBenchmarks, size: 26, color: c.textFaint),
           const SizedBox(height: AppSpacing.md),
-          Text('No saved benchmarks', style: context.text.bodySecondary),
+          Text(
+            searching ? 'No matching benchmarks' : 'No saved benchmarks',
+            style: context.text.bodySecondary,
+          ),
           const SizedBox(height: 4),
           Text(
-            'Run a benchmark on a job, then Save it to keep it here.',
+            searching
+                ? 'Try a different search.'
+                : 'Run a benchmark on a job, then Save it to keep it here.',
             style: context.text.smallMuted,
           ),
         ],

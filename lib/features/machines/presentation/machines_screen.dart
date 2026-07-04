@@ -9,12 +9,28 @@ import '../../../repositories/machine_repository.dart';
 import '../../jobs/application/jobs_providers.dart';
 import '../application/machines_providers.dart';
 
-class MachinesScreen extends ConsumerWidget {
+class MachinesScreen extends ConsumerStatefulWidget {
   const MachinesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final machines = ref.watch(machinesStreamProvider).value ?? const [];
+  ConsumerState<MachinesScreen> createState() => _MachinesScreenState();
+}
+
+class _MachinesScreenState extends ConsumerState<MachinesScreen> {
+  String _query = '';
+
+  bool _matches(Machine m, String q) =>
+      m.name.toLowerCase().contains(q) ||
+      m.address.toLowerCase().contains(q) ||
+      (m.vendor?.name.toLowerCase().contains(q) ?? false) ||
+      (m.gpus?.toLowerCase().contains(q) ?? false) ||
+      (m.memory?.toLowerCase().contains(q) ?? false);
+
+  @override
+  Widget build(BuildContext context) {
+    final all = ref.watch(machinesStreamProvider).value ?? const [];
+    final q = _query.trim().toLowerCase();
+    final machines = q.isEmpty ? all : all.where((m) => _matches(m, q)).toList();
 
     return Padding(
       padding: AppSpacing.screen,
@@ -24,7 +40,7 @@ class MachinesScreen extends ConsumerWidget {
           ScreenHeader(
             title: 'Machines',
             subtitle:
-                '${machines.length} remote hosts available for inference jobs.',
+                '${all.length} remote hosts available for inference jobs.',
             trailing: AppButton(
               label: 'Add machine',
               icon: AppIcons.add,
@@ -32,27 +48,39 @@ class MachinesScreen extends ConsumerWidget {
               onPressed: () => context.go('/machines/new'),
             ),
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
+          AppSearchField(
+            hintText: 'Search machines',
+            onChanged: (v) => setState(() => _query = v),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           Expanded(
-            child: SingleChildScrollView(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  const gap = AppSpacing.lg;
-                  final width = (constraints.maxWidth - gap) / 2;
-                  return Wrap(
-                    spacing: gap,
-                    runSpacing: gap,
-                    children: [
-                      for (final machine in machines)
-                        SizedBox(
-                          width: width,
-                          child: _MachineCard(machine: machine),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ),
+            child: machines.isEmpty
+                ? Center(
+                    child: Text(
+                      q.isEmpty ? 'No machines' : 'No matching machines',
+                      style: context.text.smallMuted,
+                    ),
+                  )
+                : SingleChildScrollView(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        const gap = AppSpacing.lg;
+                        final width = (constraints.maxWidth - gap) / 2;
+                        return Wrap(
+                          spacing: gap,
+                          runSpacing: gap,
+                          children: [
+                            for (final machine in machines)
+                              SizedBox(
+                                width: width,
+                                child: _MachineCard(machine: machine),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),

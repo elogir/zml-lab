@@ -16,14 +16,33 @@ const double _programW = 96;
 const double _portW = 76;
 const double _uptimeW = 92;
 
-class JobsScreen extends ConsumerWidget {
+class JobsScreen extends ConsumerStatefulWidget {
   const JobsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<JobsScreen> createState() => _JobsScreenState();
+}
+
+class _JobsScreenState extends ConsumerState<JobsScreen> {
+  String _query = '';
+
+  bool _matches(JobListEntry e, String q) {
+    final job = e.job;
+    final machineName = e.machine?.name ?? job.machineId;
+    return job.name.toLowerCase().contains(q) ||
+        machineName.toLowerCase().contains(q) ||
+        job.program.toLowerCase().contains(q) ||
+        job.command.toLowerCase().contains(q) ||
+        '${job.port}'.contains(q);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final counts = ref.watch(jobCountsProvider);
     final filter = ref.watch(jobFilterProvider);
-    final entries = ref.watch(jobListProvider);
+    final all = ref.watch(jobListProvider);
+    final q = _query.trim().toLowerCase();
+    final entries = q.isEmpty ? all : all.where((e) => _matches(e, q)).toList();
 
     return Padding(
       padding: AppSpacing.screen,
@@ -41,13 +60,26 @@ class JobsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          PillTabs<JobFilterKind>(
-            value: filter,
-            onChanged: (k) => ref.read(jobFilterProvider.notifier).select(k),
-            options: const [
-              SegmentOption(value: JobFilterKind.all, label: 'All'),
-              SegmentOption(value: JobFilterKind.running, label: 'Running'),
-              SegmentOption(value: JobFilterKind.stopped, label: 'Stopped'),
+          Row(
+            children: [
+              PillTabs<JobFilterKind>(
+                value: filter,
+                onChanged: (k) =>
+                    ref.read(jobFilterProvider.notifier).select(k),
+                options: const [
+                  SegmentOption(value: JobFilterKind.all, label: 'All'),
+                  SegmentOption(value: JobFilterKind.running, label: 'Running'),
+                  SegmentOption(value: JobFilterKind.stopped, label: 'Stopped'),
+                ],
+              ),
+              const Spacer(),
+              SizedBox(
+                width: 280,
+                child: AppSearchField(
+                  hintText: 'Search jobs',
+                  onChanged: (v) => setState(() => _query = v),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),

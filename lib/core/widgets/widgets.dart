@@ -4,6 +4,7 @@ library;
 export 'app_button.dart';
 export 'app_icon_button.dart';
 export 'app_icons.dart';
+export 'app_search_field.dart';
 export 'app_text_field.dart';
 export 'badges.dart';
 export 'form_field_group.dart';

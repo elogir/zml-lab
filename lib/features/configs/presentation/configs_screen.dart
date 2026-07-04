@@ -9,12 +9,33 @@ import '../../machines/application/machines_providers.dart';
 import '../../new_job/presentation/new_job_modal.dart';
 import '../application/configs_providers.dart';
 
-class ConfigsScreen extends ConsumerWidget {
+class ConfigsScreen extends ConsumerStatefulWidget {
   const ConfigsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final configs = ref.watch(configsStreamProvider).value ?? const [];
+  ConsumerState<ConfigsScreen> createState() => _ConfigsScreenState();
+}
+
+class _ConfigsScreenState extends ConsumerState<ConfigsScreen> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final all = ref.watch(configsStreamProvider).value ?? const [];
+    final machines = ref.watch(machineMapProvider);
+    final q = _query.trim().toLowerCase();
+
+    bool matches(LaunchConfig c) {
+      final machineName = machines[c.machineId]?.name ?? c.machineId;
+      return c.name.toLowerCase().contains(q) ||
+          (c.description?.toLowerCase().contains(q) ?? false) ||
+          c.program.toLowerCase().contains(q) ||
+          c.command.toLowerCase().contains(q) ||
+          machineName.toLowerCase().contains(q) ||
+          '${c.port}'.contains(q);
+    }
+
+    final configs = q.isEmpty ? all : all.where(matches).toList();
 
     return Padding(
       padding: AppSpacing.screen,
@@ -31,27 +52,39 @@ class ConfigsScreen extends ConsumerWidget {
               onPressed: () => showNewJobModal(context),
             ),
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
+          AppSearchField(
+            hintText: 'Search configs',
+            onChanged: (v) => setState(() => _query = v),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           Expanded(
-            child: SingleChildScrollView(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  const gap = AppSpacing.lg;
-                  final width = (constraints.maxWidth - gap) / 2;
-                  return Wrap(
-                    spacing: gap,
-                    runSpacing: gap,
-                    children: [
-                      for (final config in configs)
-                        SizedBox(
-                          width: width,
-                          child: _ConfigCard(config: config),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ),
+            child: configs.isEmpty
+                ? Center(
+                    child: Text(
+                      q.isEmpty ? 'No saved configs' : 'No matching configs',
+                      style: context.text.smallMuted,
+                    ),
+                  )
+                : SingleChildScrollView(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        const gap = AppSpacing.lg;
+                        final width = (constraints.maxWidth - gap) / 2;
+                        return Wrap(
+                          spacing: gap,
+                          runSpacing: gap,
+                          children: [
+                            for (final config in configs)
+                              SizedBox(
+                                width: width,
+                                child: _ConfigCard(config: config),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
