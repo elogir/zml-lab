@@ -129,6 +129,12 @@ class _ChatViewState extends ConsumerState<_ChatView> {
                     },
                   ),
                 ),
+                // Live stats of the in-flight reply, pinned so they stay put
+                // while the transcript scrolls and the reply streams.
+                if (chat.isStreaming) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _StreamingStats(turn: chat.turns.last),
+                ],
                 const SizedBox(height: AppSpacing.lg),
                 Row(
                   children: [
@@ -178,7 +184,10 @@ class _Turn extends StatelessWidget {
         cursor: SystemMouseCursors.basic,
         builder: (context, hovered) => Container(
           width: double.infinity,
-          color: c.surfaceMuted,
+          decoration: BoxDecoration(
+            color: c.surfaceMuted,
+            borderRadius: AppRadius.mdAll,
+          ),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
@@ -239,13 +248,43 @@ class _Turn extends StatelessWidget {
                     height: 1.5,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                _Metrics(turn: turn),
+                // While streaming, the live stats are pinned above the composer
+                // so they don't shift as the reply grows; the settled metrics
+                // land here once it finishes.
+                if (!turn.streaming) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  _Metrics(turn: turn),
+                ],
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The in-flight reply's stats, pinned above the composer while it streams so
+/// they don't move as the transcript grows.
+class _StreamingStats extends StatelessWidget {
+  const _StreamingStats({required this.turn});
+
+  final ChatTurn turn;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: c.surfaceMuted,
+        borderRadius: AppRadius.mdAll,
+      ),
+      child: _Metrics(turn: turn),
     );
   }
 }
