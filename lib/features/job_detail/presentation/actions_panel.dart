@@ -175,17 +175,18 @@ class _ActionTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: 2,
+        vertical: 1.5,
       ),
       child: LayoutBuilder(
         builder: (context, cons) {
           final iw = cons.maxWidth;
+          // The whole tile shrinks to the icon-box square when collapsed (like
+          // the nav rail) so collapsed icons pack at the same tight gap as the
+          // sidebar — otherwise a fixed 54px tile leaves big dead bands and the
+          // icons drift far apart. Expanded it grows to fit title + subtitle.
+          final tileHeight = _lerp(_iconBox, _tileHeight, t);
           final highlightW = _lerp(_iconBox, iw, t);
           final highlightLeft = _lerp((_collapsedInner - _iconBox) / 2, 0, t);
-          // Height shrinks to a square (icon box) when collapsed so the button
-          // isn't a tall rectangle; grows to the full tile when expanded.
-          final highlightH = _lerp(_iconBox, _tileHeight, t);
-          final highlightTop = (_tileHeight - highlightH) / 2;
           final iconLeft = _lerp((_collapsedInner - _iconSize) / 2, _iconLeftPad, t);
           const labelLeft = _iconLeftPad + _iconSize + _labelGap;
           final labelW = (iw - labelLeft - AppSpacing.md)
@@ -199,14 +200,14 @@ class _ActionTile extends StatelessWidget {
                   ? c.statusFailed.withValues(alpha: hovered ? 0.16 : 0.10)
                   : c.surfaceHover;
               return SizedBox(
-                height: _tileHeight,
+                height: tileHeight,
                 child: Stack(
                   children: [
                     if (showBg)
                       Positioned(
                         left: highlightLeft,
-                        top: highlightTop,
-                        height: highlightH,
+                        top: 0,
+                        height: tileHeight,
                         width: highlightW,
                         child: DecoratedBox(
                           decoration: BoxDecoration(
@@ -223,7 +224,7 @@ class _ActionTile extends StatelessWidget {
                     Positioned(
                       left: iconLeft,
                       top: 0,
-                      height: _tileHeight,
+                      height: tileHeight,
                       child: Center(
                         child: Icon(icon, size: _iconSize, color: tint),
                       ),
@@ -232,7 +233,7 @@ class _ActionTile extends StatelessWidget {
                       left: labelLeft,
                       width: labelW,
                       top: 0,
-                      height: _tileHeight,
+                      height: tileHeight,
                       child: Opacity(
                         opacity: t,
                         child: Column(

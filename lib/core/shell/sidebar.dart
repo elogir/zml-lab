@@ -188,7 +188,7 @@ class _NavItem extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: 1,
+        vertical: 1.5,
       ),
       child: LayoutBuilder(
         builder: (context, cons) {
