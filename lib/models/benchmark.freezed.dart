@@ -289,7 +289,10 @@ as int?,
 /// @nodoc
 mixin _$BenchmarkRun {
 
- String get prompt; int get batchSize; List<BenchmarkRequest> get requests; bool get isRunning; Duration get elapsed;
+ String get prompt; int get batchSize; List<BenchmarkRequest> get requests; bool get isRunning; Duration get elapsed;// The aggregate throughput captured at full concurrency (see
+// [aggregateTokensPerSecond]). 0 until the first request finishes, then
+// held static for the rest of the run and after.
+ double get frozenAggregate;
 /// Create a copy of BenchmarkRun
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -300,16 +303,16 @@ $BenchmarkRunCopyWith<BenchmarkRun> get copyWith => _$BenchmarkRunCopyWithImpl<B
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkRun&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&const DeepCollectionEquality().equals(other.requests, requests)&&(identical(other.isRunning, isRunning) || other.isRunning == isRunning)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkRun&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&const DeepCollectionEquality().equals(other.requests, requests)&&(identical(other.isRunning, isRunning) || other.isRunning == isRunning)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.frozenAggregate, frozenAggregate) || other.frozenAggregate == frozenAggregate));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,prompt,batchSize,const DeepCollectionEquality().hash(requests),isRunning,elapsed);
+int get hashCode => Object.hash(runtimeType,prompt,batchSize,const DeepCollectionEquality().hash(requests),isRunning,elapsed,frozenAggregate);
 
 @override
 String toString() {
-  return 'BenchmarkRun(prompt: $prompt, batchSize: $batchSize, requests: $requests, isRunning: $isRunning, elapsed: $elapsed)';
+  return 'BenchmarkRun(prompt: $prompt, batchSize: $batchSize, requests: $requests, isRunning: $isRunning, elapsed: $elapsed, frozenAggregate: $frozenAggregate)';
 }
 
 
@@ -320,7 +323,7 @@ abstract mixin class $BenchmarkRunCopyWith<$Res>  {
   factory $BenchmarkRunCopyWith(BenchmarkRun value, $Res Function(BenchmarkRun) _then) = _$BenchmarkRunCopyWithImpl;
 @useResult
 $Res call({
- String prompt, int batchSize, List<BenchmarkRequest> requests, bool isRunning, Duration elapsed
+ String prompt, int batchSize, List<BenchmarkRequest> requests, bool isRunning, Duration elapsed, double frozenAggregate
 });
 
 
@@ -337,14 +340,15 @@ class _$BenchmarkRunCopyWithImpl<$Res>
 
 /// Create a copy of BenchmarkRun
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? prompt = null,Object? batchSize = null,Object? requests = null,Object? isRunning = null,Object? elapsed = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? prompt = null,Object? batchSize = null,Object? requests = null,Object? isRunning = null,Object? elapsed = null,Object? frozenAggregate = null,}) {
   return _then(_self.copyWith(
 prompt: null == prompt ? _self.prompt : prompt // ignore: cast_nullable_to_non_nullable
 as String,batchSize: null == batchSize ? _self.batchSize : batchSize // ignore: cast_nullable_to_non_nullable
 as int,requests: null == requests ? _self.requests : requests // ignore: cast_nullable_to_non_nullable
 as List<BenchmarkRequest>,isRunning: null == isRunning ? _self.isRunning : isRunning // ignore: cast_nullable_to_non_nullable
 as bool,elapsed: null == elapsed ? _self.elapsed : elapsed // ignore: cast_nullable_to_non_nullable
-as Duration,
+as Duration,frozenAggregate: null == frozenAggregate ? _self.frozenAggregate : frozenAggregate // ignore: cast_nullable_to_non_nullable
+as double,
   ));
 }
 
@@ -429,10 +433,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String prompt,  int batchSize,  List<BenchmarkRequest> requests,  bool isRunning,  Duration elapsed)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String prompt,  int batchSize,  List<BenchmarkRequest> requests,  bool isRunning,  Duration elapsed,  double frozenAggregate)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _BenchmarkRun() when $default != null:
-return $default(_that.prompt,_that.batchSize,_that.requests,_that.isRunning,_that.elapsed);case _:
+return $default(_that.prompt,_that.batchSize,_that.requests,_that.isRunning,_that.elapsed,_that.frozenAggregate);case _:
   return orElse();
 
 }
@@ -450,10 +454,10 @@ return $default(_that.prompt,_that.batchSize,_that.requests,_that.isRunning,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String prompt,  int batchSize,  List<BenchmarkRequest> requests,  bool isRunning,  Duration elapsed)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String prompt,  int batchSize,  List<BenchmarkRequest> requests,  bool isRunning,  Duration elapsed,  double frozenAggregate)  $default,) {final _that = this;
 switch (_that) {
 case _BenchmarkRun():
-return $default(_that.prompt,_that.batchSize,_that.requests,_that.isRunning,_that.elapsed);case _:
+return $default(_that.prompt,_that.batchSize,_that.requests,_that.isRunning,_that.elapsed,_that.frozenAggregate);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -470,10 +474,10 @@ return $default(_that.prompt,_that.batchSize,_that.requests,_that.isRunning,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String prompt,  int batchSize,  List<BenchmarkRequest> requests,  bool isRunning,  Duration elapsed)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String prompt,  int batchSize,  List<BenchmarkRequest> requests,  bool isRunning,  Duration elapsed,  double frozenAggregate)?  $default,) {final _that = this;
 switch (_that) {
 case _BenchmarkRun() when $default != null:
-return $default(_that.prompt,_that.batchSize,_that.requests,_that.isRunning,_that.elapsed);case _:
+return $default(_that.prompt,_that.batchSize,_that.requests,_that.isRunning,_that.elapsed,_that.frozenAggregate);case _:
   return null;
 
 }
@@ -485,7 +489,7 @@ return $default(_that.prompt,_that.batchSize,_that.requests,_that.isRunning,_tha
 
 
 class _BenchmarkRun extends BenchmarkRun {
-  const _BenchmarkRun({required this.prompt, required this.batchSize, final  List<BenchmarkRequest> requests = const <BenchmarkRequest>[], this.isRunning = false, this.elapsed = Duration.zero}): _requests = requests,super._();
+  const _BenchmarkRun({required this.prompt, required this.batchSize, final  List<BenchmarkRequest> requests = const <BenchmarkRequest>[], this.isRunning = false, this.elapsed = Duration.zero, this.frozenAggregate = 0.0}): _requests = requests,super._();
   
 
 @override final  String prompt;
@@ -499,6 +503,10 @@ class _BenchmarkRun extends BenchmarkRun {
 
 @override@JsonKey() final  bool isRunning;
 @override@JsonKey() final  Duration elapsed;
+// The aggregate throughput captured at full concurrency (see
+// [aggregateTokensPerSecond]). 0 until the first request finishes, then
+// held static for the rest of the run and after.
+@override@JsonKey() final  double frozenAggregate;
 
 /// Create a copy of BenchmarkRun
 /// with the given fields replaced by the non-null parameter values.
@@ -510,16 +518,16 @@ _$BenchmarkRunCopyWith<_BenchmarkRun> get copyWith => __$BenchmarkRunCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkRun&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&const DeepCollectionEquality().equals(other._requests, _requests)&&(identical(other.isRunning, isRunning) || other.isRunning == isRunning)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkRun&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&const DeepCollectionEquality().equals(other._requests, _requests)&&(identical(other.isRunning, isRunning) || other.isRunning == isRunning)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.frozenAggregate, frozenAggregate) || other.frozenAggregate == frozenAggregate));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,prompt,batchSize,const DeepCollectionEquality().hash(_requests),isRunning,elapsed);
+int get hashCode => Object.hash(runtimeType,prompt,batchSize,const DeepCollectionEquality().hash(_requests),isRunning,elapsed,frozenAggregate);
 
 @override
 String toString() {
-  return 'BenchmarkRun(prompt: $prompt, batchSize: $batchSize, requests: $requests, isRunning: $isRunning, elapsed: $elapsed)';
+  return 'BenchmarkRun(prompt: $prompt, batchSize: $batchSize, requests: $requests, isRunning: $isRunning, elapsed: $elapsed, frozenAggregate: $frozenAggregate)';
 }
 
 
@@ -530,7 +538,7 @@ abstract mixin class _$BenchmarkRunCopyWith<$Res> implements $BenchmarkRunCopyWi
   factory _$BenchmarkRunCopyWith(_BenchmarkRun value, $Res Function(_BenchmarkRun) _then) = __$BenchmarkRunCopyWithImpl;
 @override @useResult
 $Res call({
- String prompt, int batchSize, List<BenchmarkRequest> requests, bool isRunning, Duration elapsed
+ String prompt, int batchSize, List<BenchmarkRequest> requests, bool isRunning, Duration elapsed, double frozenAggregate
 });
 
 
@@ -547,14 +555,15 @@ class __$BenchmarkRunCopyWithImpl<$Res>
 
 /// Create a copy of BenchmarkRun
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? prompt = null,Object? batchSize = null,Object? requests = null,Object? isRunning = null,Object? elapsed = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? prompt = null,Object? batchSize = null,Object? requests = null,Object? isRunning = null,Object? elapsed = null,Object? frozenAggregate = null,}) {
   return _then(_BenchmarkRun(
 prompt: null == prompt ? _self.prompt : prompt // ignore: cast_nullable_to_non_nullable
 as String,batchSize: null == batchSize ? _self.batchSize : batchSize // ignore: cast_nullable_to_non_nullable
 as int,requests: null == requests ? _self._requests : requests // ignore: cast_nullable_to_non_nullable
 as List<BenchmarkRequest>,isRunning: null == isRunning ? _self.isRunning : isRunning // ignore: cast_nullable_to_non_nullable
 as bool,elapsed: null == elapsed ? _self.elapsed : elapsed // ignore: cast_nullable_to_non_nullable
-as Duration,
+as Duration,frozenAggregate: null == frozenAggregate ? _self.frozenAggregate : frozenAggregate // ignore: cast_nullable_to_non_nullable
+as double,
   ));
 }
 

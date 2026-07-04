@@ -25,10 +25,19 @@ class BenchmarkView extends ConsumerStatefulWidget {
 }
 
 class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
-  late final TextEditingController _prompt = TextEditingController(
-    text: defaultBenchmarkPrompt,
-  );
-  final TextEditingController _batch = TextEditingController(text: '8');
+  late final TextEditingController _prompt;
+  late final TextEditingController _batch;
+
+  @override
+  void initState() {
+    super.initState();
+    // Seed the fields from the (keep-alive) run state rather than hard-coded
+    // defaults, so the prompt and batch size the user last set are restored
+    // when they come back to the tab. Edits are written straight back below.
+    final run = ref.read(benchmarkControllerProvider(widget.jobId));
+    _prompt = TextEditingController(text: run.prompt);
+    _batch = TextEditingController(text: '${run.batchSize}');
+  }
 
   @override
   void dispose() {
@@ -40,12 +49,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
   BenchmarkController get _controller =>
       ref.read(benchmarkControllerProvider(widget.jobId).notifier);
 
-  void _send() {
-    _controller
-      ..setPrompt(_prompt.text)
-      ..setBatchSize(int.tryParse(_batch.text) ?? 8)
-      ..start();
-  }
+  void _send() => _controller.start();
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +64,11 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
           running: run.isRunning,
           onSend: _send,
           onCancel: _controller.cancel,
+          onPromptChanged: _controller.setPrompt,
+          onBatchChanged: (v) {
+            final n = int.tryParse(v);
+            if (n != null) _controller.setBatchSize(n);
+          },
         ),
         const SizedBox(height: AppSpacing.lg),
         _AggregateBar(run: run),
@@ -81,6 +90,8 @@ class _Controls extends StatelessWidget {
     required this.running,
     required this.onSend,
     required this.onCancel,
+    required this.onPromptChanged,
+    required this.onBatchChanged,
   });
 
   final TextEditingController prompt;
@@ -88,6 +99,8 @@ class _Controls extends StatelessWidget {
   final bool running;
   final VoidCallback onSend;
   final VoidCallback onCancel;
+  final ValueChanged<String> onPromptChanged;
+  final ValueChanged<String> onBatchChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -95,14 +108,23 @@ class _Controls extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: AppTextField(controller: prompt, prefix: '>', mono: true),
+          child: AppTextField(
+            controller: prompt,
+            prefix: '>',
+            mono: true,
+            onChanged: onPromptChanged,
+          ),
         ),
         const SizedBox(width: AppSpacing.lg),
         Text('Batch size', style: context.text.smallMuted),
         const SizedBox(width: AppSpacing.sm),
         SizedBox(
           width: 64,
-          child: AppTextField(controller: batch, mono: true),
+          child: AppTextField(
+            controller: batch,
+            mono: true,
+            onChanged: onBatchChanged,
+          ),
         ),
         const SizedBox(width: AppSpacing.md),
         AppButton(
@@ -145,13 +167,21 @@ class _AggregateBar extends StatelessWidget {
             label: 'AGGREGATE',
             value: run.aggregateTokensPerSecond.toStringAsFixed(1),
             unit: 'tok/s',
-            valueColor: c.statusRunning,
+            // Green only while the reading is still live (all requests at full
+            // concurrency). Once it freezes at the first completion it turns
+            // neutral, signalling a locked-in result rather than a live number.
+            valueColor: run.isRunning && !run.aggregateFrozen
+                ? c.statusRunning
+                : null,
           ),
           const SizedBox(width: AppSpacing.xxl),
           _Stat(
             label: 'COMPLETED',
             value: '${run.completed}',
-            unit: '/${run.batchSize}',
+            // Denominator is the batch actually in flight, not the (editable)
+            // batch-size setting — so tweaking the field for the next run
+            // doesn't skew the current run's count.
+            unit: '/${run.requests.isEmpty ? run.batchSize : run.requests.length}',
           ),
           const SizedBox(width: AppSpacing.xxl),
           _Stat(

@@ -46,15 +46,32 @@ abstract class BenchmarkRun with _$BenchmarkRun {
     @Default(<BenchmarkRequest>[]) List<BenchmarkRequest> requests,
     @Default(false) bool isRunning,
     @Default(Duration.zero) Duration elapsed,
+    // The aggregate throughput captured at full concurrency (see
+    // [aggregateTokensPerSecond]). 0 until the first request finishes, then
+    // held static for the rest of the run and after.
+    @Default(0.0) double frozenAggregate,
   }) = _BenchmarkRun;
 
   int get completed =>
       requests.where((r) => r.status.isTerminal).length;
 
-  /// Combined throughput of every request currently producing tokens.
-  double get aggregateTokensPerSecond => requests
-      .where((r) => r.status == BenchmarkRequestStatus.streaming)
-      .fold(0.0, (sum, r) => sum + r.tokensPerSecond);
+  /// Whether the aggregate reading has been locked in — true once at least one
+  /// request in the batch has finished.
+  bool get aggregateFrozen => frozenAggregate > 0;
+
+  /// Combined throughput of the batch *at full concurrency*. While every
+  /// request is still streaming this is the live sum of their rates; the moment
+  /// the first request finishes it freezes at [frozenAggregate] and holds.
+  ///
+  /// It has to freeze there: once the batch drops below its starting size the
+  /// server has fewer requests to serve, so the survivors each speed up. Their
+  /// combined rate would then keep climbing and no longer describe throughput
+  /// at the batch size that was actually launched.
+  double get aggregateTokensPerSecond => aggregateFrozen
+      ? frozenAggregate
+      : requests
+            .where((r) => r.status == BenchmarkRequestStatus.streaming)
+            .fold(0.0, (sum, r) => sum + r.tokensPerSecond);
 
   /// Median time-to-first-token over requests that have reported one.
   int get medianTtftMs {

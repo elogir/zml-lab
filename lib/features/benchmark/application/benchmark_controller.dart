@@ -35,7 +35,12 @@ const _answers = <String>[
 
 /// Drives a fake benchmark run: a batch of requests that stream tokens with
 /// live per-request and aggregate throughput. Cancelable mid-flight.
-@riverpod
+///
+/// Keep-alive (keyed by job id) so a run — and the prompt/batch settings —
+/// survive switching to the terminal tab or navigating away and back, the same
+/// way a job's terminals persist. A live run keeps ticking in the background;
+/// only invalidating the provider tears it down (which cancels the ticker).
+@Riverpod(keepAlive: true)
 class BenchmarkController extends _$BenchmarkController {
   Timer? _ticker;
   final _rng = Random();
@@ -63,6 +68,7 @@ class BenchmarkController extends _$BenchmarkController {
     state = state.copyWith(
       isRunning: true,
       elapsed: Duration.zero,
+      frozenAggregate: 0,
       requests: List.generate(
         n,
         (i) => BenchmarkRequest(
@@ -78,6 +84,10 @@ class BenchmarkController extends _$BenchmarkController {
     _ticker?.cancel();
     state = state.copyWith(
       isRunning: false,
+      // If we never reached a natural first-completion, lock the aggregate in
+      // at whatever concurrency was live at the moment of cancellation.
+      frozenAggregate:
+          state.aggregateFrozen ? state.frozenAggregate : _liveAggregate(),
       requests: [
         for (final r in state.requests)
           r.status == BenchmarkRequestStatus.streaming
@@ -86,6 +96,11 @@ class BenchmarkController extends _$BenchmarkController {
       ],
     );
   }
+
+  /// Sum of the current rate of every request still streaming.
+  double _liveAggregate() => state.requests
+      .where((r) => r.status == BenchmarkRequestStatus.streaming)
+      .fold(0.0, (sum, r) => sum + r.tokensPerSecond);
 
   void _tick() {
     final start = _startAt;
@@ -124,10 +139,27 @@ class BenchmarkController extends _$BenchmarkController {
       );
     }
 
+    // Freeze the aggregate the first time a request finishes. Up to this tick
+    // the whole batch was streaming, so the combined rate right now is the
+    // throughput at the batch size that was launched — the number worth
+    // keeping. After this, the batch is smaller and survivors accelerate.
+    final justCompleted =
+        !state.aggregateFrozen && next.any((r) => r.status.isTerminal);
+    final frozen = justCompleted
+        ? next
+              .where(
+                (r) =>
+                    r.status == BenchmarkRequestStatus.streaming ||
+                    r.status == BenchmarkRequestStatus.done,
+              )
+              .fold(0.0, (sum, r) => sum + r.tokensPerSecond)
+        : state.frozenAggregate;
+
     state = state.copyWith(
       requests: next,
       elapsed: elapsed,
       isRunning: anyStreaming,
+      frozenAggregate: frozen,
     );
     if (!anyStreaming) _ticker?.cancel();
   }
