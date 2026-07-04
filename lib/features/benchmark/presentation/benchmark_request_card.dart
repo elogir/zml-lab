@@ -30,7 +30,10 @@ class BenchmarkRequestCard extends StatelessWidget {
     final c = context.colors;
     final dot = benchmarkStatusColor(request.status, c);
 
-    return AppPanel(
+    // The whole card is the affordance: it highlights on hover and opens the
+    // fullscreen focus view on tap (no separate expand button).
+    return AppCard(
+      onTap: onExpand,
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -64,15 +67,6 @@ class BenchmarkRequestCard extends StatelessWidget {
               ),
               const SizedBox(width: 3),
               Text('t/s', style: context.text.monoSmall),
-              if (onExpand != null) ...[
-                const SizedBox(width: AppSpacing.sm),
-                AppIconButton(
-                  icon: AppIcons.fullscreen,
-                  size: 13,
-                  padding: const EdgeInsets.all(4),
-                  onPressed: onExpand,
-                ),
-              ],
             ],
           ),
           const SizedBox(height: AppSpacing.sm),

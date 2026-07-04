@@ -294,22 +294,40 @@ class _Grid extends StatelessWidget {
   final BenchmarkRun run;
   final String jobId;
 
+  static const double _spacing = AppSpacing.md;
+  static const double _minCardWidth = 280;
+
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: EdgeInsets.zero,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: AppSpacing.md,
-        mainAxisSpacing: AppSpacing.md,
-        mainAxisExtent: 172,
-      ),
-      itemCount: run.requests.length,
-      itemBuilder: (context, i) {
-        final request = run.requests[i];
-        return BenchmarkRequestCard(
-          request: request,
-          onExpand: () => showBenchmarkFocus(context, jobId, request.index),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Drop to a single full-width column when the row can't comfortably
+        // hold two cards, or when there's only one request — so cards fill the
+        // width instead of sitting cramped or half-empty. Otherwise the dense
+        // two-up grid.
+        final fits =
+            ((constraints.maxWidth + _spacing) / (_minCardWidth + _spacing))
+                .floor()
+                .clamp(1, 2);
+        final columns = fits > run.requests.length
+            ? run.requests.length
+            : fits;
+        return GridView.builder(
+          padding: EdgeInsets.zero,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: _spacing,
+            mainAxisSpacing: _spacing,
+            mainAxisExtent: 172,
+          ),
+          itemCount: run.requests.length,
+          itemBuilder: (context, i) {
+            final request = run.requests[i];
+            return BenchmarkRequestCard(
+              request: request,
+              onExpand: () => showBenchmarkFocus(context, jobId, request.index),
+            );
+          },
         );
       },
     );

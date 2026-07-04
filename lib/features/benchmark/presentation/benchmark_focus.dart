@@ -57,11 +57,18 @@ class _FocusViewState extends ConsumerState<_FocusView> {
     );
     final dot = benchmarkStatusColor(request.status, c);
 
+    // Scale with the window (clamped both ways) so it grows on a large display,
+    // matching the prompt editor popup. The route fills the window, so the
+    // media size is the space available to the dialog.
+    final size = MediaQuery.sizeOf(context);
+    final width = (size.width * 0.62).clamp(480.0, 1100.0);
+    final height = (size.height * 0.72).clamp(380.0, 900.0);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xxl),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760, maxHeight: 620),
+          constraints: BoxConstraints(maxWidth: width, maxHeight: height),
           child: AppPanel(
             padding: const EdgeInsets.all(AppSpacing.xl),
             child: Column(
