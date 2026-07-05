@@ -20,7 +20,8 @@ class _Progress {
   DateTime? firstTokenAt;
   DateTime? endAt;
   final StringBuffer buffer = StringBuffer();
-  int chunkTokens = 0; // fallback token count (content deltas seen)
+  final StringBuffer reasoning = StringBuffer(); // thinking output, if any
+  int chunkTokens = 0; // fallback token count (content + reasoning deltas)
   int usageTokens = 0; // exact count from the server's usage, when present
   String? finishReason; // the server's finish_reason, once the reply ends
   BenchmarkRequestStatus status = BenchmarkRequestStatus.streaming;
@@ -158,9 +159,19 @@ class BenchmarkController extends _$BenchmarkController {
       .fold(0.0, (sum, r) => sum + r.tokensPerSecond);
 
   void _onToken(_Progress p, ChatToken tok) {
-    p.firstTokenAt ??= DateTime.now();
     final content = tok.content;
-    if (content != null && content.isNotEmpty) {
+    final reasoning = tok.reasoning;
+    final hasContent = content != null && content.isNotEmpty;
+    final hasReasoning = reasoning != null && reasoning.isNotEmpty;
+    // Start the decode clock at the first *real* token (content or thinking),
+    // not the empty role delta the server sends first — otherwise the wait for
+    // it (the ttft) would be counted in the tok/s window.
+    if (hasContent || hasReasoning) p.firstTokenAt ??= DateTime.now();
+    if (hasReasoning) {
+      p.reasoning.write(reasoning);
+      p.chunkTokens += 1;
+    }
+    if (hasContent) {
       p.buffer.write(content);
       p.chunkTokens += 1;
     }
@@ -211,6 +222,7 @@ class BenchmarkController extends _$BenchmarkController {
           index: p.index,
           status: p.status,
           text: p.buffer.toString(),
+          reasoning: p.reasoning.toString(),
           tokens: p.tokens,
           tokensPerSecond: tps,
           ttftMs: p.firstTokenAt?.difference(p.start).inMilliseconds,

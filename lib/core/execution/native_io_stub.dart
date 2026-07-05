@@ -17,6 +17,7 @@ String expandUser(String path) => path;
 
 typedef ChatToken = ({
   String? content,
+  String? reasoning,
   int? completionTokens,
   String? finishReason,
 });

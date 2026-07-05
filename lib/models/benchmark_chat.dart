@@ -11,6 +11,9 @@ abstract class ChatTurn with _$ChatTurn {
   const factory ChatTurn({
     required bool fromUser,
     @Default('') String text,
+
+    /// The model's thinking output (`reasoning_content`), shown above the reply.
+    @Default('') String reasoning,
     @Default(false) bool streaming,
     @Default(0) int tokens,
     @Default(0.0) double tokensPerSecond,

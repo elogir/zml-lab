@@ -91,12 +91,15 @@ Future<int> findFreePort({
   return start;
 }
 
-/// One streamed chunk from a chat completion: a text [content] delta, the
-/// server's running [completionTokens] count (llmd sends the latter each chunk
-/// when `continuous_usage_stats` is on), and/or the choice's [finishReason]
-/// (`stop`, `length`, …) once the reply ends.
+/// One streamed chunk from a chat completion: a text [content] delta, a
+/// [reasoning] (thinking) delta for reasoning models — llmd routes `<think>`
+/// output to `delta.reasoning_content`, separate from content — the server's
+/// running [completionTokens] count (sent each chunk when
+/// `continuous_usage_stats` is on, and already inclusive of reasoning tokens),
+/// and/or the choice's [finishReason] (`stop`, `length`, …) once it ends.
 typedef ChatToken = ({
   String? content,
+  String? reasoning,
   int? completionTokens,
   String? finishReason,
 });
@@ -150,12 +153,16 @@ Stream<ChatToken> streamChat(
         continue;
       }
       String? content;
+      String? reasoning;
       String? finishReason;
       final choices = json['choices'];
       if (choices is List && choices.isNotEmpty && choices.first is Map) {
         final choice = choices.first as Map;
         final delta = choice['delta'];
-        if (delta is Map) content = delta['content'] as String?;
+        if (delta is Map) {
+          content = delta['content'] as String?;
+          reasoning = delta['reasoning_content'] as String?;
+        }
         if (choice['finish_reason'] is String) {
           finishReason = choice['finish_reason'] as String;
         }
@@ -167,6 +174,7 @@ Stream<ChatToken> streamChat(
       }
       yield (
         content: content,
+        reasoning: reasoning,
         completionTokens: completionTokens,
         finishReason: finishReason,
       );

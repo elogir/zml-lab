@@ -8,6 +8,7 @@ import '../../../models/benchmark.dart';
 import '../../../models/saved_benchmark.dart';
 import '../../../repositories/saved_benchmark_repository.dart';
 import '../../benchmark/presentation/benchmark_request_card.dart';
+import '../../benchmark/presentation/reasoning_view.dart';
 
 /// Opens a saved benchmark: its headline stats, the prompt, and every saved
 /// response.
@@ -331,7 +332,7 @@ class _Response extends StatelessWidget {
         children: [
           _ResponseHeader(request: r),
           const SizedBox(height: AppSpacing.sm),
-          if (r.text.isEmpty)
+          if (r.text.isEmpty && r.reasoning.isEmpty)
             Text(
               '—',
               style: context.text.monoSmall.copyWith(
@@ -347,12 +348,20 @@ class _Response extends StatelessWidget {
               child: ClipRect(
                 child: SingleChildScrollView(
                   physics: const NeverScrollableScrollPhysics(),
-                  child: AppMarkdown(
-                    r.text,
-                    style: context.text.small.copyWith(
-                      color: c.textSecondary,
-                      height: 1.5,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (r.reasoning.isNotEmpty)
+                        ReasoningView(r.reasoning, dense: true),
+                      if (r.text.isNotEmpty)
+                        AppMarkdown(
+                          r.text,
+                          style: context.text.small.copyWith(
+                            color: c.textSecondary,
+                            height: 1.5,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -510,12 +519,21 @@ class _ResponsePopup extends StatelessWidget {
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     child: AppSelectionArea(
                       child: SingleChildScrollView(
-                        child: AppMarkdown(
-                          r.text.isEmpty ? '—' : r.text,
-                          style: context.text.small.copyWith(
-                            color: c.textSecondary,
-                            height: 1.55,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (r.reasoning.isNotEmpty)
+                              ReasoningView(r.reasoning),
+                            AppMarkdown(
+                              r.text.isEmpty && r.reasoning.isEmpty
+                                  ? '—'
+                                  : r.text,
+                              style: context.text.small.copyWith(
+                                color: c.textSecondary,
+                                height: 1.55,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
