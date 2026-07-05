@@ -393,10 +393,24 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     return root;
   }
 
+  /// A fresh interactive shell for this job. On a remote job it types an ssh
+  /// into the job's machine at the local prompt, so the pane lands remote but
+  /// Ctrl+D out of the ssh returns to the local shell (a second Ctrl+D then
+  /// closes the pane as usual).
+  TerminalSession _newShell() {
+    final m = widget.machine;
+    if (m == null || m.isLocal) return TerminalSession();
+    final ssh = StringBuffer('ssh');
+    if (m.sshPort != 22) ssh.write(' -p ${m.sshPort}');
+    if (m.sshKey != null && m.sshKey!.isNotEmpty) ssh.write(" -i '${m.sshKey}'");
+    ssh.write(' ${m.sshTarget}');
+    return TerminalSession(initialCommand: ssh.toString());
+  }
+
   /// A new pane of the same kind as [source] — splitting a terminal yields a
   /// terminal, splitting a web view yields another web view at the same URL.
   _Content _sameKind(_Content source) => switch (source) {
-    _TermContent _ => _TermContent(TerminalSession()),
+    _TermContent _ => _TermContent(_newShell()),
     _WebContent w => _WebContent(
       _WebSession(w.session.currentUrl.isEmpty ? null : w.session.currentUrl),
     ),
@@ -512,7 +526,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
   }
 
   void _addTab() {
-    final leaf = _Leaf(_TermContent(TerminalSession()));
+    final leaf = _Leaf(_TermContent(_newShell()));
     _wireLeaf(leaf);
     setState(() {
       _tabs.add(_Tab(leaf));
@@ -639,7 +653,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     setState(() {
       _tabs.removeAt(i);
       if (_tabs.isEmpty) {
-        final leaf = _Leaf(_TermContent(TerminalSession()));
+        final leaf = _Leaf(_TermContent(_newShell()));
         _wireLeaf(leaf);
         _tabs.add(_Tab(leaf));
       }

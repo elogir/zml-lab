@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flterm/flterm.dart';
@@ -17,6 +18,7 @@ import 'package:flutter_pty/flutter_pty.dart';
 class TerminalSession {
   TerminalSession({
     this.runCommand,
+    this.initialCommand,
     String? workingDirectory,
     Map<String, String>? environment,
   }) {
@@ -32,6 +34,13 @@ class TerminalSession {
   /// plain login shell. Run through `$SHELL -l -c <command>` so PATH, aliases
   /// and profile are in effect (so e.g. `bazel` resolves).
   final String? runCommand;
+
+  /// A command typed into the interactive shell as it starts (as if the user
+  /// entered it) — e.g. `ssh <host>` so a remote job's terminal lands on its
+  /// machine. Unlike [runCommand], the shell outlives the command: Ctrl+D out
+  /// of the ssh drops back to the local prompt instead of closing the pane.
+  /// Ignored when [runCommand] is set.
+  final String? initialCommand;
 
   final TerminalController controller = TerminalController();
   late final FocusNode focusNode;
@@ -112,6 +121,11 @@ class TerminalSession {
         ..onOutput = pty.write
         ..onResize = (cols, rows) => pty.resize(rows, cols);
       _sub = pty.output.listen(controller.write);
+      if (runCommand == null && initialCommand != null) {
+        // Queued in the PTY buffer; the shell echoes and runs it at its first
+        // prompt, exactly as if typed.
+        pty.write(Uint8List.fromList(utf8.encode('$initialCommand\n')));
+      }
       pty.exitCode.then((code) {
         _exited = true;
         _exitCode = code;
