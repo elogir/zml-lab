@@ -13,6 +13,10 @@ part of 'benchmark_chat_controller.dart';
 /// appends the user's prompt and streams a single reply from
 /// `/v1/chat/completions`, sending the whole conversation as context. Replies
 /// use the benchmark run's max-tokens/temperature settings.
+///
+/// Keep-alive so the conversation (and an in-flight reply) survives closing
+/// and reopening the popup; it resets itself when a new benchmark run
+/// replaces the request it was seeded from.
 
 @ProviderFor(BenchmarkChatController)
 final benchmarkChatControllerProvider = BenchmarkChatControllerFamily._();
@@ -22,6 +26,10 @@ final benchmarkChatControllerProvider = BenchmarkChatControllerFamily._();
 /// appends the user's prompt and streams a single reply from
 /// `/v1/chat/completions`, sending the whole conversation as context. Replies
 /// use the benchmark run's max-tokens/temperature settings.
+///
+/// Keep-alive so the conversation (and an in-flight reply) survives closing
+/// and reopening the popup; it resets itself when a new benchmark run
+/// replaces the request it was seeded from.
 final class BenchmarkChatControllerProvider
     extends $NotifierProvider<BenchmarkChatController, BenchmarkChat> {
   /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
@@ -29,13 +37,17 @@ final class BenchmarkChatControllerProvider
   /// appends the user's prompt and streams a single reply from
   /// `/v1/chat/completions`, sending the whole conversation as context. Replies
   /// use the benchmark run's max-tokens/temperature settings.
+  ///
+  /// Keep-alive so the conversation (and an in-flight reply) survives closing
+  /// and reopening the popup; it resets itself when a new benchmark run
+  /// replaces the request it was seeded from.
   BenchmarkChatControllerProvider._({
     required BenchmarkChatControllerFamily super.from,
     required (String, int, String, int) super.argument,
   }) : super(
          retry: null,
          name: r'benchmarkChatControllerProvider',
-         isAutoDispose: true,
+         isAutoDispose: false,
          dependencies: null,
          $allTransitiveDependencies: null,
        );
@@ -75,13 +87,17 @@ final class BenchmarkChatControllerProvider
 }
 
 String _$benchmarkChatControllerHash() =>
-    r'48c263e86f0fa646d92247152c90530b463ea28b';
+    r'778e49c1772f18cc97b3f5d3f03f7a732a4709bc';
 
 /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
 /// Seeded (per job + request) from the clicked benchmark request; each [send]
 /// appends the user's prompt and streams a single reply from
 /// `/v1/chat/completions`, sending the whole conversation as context. Replies
 /// use the benchmark run's max-tokens/temperature settings.
+///
+/// Keep-alive so the conversation (and an in-flight reply) survives closing
+/// and reopening the popup; it resets itself when a new benchmark run
+/// replaces the request it was seeded from.
 
 final class BenchmarkChatControllerFamily extends $Family
     with
@@ -98,7 +114,7 @@ final class BenchmarkChatControllerFamily extends $Family
         name: r'benchmarkChatControllerProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
-        isAutoDispose: true,
+        isAutoDispose: false,
       );
 
   /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
@@ -106,6 +122,10 @@ final class BenchmarkChatControllerFamily extends $Family
   /// appends the user's prompt and streams a single reply from
   /// `/v1/chat/completions`, sending the whole conversation as context. Replies
   /// use the benchmark run's max-tokens/temperature settings.
+  ///
+  /// Keep-alive so the conversation (and an in-flight reply) survives closing
+  /// and reopening the popup; it resets itself when a new benchmark run
+  /// replaces the request it was seeded from.
 
   BenchmarkChatControllerProvider call(
     String jobId,
@@ -126,6 +146,10 @@ final class BenchmarkChatControllerFamily extends $Family
 /// appends the user's prompt and streams a single reply from
 /// `/v1/chat/completions`, sending the whole conversation as context. Replies
 /// use the benchmark run's max-tokens/temperature settings.
+///
+/// Keep-alive so the conversation (and an in-flight reply) survives closing
+/// and reopening the popup; it resets itself when a new benchmark run
+/// replaces the request it was seeded from.
 
 abstract class _$BenchmarkChatController extends $Notifier<BenchmarkChat> {
   late final _$args = ref.$arg as (String, int, String, int);

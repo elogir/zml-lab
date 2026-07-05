@@ -14,7 +14,11 @@ part 'benchmark_chat_controller.g.dart';
 /// appends the user's prompt and streams a single reply from
 /// `/v1/chat/completions`, sending the whole conversation as context. Replies
 /// use the benchmark run's max-tokens/temperature settings.
-@riverpod
+///
+/// Keep-alive so the conversation (and an in-flight reply) survives closing
+/// and reopening the popup; it resets itself when a new benchmark run
+/// replaces the request it was seeded from.
+@Riverpod(keepAlive: true)
 class BenchmarkChatController extends _$BenchmarkChatController {
   StreamSubscription<ChatToken>? _sub;
   late String _jobId;
@@ -42,16 +46,23 @@ class BenchmarkChatController extends _$BenchmarkChatController {
     // Opened mid-run: keep mirroring the still-streaming request into the
     // seed reply until it finishes. Opened after, the seed is a snapshot.
     _mirrorBatch = request.status == BenchmarkRequestStatus.streaming;
-    if (_mirrorBatch) {
-      ref.listen(benchmarkControllerProvider(jobId), (_, next) {
+    final seedToken = run.runToken;
+    ref.listen(benchmarkControllerProvider(jobId), (_, next) {
+      // A new batch replaced the request this chat was seeded from — the
+      // conversation is stale, so start over from the fresh request.
+      if (next.runToken != seedToken) {
+        ref.invalidateSelf();
+        return;
+      }
+      if (_mirrorBatch) {
         _mirrorSeed(
           next.requests.firstWhere(
             (r) => r.index == index,
             orElse: () => BenchmarkRequest(index: index),
           ),
         );
-      });
-    }
+      }
+    });
     return BenchmarkChat(
       turns: [
         ChatTurn(fromUser: true, text: run.prompt),

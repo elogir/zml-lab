@@ -85,6 +85,7 @@ class BenchmarkController extends _$BenchmarkController {
       isRunning: true,
       elapsed: Duration.zero,
       frozenAggregate: 0,
+      runToken: state.runToken + 1,
       requests: [
         for (final p in _progs)
           BenchmarkRequest(

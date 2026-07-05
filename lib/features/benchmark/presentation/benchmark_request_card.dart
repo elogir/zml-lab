@@ -85,16 +85,29 @@ class BenchmarkRequestCard extends StatelessWidget {
                         height: 1.5,
                       ),
                     )
-                  // Rendered markdown, cropped to the card: the non-scrollable
-                  // scroll view lets the content overflow cleanly into the
-                  // ClipRect instead of erroring.
-                  : SingleChildScrollView(
-                      physics: const NeverScrollableScrollPhysics(),
-                      child: AppMarkdown(
-                        request.text,
-                        style: context.text.small.copyWith(
-                          color: c.textSecondary,
-                          height: 1.5,
+                  // Rendered markdown, cropped to the card. The scroll view is
+                  // reversed and pinned (never user-scrollable), so overflowing
+                  // content slides up and the newest streamed text stays in
+                  // view; the min-height box keeps a short reply top-aligned
+                  // (a reversed viewport would otherwise bottom-align it).
+                  : LayoutBuilder(
+                      builder: (context, cons) => SingleChildScrollView(
+                        reverse: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: cons.maxHeight,
+                          ),
+                          child: Align(
+                            alignment: Alignment.topLeft,
+                            child: AppMarkdown(
+                              request.text,
+                              style: context.text.small.copyWith(
+                                color: c.textSecondary,
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
