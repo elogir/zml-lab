@@ -11,10 +11,6 @@ const defaultBenchmarkPrompt =
     'Summarize the tradeoffs between tensor and pipeline parallelism '
     'for large models.';
 
-/// How many tokens each request asks for. Long enough to reach steady-state
-/// decode so the throughput reading is meaningful, short enough to stay snappy.
-const _maxTokensPerRequest = 256;
-
 /// Mutable per-request scratch, updated by the stream as tokens arrive and
 /// folded into an immutable [BenchmarkRequest] on each flush. Decouples network
 /// events (which can be very frequent) from widget rebuilds.
@@ -27,6 +23,7 @@ class _Progress {
   final StringBuffer buffer = StringBuffer();
   int chunkTokens = 0; // fallback token count (content deltas seen)
   int usageTokens = 0; // exact count from the server's usage, when present
+  String? finishReason; // the server's finish_reason, once the reply ends
   BenchmarkRequestStatus status = BenchmarkRequestStatus.streaming;
 
   int get tokens => usageTokens > 0 ? usageTokens : chunkTokens;
@@ -58,6 +55,16 @@ class BenchmarkController extends _$BenchmarkController {
   void setBatchSize(int size) =>
       state = state.copyWith(batchSize: size.clamp(1, 64));
 
+  /// Null = unlimited: the server generates until EOS or its max seqlen.
+  void setMaxTokens(int? tokens) => state = state.copyWith(
+    maxTokens: tokens == null || tokens < 1 ? null : tokens,
+  );
+
+  /// Null = the server's default sampling temperature.
+  void setTemperature(double? temperature) => state = state.copyWith(
+    temperature: temperature?.clamp(0.0, 2.0),
+  );
+
   /// Fires the batch at `http://[host]:[port]/v1/chat/completions`.
   void start({required String host, required int port}) {
     _teardown();
@@ -85,8 +92,14 @@ class BenchmarkController extends _$BenchmarkController {
       {'role': 'user', 'content': prompt},
     ];
     for (final p in _progs) {
-      final sub = streamChat(host, port, messages, maxTokens: _maxTokensPerRequest)
-          .listen(
+      final sub =
+          streamChat(
+            host,
+            port,
+            messages,
+            maxTokens: state.maxTokens,
+            temperature: state.temperature,
+          ).listen(
             (tok) => _onToken(p, tok),
             onError: (_) => _finish(p, failed: true),
             onDone: () => _finish(p, failed: false),
@@ -143,6 +156,7 @@ class BenchmarkController extends _$BenchmarkController {
     if (tok.completionTokens != null && tok.completionTokens! > 0) {
       p.usageTokens = tok.completionTokens!;
     }
+    if (tok.finishReason != null) p.finishReason = tok.finishReason;
   }
 
   void _finish(_Progress p, {required bool failed}) {
@@ -179,6 +193,7 @@ class BenchmarkController extends _$BenchmarkController {
           latencyMs: p.status.isTerminal
               ? (p.endAt ?? now).difference(p.start).inMilliseconds
               : null,
+          finishReason: p.finishReason,
         ),
       );
     }

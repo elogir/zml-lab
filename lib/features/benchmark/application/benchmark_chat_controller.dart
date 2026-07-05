@@ -9,46 +9,73 @@ import 'benchmark_controller.dart';
 
 part 'benchmark_chat_controller.g.dart';
 
-/// Tokens a single chat reply asks for — longer than a batch request since this
-/// is an interactive conversation, not a throughput probe.
-const _chatMaxTokens = 512;
-
 /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
 /// Seeded (per job + request) from the clicked benchmark request; each [send]
 /// appends the user's prompt and streams a single reply from
-/// `/v1/chat/completions`, sending the whole conversation as context.
+/// `/v1/chat/completions`, sending the whole conversation as context. Replies
+/// use the benchmark run's max-tokens/temperature settings.
 @riverpod
 class BenchmarkChatController extends _$BenchmarkChatController {
   StreamSubscription<ChatToken>? _sub;
+  late String _jobId;
   late String _host;
   late int _port;
 
+  /// While true, the seed reply (turn 1) live-mirrors its batch request — the
+  /// popup can be opened mid-run and the reply keeps streaming in. Cleared
+  /// once the request settles or the user replays the prompt.
+  bool _mirrorBatch = false;
+
   @override
   BenchmarkChat build(String jobId, int index, String host, int port) {
+    _jobId = jobId;
     _host = host;
     _port = port;
     ref.onDispose(() => _sub?.cancel());
     // Seed the first turn from the request that was opened: its prompt and the
-    // reply it already produced in the batch. Read (not watch) — the chat is a
-    // snapshot the user drives from here, not a live mirror of the batch.
+    // reply it already produced in the batch.
     final run = ref.read(benchmarkControllerProvider(jobId));
     final request = run.requests.firstWhere(
       (r) => r.index == index,
       orElse: () => BenchmarkRequest(index: index),
     );
+    // Opened mid-run: keep mirroring the still-streaming request into the
+    // seed reply until it finishes. Opened after, the seed is a snapshot.
+    _mirrorBatch = request.status == BenchmarkRequestStatus.streaming;
+    if (_mirrorBatch) {
+      ref.listen(benchmarkControllerProvider(jobId), (_, next) {
+        _mirrorSeed(
+          next.requests.firstWhere(
+            (r) => r.index == index,
+            orElse: () => BenchmarkRequest(index: index),
+          ),
+        );
+      });
+    }
     return BenchmarkChat(
       turns: [
         ChatTurn(fromUser: true, text: run.prompt),
-        ChatTurn(
-          fromUser: false,
-          text: request.text,
-          tokens: request.tokens,
-          tokensPerSecond: request.tokensPerSecond,
-          ttftMs: request.ttftMs,
-          latencyMs: request.latencyMs,
-        ),
+        _seedTurn(request),
       ],
     );
+  }
+
+  ChatTurn _seedTurn(BenchmarkRequest r) => ChatTurn(
+    fromUser: false,
+    text: r.text,
+    streaming: r.status == BenchmarkRequestStatus.streaming,
+    tokens: r.tokens,
+    tokensPerSecond: r.tokensPerSecond,
+    ttftMs: r.ttftMs,
+    latencyMs: r.latencyMs,
+    finishReason: r.finishReason,
+  );
+
+  /// Folds the live batch request into the seed reply while it's streaming.
+  void _mirrorSeed(BenchmarkRequest r) {
+    if (!_mirrorBatch || state.turns.length < 2) return;
+    _setTurn(1, _seedTurn(r));
+    if (r.status.isTerminal) _mirrorBatch = false; // settled — snapshot now
   }
 
   /// Fire a single request: append the user's prompt, then stream a reply.
@@ -80,6 +107,9 @@ class BenchmarkChatController extends _$BenchmarkChatController {
 
   /// Append an empty reply turn and stream the real answer into it.
   void _startReply() {
+    // The user is driving the conversation now — a replay replaces turn 1, so
+    // the batch request must stop writing into it.
+    _mirrorBatch = false;
     _sub?.cancel();
     final messages = _messages();
     final start = DateTime.now();
@@ -92,6 +122,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
     final buffer = StringBuffer();
     var chunkTokens = 0;
     var usageTokens = 0;
+    String? finishReason;
 
     void write({required bool streaming, bool failed = false}) {
       final tokens = usageTokens > 0 ? usageTokens : chunkTokens;
@@ -111,27 +142,38 @@ class BenchmarkChatController extends _$BenchmarkChatController {
           tokensPerSecond: tps,
           ttftMs: firstTokenAt?.difference(start).inMilliseconds,
           latencyMs: streaming ? null : now.difference(start).inMilliseconds,
+          finishReason: finishReason,
         ),
       );
     }
 
-    _sub = streamChat(_host, _port, messages, maxTokens: _chatMaxTokens).listen(
-      (tok) {
-        firstTokenAt ??= DateTime.now();
-        final content = tok.content;
-        if (content != null && content.isNotEmpty) {
-          buffer.write(content);
-          chunkTokens += 1;
-        }
-        if (tok.completionTokens != null && tok.completionTokens! > 0) {
-          usageTokens = tok.completionTokens!;
-        }
-        write(streaming: true);
-      },
-      onError: (_) => write(streaming: false, failed: true),
-      onDone: () => write(streaming: false),
-      cancelOnError: true,
-    );
+    // Chat replies follow the run's settings, read fresh per send.
+    final run = ref.read(benchmarkControllerProvider(_jobId));
+    _sub =
+        streamChat(
+          _host,
+          _port,
+          messages,
+          maxTokens: run.maxTokens,
+          temperature: run.temperature,
+        ).listen(
+          (tok) {
+            firstTokenAt ??= DateTime.now();
+            final content = tok.content;
+            if (content != null && content.isNotEmpty) {
+              buffer.write(content);
+              chunkTokens += 1;
+            }
+            if (tok.completionTokens != null && tok.completionTokens! > 0) {
+              usageTokens = tok.completionTokens!;
+            }
+            if (tok.finishReason != null) finishReason = tok.finishReason;
+            write(streaming: true);
+          },
+          onError: (_) => write(streaming: false, failed: true),
+          onDone: () => write(streaming: false),
+          cancelOnError: true,
+        );
   }
 
   void _setTurn(int i, ChatTurn turn) {

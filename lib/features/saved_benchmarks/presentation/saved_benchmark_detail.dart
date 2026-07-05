@@ -86,26 +86,28 @@ class _DetailView extends StatelessWidget {
                 AppPanel(
                   color: c.surfaceMuted,
                   padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '>',
-                        style: context.text.monoSmall.copyWith(
-                          color: c.statusRunning,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          b.prompt,
-                          style: context.text.mono.copyWith(
-                            color: c.textSecondary,
-                            height: 1.5,
+                  child: AppSelectionArea(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '>',
+                          style: context.text.monoSmall.copyWith(
+                            color: c.statusRunning,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            b.prompt,
+                            style: context.text.mono.copyWith(
+                              color: c.textSecondary,
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
@@ -125,13 +127,16 @@ class _DetailView extends StatelessWidget {
                             style: context.text.smallMuted,
                           ),
                         )
+                      // Selectable per response (not across the lazy list —
+                      // see the benchmark chat transcript for why).
                       : ListView.separated(
                           padding: EdgeInsets.zero,
                           itemCount: b.requests.length,
                           separatorBuilder: (_, _) =>
                               const SizedBox(height: AppSpacing.md),
-                          itemBuilder: (context, i) =>
-                              _Response(request: b.requests[i]),
+                          itemBuilder: (context, i) => AppSelectionArea(
+                            child: _Response(request: b.requests[i]),
+                          ),
                         ),
                 ),
               ],
@@ -266,13 +271,22 @@ class _Response extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            r.text.isEmpty ? '—' : r.text,
-            style: context.text.monoSmall.copyWith(
-              color: c.textSecondary,
-              height: 1.5,
+          if (r.text.isEmpty)
+            Text(
+              '—',
+              style: context.text.monoSmall.copyWith(
+                color: c.textSecondary,
+                height: 1.5,
+              ),
+            )
+          else
+            AppMarkdown(
+              r.text,
+              style: context.text.small.copyWith(
+                color: c.textSecondary,
+                height: 1.5,
+              ),
             ),
-          ),
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [

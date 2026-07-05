@@ -37,22 +37,29 @@ class BenchmarkView extends ConsumerStatefulWidget {
 class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
   late final TextEditingController _prompt;
   late final TextEditingController _batch;
+  late final TextEditingController _maxTokens;
+  late final TextEditingController _temperature;
 
   @override
   void initState() {
     super.initState();
     // Seed the fields from the (keep-alive) run state rather than hard-coded
-    // defaults, so the prompt and batch size the user last set are restored
-    // when they come back to the tab. Edits are written straight back below.
+    // defaults, so the settings the user last set are restored when they come
+    // back to the tab. Edits are written straight back below.
     final run = ref.read(benchmarkControllerProvider(widget.jobId));
     _prompt = TextEditingController(text: run.prompt);
     _batch = TextEditingController(text: '${run.batchSize}');
+    _maxTokens = TextEditingController(text: run.maxTokens?.toString() ?? '');
+    _temperature =
+        TextEditingController(text: run.temperature?.toString() ?? '');
   }
 
   @override
   void dispose() {
     _prompt.dispose();
     _batch.dispose();
+    _maxTokens.dispose();
+    _temperature.dispose();
     super.dispose();
   }
 
@@ -85,6 +92,8 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
         _Controls(
           prompt: _prompt,
           batch: _batch,
+          maxTokens: _maxTokens,
+          temperature: _temperature,
           running: run.isRunning,
           onSend: _send,
           onCancel: _controller.cancel,
@@ -94,6 +103,10 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
             final n = int.tryParse(v);
             if (n != null) _controller.setBatchSize(n);
           },
+          onMaxTokensChanged: (v) =>
+              _controller.setMaxTokens(int.tryParse(v.trim())),
+          onTemperatureChanged: (v) =>
+              _controller.setTemperature(double.tryParse(v.trim())),
         ),
         const SizedBox(height: AppSpacing.lg),
         _AggregateBar(
@@ -102,6 +115,12 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
               ? _saveBenchmark
               : null,
         ),
+        // Truncation callout — some replies were cut off by a token limit
+        // rather than finishing, so the numbers describe clipped responses.
+        if (!run.isRunning && run.truncatedCount > 0) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _TruncationNotice(run: run),
+        ],
         const SizedBox(height: AppSpacing.lg),
         Expanded(
           child: run.requests.isEmpty
@@ -122,72 +141,183 @@ class _Controls extends StatelessWidget {
   const _Controls({
     required this.prompt,
     required this.batch,
+    required this.maxTokens,
+    required this.temperature,
     required this.running,
     required this.onSend,
     required this.onCancel,
     required this.onExpandPrompt,
     required this.onPromptChanged,
     required this.onBatchChanged,
+    required this.onMaxTokensChanged,
+    required this.onTemperatureChanged,
   });
 
   final TextEditingController prompt;
   final TextEditingController batch;
+  final TextEditingController maxTokens;
+  final TextEditingController temperature;
   final bool running;
   final VoidCallback onSend;
   final VoidCallback onCancel;
   final VoidCallback onExpandPrompt;
   final ValueChanged<String> onPromptChanged;
   final ValueChanged<String> onBatchChanged;
+  final ValueChanged<String> onMaxTokensChanged;
+  final ValueChanged<String> onTemperatureChanged;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // The prompt gets a full line of its own; the settings live below.
+        Row(
+          children: [
+            Expanded(
+              child: AppTextField(
+                controller: prompt,
+                prefix: '>',
+                mono: true,
+                onChanged: onPromptChanged,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            AppIconButton(
+              icon: AppIcons.fullscreen,
+              size: 15,
+              padding: const EdgeInsets.all(9),
+              onPressed: onExpandPrompt,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            _Setting(
+              label: 'Batch',
+              width: 52,
+              controller: batch,
+              onChanged: onBatchChanged,
+            ),
+            const SizedBox(width: AppSpacing.lg),
+            // Empty = no cap: the server generates until EOS or its max seqlen.
+            _Setting(
+              label: 'Max tokens',
+              width: 64,
+              placeholder: '∞',
+              controller: maxTokens,
+              onChanged: onMaxTokensChanged,
+            ),
+            const SizedBox(width: AppSpacing.lg),
+            // Empty = the server's default temperature.
+            _Setting(
+              label: 'Temp',
+              width: 60,
+              placeholder: 'auto',
+              controller: temperature,
+              onChanged: onTemperatureChanged,
+            ),
+            const Spacer(),
+            AppButton(
+              label: 'Send batch',
+              icon: AppIcons.send,
+              variant: AppButtonVariant.primary,
+              onPressed: onSend,
+            ),
+            if (running) ...[
+              const SizedBox(width: AppSpacing.sm),
+              AppIconButton(
+                icon: AppIcons.kill,
+                size: 15,
+                color: c.statusFailed,
+                padding: const EdgeInsets.all(9),
+                onPressed: onCancel,
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// A labeled numeric setting in the controls row.
+class _Setting extends StatelessWidget {
+  const _Setting({
+    required this.label,
+    required this.width,
+    required this.controller,
+    required this.onChanged,
+    this.placeholder,
+  });
+
+  final String label;
+  final double width;
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final String? placeholder;
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: AppTextField(
-            controller: prompt,
-            prefix: '>',
-            mono: true,
-            onChanged: onPromptChanged,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        AppIconButton(
-          icon: AppIcons.fullscreen,
-          size: 15,
-          padding: const EdgeInsets.all(9),
-          onPressed: onExpandPrompt,
-        ),
-        const SizedBox(width: AppSpacing.lg),
-        Text('Batch size', style: context.text.smallMuted),
+        Text(label, style: context.text.smallMuted),
         const SizedBox(width: AppSpacing.sm),
         SizedBox(
-          width: 64,
+          width: width,
           child: AppTextField(
-            controller: batch,
+            controller: controller,
             mono: true,
-            onChanged: onBatchChanged,
+            placeholder: placeholder,
+            onChanged: onChanged,
           ),
         ),
-        const SizedBox(width: AppSpacing.md),
-        AppButton(
-          label: 'Send batch',
-          icon: AppIcons.send,
-          variant: AppButtonVariant.primary,
-          onPressed: onSend,
-        ),
-        if (running) ...[
+      ],
+    );
+  }
+}
+
+/// Shown after a run in which replies were cut off by a token limit — either
+/// the configured max-tokens cap or the server's max sequence length.
+class _TruncationNotice extends StatelessWidget {
+  const _TruncationNotice({required this.run});
+
+  final BenchmarkRun run;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final color = c.statusStarting;
+    final total = run.requests.length;
+    final message = run.maxTokens == null
+        ? '${run.truncatedCount} of $total responses stopped at the '
+              'server\'s max sequence length before finishing.'
+        : '${run.truncatedCount} of $total responses hit the '
+              '${run.maxTokens}-token cap before finishing.';
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: AppRadius.mdAll,
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(AppIcons.warning, size: 14, color: color),
           const SizedBox(width: AppSpacing.sm),
-          AppIconButton(
-            icon: AppIcons.kill,
-            size: 15,
-            color: c.statusFailed,
-            padding: const EdgeInsets.all(9),
-            onPressed: onCancel,
+          Expanded(
+            child: Text(
+              message,
+              style: context.text.small.copyWith(color: color),
+            ),
           ),
         ],
-      ],
+      ),
     );
   }
 }

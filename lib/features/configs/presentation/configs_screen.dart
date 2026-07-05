@@ -96,6 +96,22 @@ class _ConfigCard extends ConsumerWidget {
 
   final LaunchConfig config;
 
+  /// Saves a copy of this config under the first free "<name> copy [n]" name.
+  Future<void> _duplicate(WidgetRef ref) {
+    final all = ref.read(configsStreamProvider).value ?? const [];
+    final names = {for (final c in all) c.name};
+    var name = '${config.name} copy';
+    for (var n = 2; names.contains(name); n++) {
+      name = '${config.name} copy $n';
+    }
+    return ref.read(configRepositoryProvider).upsertConfig(
+      config.copyWith(
+        id: 'cfg-${DateTime.now().microsecondsSinceEpoch}',
+        name: name,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final machine = ref.watch(machineMapProvider)[config.machineId];
@@ -103,6 +119,7 @@ class _ConfigCard extends ConsumerWidget {
 
     return AppCard(
       onTap: () => openConfigInForm(context, config.id),
+      onDuplicate: () => _duplicate(ref),
       onDelete: () =>
           ref.read(configRepositoryProvider).deleteConfig(config.id),
       child: Column(

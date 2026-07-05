@@ -46,6 +46,7 @@ class AppCard extends StatelessWidget {
     super.key,
     required this.child,
     this.onTap,
+    this.onDuplicate,
     this.onDelete,
     this.padding = const EdgeInsets.all(AppSpacing.lg),
     this.radius = AppRadius.lgAll,
@@ -54,6 +55,10 @@ class AppCard extends StatelessWidget {
 
   final Widget child;
   final VoidCallback? onTap;
+
+  /// If set, a duplicate button appears in the top-right corner on hover
+  /// (left of the delete button).
+  final VoidCallback? onDuplicate;
 
   /// If set, a delete button appears in the top-right corner on hover.
   final VoidCallback? onDelete;
@@ -80,19 +85,31 @@ class AppCard extends StatelessWidget {
           ),
           child: child,
         );
-        if (onDelete != null && hovered) {
+        if ((onDelete != null || onDuplicate != null) && hovered) {
           content = Stack(
             children: [
               content,
               Positioned(
                 top: 6,
                 right: 6,
-                child: AppIconButton(
-                  icon: AppIcons.delete,
-                  size: 15,
-                  color: c.textMuted,
-                  hoverColor: c.statusFailed,
-                  onPressed: onDelete,
+                child: Row(
+                  children: [
+                    if (onDuplicate != null)
+                      AppIconButton(
+                        icon: AppIcons.copy,
+                        size: 14,
+                        color: c.textMuted,
+                        onPressed: onDuplicate,
+                      ),
+                    if (onDelete != null)
+                      AppIconButton(
+                        icon: AppIcons.delete,
+                        size: 15,
+                        color: c.textMuted,
+                        hoverColor: c.statusFailed,
+                        onPressed: onDelete,
+                      ),
+                  ],
                 ),
               ),
             ],

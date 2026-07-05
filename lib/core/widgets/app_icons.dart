@@ -16,6 +16,7 @@ abstract final class AppIcons {
 
   // Actions
   static const IconData add = LucideIcons.plus;
+  static const IconData play = LucideIcons.play;
   static const IconData close = LucideIcons.x;
   static const IconData delete = LucideIcons.trash2;
   static const IconData terminal = LucideIcons.terminal;
@@ -25,8 +26,10 @@ abstract final class AppIcons {
   static const IconData profiler = LucideIcons.activity;
   static const IconData restart = LucideIcons.rotateCw;
   static const IconData copy = LucideIcons.copy;
+  static const IconData check = LucideIcons.check;
   static const IconData testEndpoint = LucideIcons.externalLink;
   static const IconData save = LucideIcons.bookmark;
+  static const IconData warning = LucideIcons.triangleAlert;
 
   // Terminal multiplexer chrome
   static const IconData splitHorizontal = LucideIcons.columns2;

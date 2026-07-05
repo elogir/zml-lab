@@ -149,11 +149,16 @@ class _ChatViewState extends ConsumerState<_ChatView> {
                         const SizedBox(height: AppSpacing.xs),
                     itemBuilder: (context, i) {
                       final turn = chat.turns[i];
-                      return _Turn(
-                        turn: turn,
-                        onReplay: turn.fromUser
-                            ? () => _controller.replay(i)
-                            : null,
+                      // Selectable per turn (not across the whole list): one
+                      // area spanning a lazy list whose items mount/unmount
+                      // trips a selection-geometry race in the framework.
+                      return AppSelectionArea(
+                        child: _Turn(
+                          turn: turn,
+                          onReplay: turn.fromUser
+                              ? () => _controller.replay(i)
+                              : null,
+                        ),
                       );
                     },
                   ),
@@ -270,13 +275,20 @@ class _Turn extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  turn.text.isEmpty ? '…' : turn.text,
-                  style: context.text.mono.copyWith(
-                    color: c.textSecondary,
-                    height: 1.5,
+                if (turn.text.isEmpty)
+                  Text(
+                    '…',
+                    style: context.text.mono.copyWith(
+                      color: c.textSecondary,
+                      height: 1.5,
+                    ),
+                  )
+                else
+                  // The model's reply, rendered as markdown.
+                  AppMarkdown(
+                    turn.text,
+                    style: context.text.bodySecondary.copyWith(height: 1.55),
                   ),
-                ),
                 // While streaming, the live stats are pinned above the composer
                 // so they don't shift as the reply grows; the settled metrics
                 // land here once it finishes.
@@ -353,6 +365,13 @@ class _Metrics extends StatelessWidget {
           '${turn.tokensPerSecond.toStringAsFixed(1)} t/s',
           style: context.text.monoSmall.copyWith(color: tpsColor),
         ),
+        if (!turn.streaming && turn.truncated) ...[
+          const SizedBox(width: AppSpacing.lg),
+          Text(
+            'truncated',
+            style: context.text.monoSmall.copyWith(color: c.statusStarting),
+          ),
+        ],
       ],
     );
   }

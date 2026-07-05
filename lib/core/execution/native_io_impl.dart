@@ -60,21 +60,30 @@ Future<int> findFreePort({
   return start;
 }
 
-/// One streamed chunk from a chat completion: a text [content] delta and/or the
+/// One streamed chunk from a chat completion: a text [content] delta, the
 /// server's running [completionTokens] count (llmd sends the latter each chunk
-/// when `continuous_usage_stats` is on).
-typedef ChatToken = ({String? content, int? completionTokens});
+/// when `continuous_usage_stats` is on), and/or the choice's [finishReason]
+/// (`stop`, `length`, …) once the reply ends.
+typedef ChatToken = ({
+  String? content,
+  int? completionTokens,
+  String? finishReason,
+});
 
 /// Streams a chat completion from `http://[host]:[port]/v1/chat/completions`
 /// (OpenAI-compatible SSE) for the given [messages] (`[{role, content}, …]`).
 /// Yields a [ChatToken] per `data:` event until `[DONE]`; cancel the
 /// subscription to abort (closes the socket). Throws on a failed connection —
 /// the caller marks that request failed.
+///
+/// A null [maxTokens] sends no cap — the server generates until EOS or its max
+/// sequence length. A null [temperature] leaves sampling at the server default.
 Stream<ChatToken> streamChat(
   String host,
   int port,
   List<Map<String, String>> messages, {
-  int maxTokens = 256,
+  int? maxTokens,
+  double? temperature,
 }) async* {
   final client = HttpClient()
     ..connectionTimeout = const Duration(seconds: 10);
@@ -85,7 +94,8 @@ Stream<ChatToken> streamChat(
     request.add(utf8.encode(jsonEncode({
       'model': 'zml_model',
       'messages': messages,
-      'max_tokens': maxTokens,
+      if (maxTokens != null) 'max_tokens': maxTokens,
+      if (temperature != null) 'temperature': temperature,
       'stream': true,
       'stream_options': {
         'include_usage': true,
@@ -109,17 +119,26 @@ Stream<ChatToken> streamChat(
         continue;
       }
       String? content;
+      String? finishReason;
       final choices = json['choices'];
       if (choices is List && choices.isNotEmpty && choices.first is Map) {
-        final delta = (choices.first as Map)['delta'];
+        final choice = choices.first as Map;
+        final delta = choice['delta'];
         if (delta is Map) content = delta['content'] as String?;
+        if (choice['finish_reason'] is String) {
+          finishReason = choice['finish_reason'] as String;
+        }
       }
       int? completionTokens;
       final usage = json['usage'];
       if (usage is Map && usage['completion_tokens'] is num) {
         completionTokens = (usage['completion_tokens'] as num).toInt();
       }
-      yield (content: content, completionTokens: completionTokens);
+      yield (
+        content: content,
+        completionTokens: completionTokens,
+        finishReason: finishReason,
+      );
     }
   } finally {
     client.close(force: true);

@@ -48,6 +48,7 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
   final _description = TextEditingController();
   final List<_EnvEntry> _env = [];
   String? _selectedMachineId;
+  String _machineQuery = '';
   bool _portEdited = false;
 
   @override
@@ -208,21 +209,19 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
 
               const _SectionTitle(1, 'Machine'),
               const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  for (final machine in machines) ...[
-                    Expanded(
-                      child: _MachineOption(
-                        machine: machine,
-                        selected: machine.id == selectedId,
-                        onTap: () =>
-                            setState(() => _selectedMachineId = machine.id),
-                      ),
-                    ),
-                    if (machine != machines.last)
-                      const SizedBox(width: AppSpacing.md),
-                  ],
-                ],
+              // Search only earns its place once the fleet outgrows the grid.
+              if (machines.length > 4) ...[
+                AppSearchField(
+                  hintText: 'Search machines',
+                  onChanged: (v) => setState(() => _machineQuery = v),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              _MachineGrid(
+                machines: machines,
+                query: _machineQuery,
+                selectedId: selectedId,
+                onSelect: (id) => setState(() => _selectedMachineId = id),
               ),
               const SizedBox(height: AppSpacing.xl),
 
@@ -316,6 +315,74 @@ class _SectionTitle extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Text(label.toUpperCase(), style: context.text.sectionLabel),
       ],
+    );
+  }
+}
+
+/// The machine picker: a two-column grid of machine cards that caps at two
+/// rows and scrolls beyond that, so a big fleet doesn't swallow the form.
+class _MachineGrid extends StatelessWidget {
+  const _MachineGrid({
+    required this.machines,
+    required this.query,
+    required this.selectedId,
+    required this.onSelect,
+  });
+
+  final List<Machine> machines;
+  final String query;
+  final String? selectedId;
+  final ValueChanged<String> onSelect;
+
+  static const double _cardExtent = 102;
+  static const double _gap = AppSpacing.md;
+
+  bool _matches(Machine m, String q) =>
+      m.name.toLowerCase().contains(q) ||
+      m.address.toLowerCase().contains(q) ||
+      (m.gpus?.toLowerCase().contains(q) ?? false);
+
+  @override
+  Widget build(BuildContext context) {
+    final q = query.trim().toLowerCase();
+    final visible = q.isEmpty
+        ? machines
+        : [
+            for (final m in machines)
+              if (_matches(m, q)) m,
+          ];
+
+    if (visible.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Text(
+          machines.isEmpty ? 'No machines yet' : 'No matching machines',
+          style: context.text.smallMuted,
+        ),
+      );
+    }
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 2 * _cardExtent + _gap),
+      child: GridView.builder(
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: _gap,
+          mainAxisSpacing: _gap,
+          mainAxisExtent: _cardExtent,
+        ),
+        itemCount: visible.length,
+        itemBuilder: (context, i) {
+          final machine = visible[i];
+          return _MachineOption(
+            machine: machine,
+            selected: machine.id == selectedId,
+            onTap: () => onSelect(machine.id),
+          );
+        },
+      ),
     );
   }
 }

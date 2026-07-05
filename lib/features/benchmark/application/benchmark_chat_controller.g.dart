@@ -11,7 +11,8 @@ part of 'benchmark_chat_controller.dart';
 /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
 /// Seeded (per job + request) from the clicked benchmark request; each [send]
 /// appends the user's prompt and streams a single reply from
-/// `/v1/chat/completions`, sending the whole conversation as context.
+/// `/v1/chat/completions`, sending the whole conversation as context. Replies
+/// use the benchmark run's max-tokens/temperature settings.
 
 @ProviderFor(BenchmarkChatController)
 final benchmarkChatControllerProvider = BenchmarkChatControllerFamily._();
@@ -19,13 +20,15 @@ final benchmarkChatControllerProvider = BenchmarkChatControllerFamily._();
 /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
 /// Seeded (per job + request) from the clicked benchmark request; each [send]
 /// appends the user's prompt and streams a single reply from
-/// `/v1/chat/completions`, sending the whole conversation as context.
+/// `/v1/chat/completions`, sending the whole conversation as context. Replies
+/// use the benchmark run's max-tokens/temperature settings.
 final class BenchmarkChatControllerProvider
     extends $NotifierProvider<BenchmarkChatController, BenchmarkChat> {
   /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
   /// Seeded (per job + request) from the clicked benchmark request; each [send]
   /// appends the user's prompt and streams a single reply from
-  /// `/v1/chat/completions`, sending the whole conversation as context.
+  /// `/v1/chat/completions`, sending the whole conversation as context. Replies
+  /// use the benchmark run's max-tokens/temperature settings.
   BenchmarkChatControllerProvider._({
     required BenchmarkChatControllerFamily super.from,
     required (String, int, String, int) super.argument,
@@ -72,12 +75,13 @@ final class BenchmarkChatControllerProvider
 }
 
 String _$benchmarkChatControllerHash() =>
-    r'5d2a0654cdde3ef614658b441008510ab4b1d14f';
+    r'3a66eeb57c4e1993bd3219de674e0453b8009a49';
 
 /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
 /// Seeded (per job + request) from the clicked benchmark request; each [send]
 /// appends the user's prompt and streams a single reply from
-/// `/v1/chat/completions`, sending the whole conversation as context.
+/// `/v1/chat/completions`, sending the whole conversation as context. Replies
+/// use the benchmark run's max-tokens/temperature settings.
 
 final class BenchmarkChatControllerFamily extends $Family
     with
@@ -100,7 +104,8 @@ final class BenchmarkChatControllerFamily extends $Family
   /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
   /// Seeded (per job + request) from the clicked benchmark request; each [send]
   /// appends the user's prompt and streams a single reply from
-  /// `/v1/chat/completions`, sending the whole conversation as context.
+  /// `/v1/chat/completions`, sending the whole conversation as context. Replies
+  /// use the benchmark run's max-tokens/temperature settings.
 
   BenchmarkChatControllerProvider call(
     String jobId,
@@ -119,7 +124,8 @@ final class BenchmarkChatControllerFamily extends $Family
 /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
 /// Seeded (per job + request) from the clicked benchmark request; each [send]
 /// appends the user's prompt and streams a single reply from
-/// `/v1/chat/completions`, sending the whole conversation as context.
+/// `/v1/chat/completions`, sending the whole conversation as context. Replies
+/// use the benchmark run's max-tokens/temperature settings.
 
 abstract class _$BenchmarkChatController extends $Notifier<BenchmarkChat> {
   late final _$args = ref.$arg as (String, int, String, int);

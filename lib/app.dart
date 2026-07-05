@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show DefaultCupertinoLocalizations;
 import 'package:flutter/material.dart'
     show DefaultMaterialLocalizations;
 import 'package:flutter/widgets.dart';
@@ -23,6 +24,9 @@ class ZmlLabApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       localizationsDelegates: const [
         DefaultMaterialLocalizations.delegate,
+        // The macOS text-selection toolbar (right-click → Copy in selectable
+        // popups and text fields) resolves its labels through Cupertino.
+        DefaultCupertinoLocalizations.delegate,
         DefaultWidgetsLocalizations.delegate,
       ],
       builder: (context, child) => AppTheme(

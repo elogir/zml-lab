@@ -6,13 +6,18 @@ Future<void> killPortListeners(int port) async {}
 
 String expandUser(String path) => path;
 
-typedef ChatToken = ({String? content, int? completionTokens});
+typedef ChatToken = ({
+  String? content,
+  int? completionTokens,
+  String? finishReason,
+});
 
 Stream<ChatToken> streamChat(
   String host,
   int port,
   List<Map<String, String>> messages, {
-  int maxTokens = 256,
+  int? maxTokens,
+  double? temperature,
 }) async* {
   // No dart:io on web — benchmarking is native-only.
 }
