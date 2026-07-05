@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/scheduler.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/execution/native_io.dart';
@@ -41,6 +42,7 @@ class BenchmarkController extends _$BenchmarkController {
   Timer? _ticker;
   DateTime? _startAt;
   List<_Progress> _progs = [];
+  bool _flushScheduled = false;
 
   @override
   BenchmarkRun build(String jobId) {
@@ -115,7 +117,9 @@ class BenchmarkController extends _$BenchmarkController {
       _subs.add(sub);
     }
 
-    _ticker = Timer.periodic(const Duration(milliseconds: 120), (_) => _flush());
+    // Slow tick just keeps the live elapsed / tok-s readout advancing between
+    // tokens; token *text* is flushed per-token (frame-coalesced) below.
+    _ticker = Timer.periodic(const Duration(milliseconds: 200), (_) => _flush());
   }
 
   void cancel() {
@@ -164,6 +168,19 @@ class BenchmarkController extends _$BenchmarkController {
       p.usageTokens = tok.completionTokens!;
     }
     if (tok.finishReason != null) p.finishReason = tok.finishReason;
+    _scheduleFlush(); // show this token on the next frame
+  }
+
+  /// Coalesces flushes to at most one per frame: a token shows up within a
+  /// frame of arriving (so it reads token-by-token, like the chat popup),
+  /// while a burst across many concurrent requests still rebuilds only once.
+  void _scheduleFlush() {
+    if (_flushScheduled) return;
+    _flushScheduled = true;
+    SchedulerBinding.instance.scheduleFrameCallback((_) {
+      _flushScheduled = false;
+      _flush();
+    });
   }
 
   void _finish(_Progress p, {required bool failed}) {
@@ -236,5 +253,9 @@ class BenchmarkController extends _$BenchmarkController {
     _subs.clear();
     _ticker?.cancel();
     _progs = [];
+    // A pending frame-callback flush becomes a no-op ([_flush] returns on a
+    // null start), so it can't set state on a disposed notifier.
+    _startAt = null;
+    _flushScheduled = false;
   }
 }
