@@ -6,6 +6,7 @@ import '../../../core/widgets/widgets.dart';
 import '../../../models/launch_config.dart';
 import '../../../repositories/config_repository.dart';
 import '../../machines/application/machines_providers.dart';
+import '../../new_job/application/free_port.dart';
 import '../../new_job/presentation/new_job_modal.dart';
 import '../application/configs_providers.dart';
 
@@ -96,18 +97,26 @@ class _ConfigCard extends ConsumerWidget {
 
   final LaunchConfig config;
 
-  /// Saves a copy of this config under the first free "<name> copy [n]" name.
-  Future<void> _duplicate(WidgetRef ref) {
+  /// Saves a copy of this config under the first free "<name> copy [n]" name,
+  /// on a fresh port (the original's is taken) picked from the machine's free
+  /// ports.
+  Future<void> _duplicate(WidgetRef ref) async {
     final all = ref.read(configsStreamProvider).value ?? const [];
     final names = {for (final c in all) c.name};
     var name = '${config.name} copy';
     for (var n = 2; names.contains(name); n++) {
       name = '${config.name} copy $n';
     }
-    return ref.read(configRepositoryProvider).upsertConfig(
+    final port = await freePortForMachine(
+      ref,
+      config.machineId,
+      alsoAvoid: {config.port},
+    );
+    await ref.read(configRepositoryProvider).upsertConfig(
       config.copyWith(
         id: 'cfg-${DateTime.now().microsecondsSinceEpoch}',
         name: name,
+        port: port,
       ),
     );
   }

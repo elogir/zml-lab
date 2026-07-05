@@ -16,6 +16,7 @@ import '../../../repositories/config_repository.dart';
 import '../../../repositories/job_repository.dart';
 import '../../machines/application/machines_providers.dart';
 import '../../settings/application/settings_controller.dart';
+import '../application/free_port.dart';
 
 /// The custom job builder. Optionally pre-filled from a saved config.
 /// Fields are wired to controllers; the launch/save actions are deferred.
@@ -102,6 +103,18 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
       avoid: taken,
     );
     if (!mounted || _portEdited) return;
+    setState(() => _port.text = '$port');
+  }
+
+  /// Manually pick a fresh free port for the selected machine — a deliberate
+  /// action (the button next to the port), so it overrides an edited port.
+  Future<void> _findFreePort() async {
+    final machines = ref.read(machinesStreamProvider).value ?? const [];
+    final machineId =
+        _selectedMachineId ?? (machines.isNotEmpty ? machines.first.id : null);
+    if (machineId == null) return;
+    final port = await freePortForMachine(ref, machineId);
+    if (!mounted) return;
     setState(() => _port.text = '$port');
   }
 
@@ -281,7 +294,7 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
               ),
               const SizedBox(height: AppSpacing.xl),
 
-              _PortSection(controller: _port),
+              _PortSection(controller: _port, onFindPort: _findFreePort),
               const SizedBox(height: AppSpacing.xl),
 
               _EnvSection(
@@ -475,9 +488,13 @@ class _MachineOption extends ConsumerWidget {
 }
 
 class _PortSection extends StatelessWidget {
-  const _PortSection({required this.controller});
+  const _PortSection({required this.controller, required this.onFindPort});
 
   final TextEditingController controller;
+
+  /// Pick a fresh free port for the selected machine (the button beside the
+  /// field). Manual so it never surprises an intentionally-set port.
+  final VoidCallback onFindPort;
 
   @override
   Widget build(BuildContext context) {
@@ -499,9 +516,24 @@ class _PortSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          width: 160,
-          child: AppTextField(controller: controller, mono: true),
+        Row(
+          children: [
+            SizedBox(
+              width: 160,
+              child: AppTextField(controller: controller, mono: true),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            AppIconButton(
+              icon: AppIcons.refresh,
+              size: 16,
+              onPressed: onFindPort,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'find free',
+              style: context.text.smallMuted,
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(

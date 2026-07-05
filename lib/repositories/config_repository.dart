@@ -11,6 +11,10 @@ part 'config_repository.g.dart';
 /// Reads/observes saved launch configs, and persists them.
 abstract interface class ConfigRepository {
   Stream<List<LaunchConfig>> watchConfigs();
+
+  /// A one-shot read of every config (not the stream) — used when computing a
+  /// free port so the result never depends on the stream having loaded yet.
+  Future<List<LaunchConfig>> allConfigs();
   Future<LaunchConfig?> configById(String id);
   Future<void> upsertConfig(LaunchConfig config);
   Future<void> deleteConfig(String id);
@@ -27,6 +31,12 @@ class DriftConfigRepository implements ConfigRepository {
   )..orderBy([(t) => OrderingTerm(expression: t.name)])).watch().map(
     (rows) => rows.map((r) => r.toModel()).toList(),
   );
+
+  @override
+  Future<List<LaunchConfig>> allConfigs() async =>
+      (await _db.select(_db.launchConfigs).get())
+          .map((r) => r.toModel())
+          .toList();
 
   @override
   Future<LaunchConfig?> configById(String id) async {
