@@ -92,16 +92,20 @@ class _BenchmarkCard extends ConsumerWidget {
       onTap: () => showSavedBenchmarkDetail(context, b),
       onDelete: () =>
           ref.read(savedBenchmarkRepositoryProvider).delete(b.id),
+      topRight: Text(formatAgo(b.createdAt), style: context.text.smallMuted),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // The top-right corner stays clear: the hover delete button floats
-          // there, so the date lives on the second row instead.
-          Text(
-            b.name,
-            style: context.text.body.copyWith(fontWeight: FontWeight.w600),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          // Leave room on the right for the top-right timestamp, which the
+          // hover trash icon replaces.
+          Padding(
+            padding: const EdgeInsets.only(right: 44),
+            child: Text(
+              b.name,
+              style: context.text.body.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Row(
@@ -118,8 +122,6 @@ class _BenchmarkCard extends ConsumerWidget {
               ),
               const SizedBox(width: AppSpacing.md),
               Text('batch ${b.batchSize}', style: context.text.smallMuted),
-              const Spacer(),
-              Text(formatAgo(b.createdAt), style: context.text.smallMuted),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),

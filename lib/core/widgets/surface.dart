@@ -48,6 +48,7 @@ class AppCard extends StatelessWidget {
     this.onTap,
     this.onDuplicate,
     this.onDelete,
+    this.topRight,
     this.padding = const EdgeInsets.all(AppSpacing.lg),
     this.radius = AppRadius.lgAll,
     this.selected = false,
@@ -62,6 +63,12 @@ class AppCard extends StatelessWidget {
 
   /// If set, a delete button appears in the top-right corner on hover.
   final VoidCallback? onDelete;
+
+  /// Metadata pinned to the top-right corner (e.g. a timestamp) while idle —
+  /// the hover action buttons take over the same slot when hovered, so it
+  /// reads as the timestamp being replaced by the trash icon.
+  final Widget? topRight;
+
   final EdgeInsetsGeometry padding;
   final BorderRadius radius;
   final bool selected;
@@ -85,31 +92,45 @@ class AppCard extends StatelessWidget {
           ),
           child: child,
         );
-        if ((onDelete != null || onDuplicate != null) && hovered) {
+        final showActions = (onDelete != null || onDuplicate != null) && hovered;
+        final showTopRight = topRight != null && !showActions;
+        if (showActions || showTopRight) {
           content = Stack(
             children: [
               content,
               Positioned(
                 top: 6,
                 right: 6,
-                child: Row(
-                  children: [
-                    if (onDuplicate != null)
-                      AppIconButton(
-                        icon: AppIcons.copy,
-                        size: 14,
-                        color: c.textMuted,
-                        onPressed: onDuplicate,
-                      ),
-                    if (onDelete != null)
-                      AppIconButton(
-                        icon: AppIcons.delete,
-                        size: 15,
-                        color: c.textMuted,
-                        hoverColor: c.statusFailed,
-                        onPressed: onDelete,
-                      ),
-                  ],
+                // A fixed-height box so the idle metadata and the hover
+                // buttons share one vertical center and swap cleanly in place.
+                child: SizedBox(
+                  height: 27,
+                  child: Center(
+                    child: showActions
+                        ? Row(
+                            children: [
+                              if (onDuplicate != null)
+                                AppIconButton(
+                                  icon: AppIcons.copy,
+                                  size: 14,
+                                  color: c.textMuted,
+                                  onPressed: onDuplicate,
+                                ),
+                              if (onDelete != null)
+                                AppIconButton(
+                                  icon: AppIcons.delete,
+                                  size: 15,
+                                  color: c.textMuted,
+                                  hoverColor: c.statusFailed,
+                                  onPressed: onDelete,
+                                ),
+                            ],
+                          )
+                        : Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: topRight,
+                          ),
+                  ),
                 ),
               ),
             ],
