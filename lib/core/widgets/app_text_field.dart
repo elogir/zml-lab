@@ -23,6 +23,7 @@ class AppTextField extends StatefulWidget {
     this.maxLines = 1,
     this.expands = false,
     this.autofocus = false,
+    this.dense = false,
   });
 
   final TextEditingController? controller;
@@ -44,6 +45,10 @@ class AppTextField extends StatefulWidget {
   /// sizing to the text. Use for a full-height editor; overrides min/maxLines.
   final bool expands;
   final bool autofocus;
+
+  /// Tight vertical padding, for inline edits (e.g. renaming a title in
+  /// place) where the regular field height would push the layout around.
+  final bool dense;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -88,8 +93,9 @@ class _AppTextFieldState extends State<AppTextField> {
       child: AnimatedContainer(
         duration: AppDurations.fast,
         padding: EdgeInsets.symmetric(
-          horizontal: AppSpacing.md + borderInset,
-          vertical: 11 + borderInset,
+          horizontal:
+              (widget.dense ? AppSpacing.sm : AppSpacing.md) + borderInset,
+          vertical: (widget.dense ? 3 : 11) + borderInset,
         ),
         decoration: BoxDecoration(
           color: c.surfaceMuted,

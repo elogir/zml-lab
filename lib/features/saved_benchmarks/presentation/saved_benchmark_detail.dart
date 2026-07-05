@@ -90,44 +90,54 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (_editingName)
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: AppTextField(
-                                    controller: _name,
-                                    autofocus: true,
-                                    onSubmitted: (_) => _commitName(),
+                          // Fixed-height slot sized to the dense field, so
+                          // toggling edit mode doesn't shift the layout below;
+                          // the check button sits where the pencil was.
+                          SizedBox(
+                            height: 28,
+                            child: _editingName
+                                ? Row(
+                                    children: [
+                                      ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                          maxWidth: 320,
+                                        ),
+                                        child: AppTextField(
+                                          controller: _name,
+                                          dense: true,
+                                          autofocus: true,
+                                          onSubmitted: (_) => _commitName(),
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppSpacing.xs),
+                                      AppIconButton(
+                                        icon: AppIcons.check,
+                                        size: 13,
+                                        onPressed: _commitName,
+                                      ),
+                                    ],
+                                  )
+                                : Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          b.name,
+                                          style: context.text.bodyStrong,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppSpacing.xs),
+                                      AppIconButton(
+                                        icon: AppIcons.edit,
+                                        size: 13,
+                                        onPressed: () => setState(
+                                          () => _editingName = true,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                AppIconButton(
-                                  icon: AppIcons.check,
-                                  size: 14,
-                                  onPressed: _commitName,
-                                ),
-                              ],
-                            )
-                          else
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    b.name,
-                                    style: context.text.bodyStrong,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.xs),
-                                AppIconButton(
-                                  icon: AppIcons.edit,
-                                  size: 13,
-                                  onPressed: () =>
-                                      setState(() => _editingName = true),
-                                ),
-                              ],
-                            ),
+                          ),
                           const SizedBox(height: 4),
                           Row(
                             children: [
