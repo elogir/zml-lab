@@ -1269,6 +1269,9 @@ class _WebViewState extends ConsumerState<_WebView> {
   bool _findOpen = false;
   int _findMatches = 0;
   int _findActive = 0;
+  // The last query actually searched (on Enter) — search runs only on submit,
+  // not per keystroke, so typing doesn't scan the page mid-word.
+  String _lastFindQuery = '';
 
   // A document-start script so Cmd/Ctrl+F opens our find bar even while the
   // page (not the Flutter chrome) holds keyboard focus.
@@ -1374,7 +1377,10 @@ class _WebViewState extends ConsumerState<_WebView> {
   void _openFind() {
     setState(() => _findOpen = true);
     _findFocus.requestFocus();
-    if (_findText.text.isNotEmpty) _find.findAll(find: _findText.text);
+    if (_findText.text.isNotEmpty) {
+      _lastFindQuery = _findText.text;
+      _find.findAll(find: _findText.text);
+    }
   }
 
   void _closeFind() {
@@ -1383,19 +1389,58 @@ class _WebViewState extends ConsumerState<_WebView> {
       _findOpen = false;
       _findMatches = 0;
       _findActive = 0;
+      _lastFindQuery = '';
     });
   }
 
-  void _runFind(String query) {
+  /// Typing does NOT search — it only drops stale highlights/counts from the
+  /// previous query so the page isn't scanned mid-word. The search itself runs
+  /// on Enter ([_submitFind]).
+  void _onFindChanged(String query) {
+    if (_lastFindQuery.isEmpty) return; // nothing highlighted to clear
+    _find.clearMatches();
+    setState(() {
+      _findMatches = 0;
+      _findActive = 0;
+      _lastFindQuery = '';
+    });
+  }
+
+  /// Enter: search the current text, or advance to the next match if it's the
+  /// same query already found. Keeps focus so repeated Enter cycles matches.
+  void _submitFind() {
+    final query = _findText.text;
     if (query.isEmpty) {
-      _find.clearMatches();
-      setState(() {
-        _findMatches = 0;
-        _findActive = 0;
-      });
-      return;
+      _closeFindHighlights();
+    } else if (query == _lastFindQuery && _findMatches > 0) {
+      _find.findNext(forward: true);
+    } else {
+      _lastFindQuery = query;
+      _find.findAll(find: query);
     }
-    _find.findAll(find: query);
+    _findFocus.requestFocus();
+  }
+
+  void _closeFindHighlights() {
+    _find.clearMatches();
+    setState(() {
+      _findMatches = 0;
+      _findActive = 0;
+      _lastFindQuery = '';
+    });
+  }
+
+  /// The prev/next arrows: search first if the current text hasn't been
+  /// searched yet, else step through matches.
+  void _findStep({required bool forward}) {
+    final query = _findText.text;
+    if (query.isEmpty) return;
+    if (query != _lastFindQuery) {
+      _lastFindQuery = query;
+      _find.findAll(find: query);
+    } else {
+      _find.findNext(forward: forward);
+    }
   }
 
   void _syncSuggestions() {
@@ -1656,8 +1701,14 @@ class _WebViewState extends ConsumerState<_WebView> {
 
   Widget _findBar() {
     final c = context.colors;
-    final count = _findMatches == 0
-        ? (_findText.text.isEmpty ? '' : 'No results')
+    // Only reflect a query that was actually searched (on Enter) — while
+    // typing a new one, show nothing rather than a stale/"No results" count.
+    final searched =
+        _findText.text.isNotEmpty && _findText.text == _lastFindQuery;
+    final count = !searched
+        ? ''
+        : _findMatches == 0
+        ? 'No results'
         : '$_findActive/$_findMatches';
     return Container(
       height: 36,
@@ -1683,12 +1734,10 @@ class _WebViewState extends ConsumerState<_WebView> {
                   style: context.text.monoSmall.copyWith(color: c.textPrimary),
                   cursorColor: c.accent,
                   cursorWidth: 1.6,
-                  onChanged: _runFind,
-                  // Keep focus so repeated Enter cycles to the next match.
-                  onSubmitted: (_) {
-                    _find.findNext(forward: true);
-                    _findFocus.requestFocus();
-                  },
+                  // Search on Enter, not per keystroke; typing only clears
+                  // stale highlights (see [_onFindChanged]/[_submitFind]).
+                  onChanged: _onFindChanged,
+                  onSubmitted: (_) => _submitFind(),
                   decoration: InputDecoration.collapsed(
                     hintText: 'Find in page',
                     hintStyle: context.text.monoSmall.copyWith(
@@ -1707,12 +1756,12 @@ class _WebViewState extends ConsumerState<_WebView> {
           AppIconButton(
             icon: AppIcons.findPrev,
             size: 15,
-            onPressed: () => _find.findNext(forward: false),
+            onPressed: () => _findStep(forward: false),
           ),
           AppIconButton(
             icon: AppIcons.findNext,
             size: 15,
-            onPressed: () => _find.findNext(forward: true),
+            onPressed: () => _findStep(forward: true),
           ),
           AppIconButton(icon: AppIcons.close, size: 14, onPressed: _closeFind),
         ],
