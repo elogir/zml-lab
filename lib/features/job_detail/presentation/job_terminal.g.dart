@@ -84,7 +84,7 @@ final class TerminalMuxProvider
   }
 }
 
-String _$terminalMuxHash() => r'9537bfcf03d859e9e31c828482894c19f1140889';
+String _$terminalMuxHash() => r'3eec5503072f1a52c79bf9169ad84807705ab38c';
 
 /// Keep-alive so a job's terminals, web views and layout persist across
 /// navigation. Keyed by job id; seeded with a single shell tab on first read.

@@ -19,12 +19,14 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/execution/job_executor.dart';
 import '../../../core/providers/terminal_font.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/job.dart';
 import '../../../models/machine.dart';
 import '../application/browser_history.dart';
+import '../application/profiler_controller.dart';
 import '../application/terminal_fullscreen.dart';
 import 'terminal_session.dart';
 
@@ -50,10 +52,19 @@ sealed class _Content {
 }
 
 class _TermContent extends _Content {
-  _TermContent(this.session);
+  _TermContent(this.session, {this.borrowed = false});
   final TerminalSession session;
+
+  /// A [borrowed] session is the job's own process, owned by the [JobExecutor]
+  /// — the terminal only displays it. We must not dispose it (that would kill
+  /// the job) and must not close its pane when it exits (its final output stays
+  /// on screen).
+  final bool borrowed;
+
   @override
-  void dispose() => session.dispose();
+  void dispose() {
+    if (!borrowed) session.dispose();
+  }
 }
 
 class _WebContent extends _Content {
@@ -167,7 +178,13 @@ class TerminalMuxState {
 @Riverpod(keepAlive: true)
 TerminalMuxState terminalMux(Ref ref, String jobId) {
   final state = TerminalMuxState();
-  final leaf = _Leaf(_TermContent(TerminalSession()));
+  // If this job has a real process (launched this session), the first tab shows
+  // its live stdout by borrowing the executor's session; otherwise it's a plain
+  // shell. `read`, not `watch`, so a later relaunch doesn't rebuild the mux.
+  final jobSession = ref.read(jobExecutorProvider).sessionFor(jobId);
+  final leaf = jobSession != null
+      ? _Leaf(_TermContent(jobSession, borrowed: true))
+      : _Leaf(_TermContent(TerminalSession()));
   state.tabs.add(_Tab(leaf));
   state.focusedId = leaf.id;
   ref.onDispose(state.disposeAll);
@@ -212,9 +229,24 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
   Timer? _autoScrollTimer;
   double _autoScrollDir = 0; // -1 = left, +1 = right, 0 = idle
 
+  // Captured in initState so dispose never touches `ref` — reading a provider
+  // while this element is unmounting is unsafe (and throws under some teardown
+  // orders, e.g. deleting the job from the actions panel).
+  late final TerminalFullscreen _fullscreen;
+
+  // The executor is watched (not via ref.watch) so that when this job's process
+  // is replaced — a restart — the terminal can swap its pane to the new session.
+  late final JobExecutor _executor;
+
+  // Highest profiler open-token already acted on, so we open the xprof tab only
+  // when the user (re)starts/opens it — never just because the view remounted.
+  int _lastXprofToken = 0;
+
   @override
   void initState() {
     super.initState();
+    _fullscreen = ref.read(terminalFullscreenProvider.notifier);
+    _executor = ref.read(jobExecutorProvider)..addListener(_onExecutorChanged);
     // A shell that exits (Ctrl+D, `exit`, or a crash) should close its pane
     // like a real multiplexer. Wire every existing terminal — including ones
     // the keep-alive provider seeded and ones a previous mount left running —
@@ -224,18 +256,83 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     for (final tab in _tabs) {
       _forEachLeaf(tab.root, _wireLeaf);
     }
+    // Baseline the open-token to the current profiler state, so a remount while
+    // xprof is already open does NOT auto-reopen its tab.
+    _lastXprofToken = ref
+        .read(profilerControllerProvider(widget.job.id))
+        .openToken;
   }
 
   @override
   void dispose() {
     // Leaving the detail view drops fullscreen so it never lingers elsewhere.
     // The sessions themselves are NOT disposed here — they're owned by the
-    // keep-alive provider so the layout persists across navigation.
-    final fullscreen = ref.read(terminalFullscreenProvider.notifier);
-    WidgetsBinding.instance.addPostFrameCallback((_) => fullscreen.exit());
+    // keep-alive provider so the layout persists across navigation. Use the
+    // notifier captured in initState, not `ref`, which is unsafe during dispose.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fullscreen.exit());
+    _executor.removeListener(_onExecutorChanged);
     _autoScrollTimer?.cancel();
     _tabScroll.dispose();
     super.dispose();
+  }
+
+  /// The executor replaced this job's process (a restart) — swap the job's pane
+  /// to show the new session's output. The job's pane is the borrowed leaf if
+  /// there is one, else tab 0's first leaf (a job whose detail view opened
+  /// before it had a live process, e.g. relaunching a stopped one).
+  void _onExecutorChanged() {
+    if (!mounted) return;
+    final live = _executor.sessionFor(widget.job.id);
+    if (live == null) return;
+
+    final (tab, oldLeaf) = _findBorrowedLeaf() ?? (_tabs[0], _firstLeaf(_tabs[0].root));
+    final oldContent = oldLeaf.content;
+    if (oldContent is _TermContent && identical(oldContent.session, live)) {
+      return; // already showing the live session
+    }
+
+    setState(() {
+      final newLeaf = _Leaf(_TermContent(live, borrowed: true));
+      _wireLeaf(newLeaf);
+      tab.root = _replaceNode(tab.root, oldLeaf, newLeaf);
+      if (_focusedId == oldLeaf.id) _focusedId = newLeaf.id;
+    });
+    _applyFocus();
+
+    // A replaced *owned* pane (a plain shell we adopted over) is ours to free;
+    // a replaced *borrowed* one is owned by the executor, which disposes it.
+    if (oldContent is _TermContent && !oldContent.borrowed) {
+      _disposeLater(oldContent);
+    }
+  }
+
+  /// The single leaf (across all tabs) that borrows the job's process, if any.
+  (_Tab, _Leaf)? _findBorrowedLeaf() {
+    for (final tab in _tabs) {
+      _Leaf? found;
+      _forEachLeaf(tab.root, (l) {
+        final c = l.content;
+        if (c is _TermContent && c.borrowed) found = l;
+      });
+      if (found != null) return (tab, found!);
+    }
+    return null;
+  }
+
+  /// Whether tab [i] holds the job's borrowed output. That process is the
+  /// executor's to stop (via the actions panel's Kill/Restart/Delete), not the
+  /// mux's — so this tab isn't closable, and closing it can't strand the job.
+  bool _isJobTab(int i) {
+    if (i < 0 || i >= _tabs.length) return false;
+    final borrowed = _findBorrowedLeaf();
+    return borrowed != null && identical(borrowed.$1, _tabs[i]);
+  }
+
+  /// Whether [leaf] is the job's borrowed output pane — locked, not closable
+  /// (same reason as [_isJobTab]: the executor owns that process).
+  bool _isBorrowedLeaf(_Leaf leaf) {
+    final c = leaf.content;
+    return c is _TermContent && c.borrowed;
   }
 
   _Leaf _firstLeaf(_Pane pane) => switch (pane) {
@@ -299,6 +396,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
   }
 
   void _closeLeaf(_Leaf leaf) {
+    if (_isBorrowedLeaf(leaf)) return; // the job's pane is locked
     final tab = _tabs[_active];
     final parent = _findParent(tab.root, leaf);
     if (parent == null) return; // sole pane — not closable
@@ -336,8 +434,13 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     final content = leaf.content;
     if (content is! _TermContent) return;
     final session = content.session;
-    session.onExit = () => _onLeafExited(leaf);
-    if (session.hasExited) _onLeafExited(leaf); // exited while unwired
+    // The borrowed job process is supervised by the executor, not the mux: its
+    // pane must NOT close on exit (the final output stays visible) and its
+    // single onExit slot is left alone. We still track its title for the tab.
+    if (!content.borrowed) {
+      session.onExit = () => _onLeafExited(leaf);
+      if (session.hasExited) _onLeafExited(leaf); // exited while unwired
+    }
     session.onTitleChanged = () {
       if (mounted) setState(() {}); // the tab label reads session.title
     };
@@ -409,6 +512,42 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     _revealLastTab();
   }
 
+  /// Opens [url] in a new web tab (used by the profiler to show xprof). Skips if
+  /// a web tab is already showing it, so re-emits don't stack duplicates.
+  void _openWebTab(String url) {
+    final exists = _tabs.any(
+      (tab) => _findWebWithUrl(tab.root, url) != null,
+    );
+    if (exists) {
+      // Just focus the existing one.
+      for (var i = 0; i < _tabs.length; i++) {
+        if (_findWebWithUrl(_tabs[i].root, url) != null) {
+          setState(() => _active = i);
+          break;
+        }
+      }
+      return;
+    }
+    final leaf = _Leaf(_WebContent(_WebSession(url)));
+    setState(() {
+      _tabs.add(_Tab(leaf));
+      _active = _tabs.length - 1;
+      _focusedId = leaf.id;
+    });
+    _revealLastTab();
+  }
+
+  _Leaf? _findWebWithUrl(_Pane pane, String url) => switch (pane) {
+    _Leaf l =>
+      (l.content is _WebContent &&
+              (l.content as _WebContent).session.currentUrl == url)
+          ? l
+          : null,
+    _Split s =>
+      _findWebWithUrl(s.first, url) ?? _findWebWithUrl(s.second, url),
+  };
+
+
   /// After a tab is appended, scroll the strip to its end so the new (now
   /// active) tab is visible even when the tabs overflow. No-op when they fit
   /// (the scroll view isn't mounted, so there are no clients to drive).
@@ -474,6 +613,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
   }
 
   void _closeTab(int i) {
+    if (_isJobTab(i)) return; // the job's output tab is locked
     final removed = _tabs[i].root;
     setState(() {
       _tabs.removeAt(i);
@@ -542,6 +682,15 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     final c = context.colors;
     final font = ref.watch(terminalFontProvider).value;
     final fullscreen = ref.watch(terminalFullscreenProvider);
+    // Open the xprof web tab when the profiler asks (start or explicit re-open,
+    // signalled by a bumped openToken). A listen (not watch) so the terminal
+    // isn't rebuilt on every profiler tick.
+    ref.listen(profilerControllerProvider(widget.job.id), (_, next) {
+      if (next.isReady && next.openToken > _lastXprofToken) {
+        _lastXprofToken = next.openToken;
+        _openWebTab(next.url!);
+      }
+    });
     final tab = _tabs[_active];
 
     // The border must paint *behind* the content, never in the foreground:
@@ -673,6 +822,10 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
   }
 
   ({IconData icon, String label}) _tabInfo(int i) {
+    // The job's own tab is named for the job, not the (bazel/ssh) shell title.
+    if (_isJobTab(i)) {
+      return (icon: AppIcons.terminal, label: widget.job.name);
+    }
     final leaf = _firstLeaf(_tabs[i].root);
     return switch (leaf.content) {
       // The title the running program reports (OSC), falling back to 'shell'
@@ -745,17 +898,27 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Pinned to the right; reserved so the row doesn't jump.
+              // Pinned to the right; reserved so the row doesn't jump. The
+              // job's own tab shows a lock (it can't be closed — kill via the
+              // actions panel) instead of the hover close button.
               SizedBox(
                 width: 16,
-                child: hovered && _tabs.length > 1
-                    ? AppIconButton(
-                        icon: AppIcons.close,
-                        size: 12,
-                        padding: const EdgeInsets.all(3),
-                        onPressed: () => _closeTab(i),
+                child: _isJobTab(i)
+                    ? Center(
+                        child: Icon(
+                          AppIcons.lock,
+                          size: 11,
+                          color: c.textMuted,
+                        ),
                       )
-                    : null,
+                    : (hovered && _tabs.length > 1
+                          ? AppIconButton(
+                              icon: AppIcons.close,
+                              size: 12,
+                              padding: const EdgeInsets.all(3),
+                              onPressed: () => _closeTab(i),
+                            )
+                          : null),
               ),
             ],
           ),
@@ -914,11 +1077,22 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
               Positioned(
                 top: 6,
                 right: 6,
-                child: AppIconButton(
-                  icon: AppIcons.close,
-                  size: 13,
-                  onPressed: () => _closeLeaf(leaf),
-                ),
+                // The job's borrowed pane is locked (kill via the actions
+                // panel) — show a lock instead of a close button.
+                child: _isBorrowedLeaf(leaf)
+                    ? Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(
+                          AppIcons.lock,
+                          size: 13,
+                          color: context.colors.textMuted,
+                        ),
+                      )
+                    : AppIconButton(
+                        icon: AppIcons.close,
+                        size: 13,
+                        onPressed: () => _closeLeaf(leaf),
+                      ),
               ),
           ],
         ),

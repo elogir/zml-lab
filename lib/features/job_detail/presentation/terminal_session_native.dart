@@ -7,17 +7,31 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_pty/flutter_pty.dart';
 
 /// Native terminal session: an flterm [TerminalController] wired to a real
-/// local PTY running the user's login shell. Fully interactive — nothing is
-/// auto-run in it.
+/// local PTY.
+///
+/// By default it runs the user's login shell, fully interactive (nothing is
+/// auto-run). Pass [runCommand] to instead run a specific command line — this
+/// is how a launched job's process is hosted: the PTY *is* the job process, its
+/// output is the job's live stdout/stderr, and [pid]/[onExit]/[exitCode]/
+/// [sendSignal] let a supervisor track and control it.
 class TerminalSession {
-  TerminalSession() {
+  TerminalSession({
+    this.runCommand,
+    String? workingDirectory,
+    Map<String, String>? environment,
+  }) {
     focusNode = FocusNode(debugLabel: 'terminal');
     controller.onTitleChanged = () {
       _title = controller.title;
       onTitleChanged?.call();
     };
-    _startShell();
+    _start(workingDirectory, environment);
   }
+
+  /// The command line to run instead of an interactive shell, or null for a
+  /// plain login shell. Run through `$SHELL -l -c <command>` so PATH, aliases
+  /// and profile are in effect (so e.g. `bazel` resolves).
+  final String? runCommand;
 
   final TerminalController controller = TerminalController();
   late final FocusNode focusNode;
@@ -25,45 +39,81 @@ class TerminalSession {
   Pty? _pty;
   StreamSubscription<Uint8List>? _sub;
   bool _exited = false;
+  int? _exitCode;
+  final Completer<int> _exitCompleter = Completer<int>();
   String _title = '';
 
   bool get isLive => _pty != null;
+
+  /// The OS pid of the running process, or null if it never started.
+  int? get pid => _pty?.pid;
 
   /// The window title the running program set via an OSC escape (empty until
   /// one is set). Used as the tab label. [onTitleChanged] fires when it moves.
   String get title => _title;
   VoidCallback? onTitleChanged;
 
-  /// Whether the shell process has already exited (Ctrl+D, `exit`, or a
+  /// Whether the process has already exited (Ctrl+D, `exit`, a signal, or a
   /// crash). Lets a late-attached [onExit] fire immediately if it missed the
   /// event.
   bool get hasExited => _exited;
 
-  /// Called once when the shell process exits, so the UI can close the pane.
-  /// Cleared before we kill the PTY ourselves in [dispose] so our own teardown
-  /// doesn't look like a user-initiated exit.
+  /// The process exit code once [hasExited], else null. 0 = clean exit.
+  int? get exitCode => _exitCode;
+
+  /// Completes with the exit code when the process exits. Supervisors (the job
+  /// executor) await this to move a job to exited/failed; unlike the
+  /// single-slot [onExit] callback it can have many independent listeners.
+  Future<int> get whenExited => _exitCompleter.future;
+
+  /// Called once when the process exits, so the UI can close the pane. Cleared
+  /// before we kill the PTY ourselves in [dispose] so our own teardown doesn't
+  /// look like a user-initiated exit.
   VoidCallback? onExit;
 
-  void _startShell() {
+  /// Sends SIGINT to the process without tearing down the controller, so its
+  /// final output stays on screen. Used to kill a job gracefully (llmd shuts
+  /// its server down cleanly on SIGINT) while keeping the terminal pane visible.
+  void sendSignal() {
+    try {
+      _pty?.kill(ProcessSignal.sigint);
+    } catch (_) {}
+  }
+
+  void _start(String? workingDirectory, Map<String, String>? environment) {
     try {
       final shell = Platform.environment['SHELL'] ?? '/bin/zsh';
-      final pty = Pty.start(
-        shell,
-        columns: 80,
-        rows: 24,
-        workingDirectory: Platform.environment['HOME'],
-      );
+      final pty = runCommand == null
+          ? Pty.start(
+              shell,
+              columns: 80,
+              rows: 24,
+              workingDirectory: workingDirectory ?? Platform.environment['HOME'],
+            )
+          : Pty.start(
+              shell,
+              arguments: ['-l', '-c', runCommand!],
+              columns: 80,
+              rows: 24,
+              workingDirectory: workingDirectory,
+              environment: environment,
+            );
       _pty = pty;
       controller
         ..onOutput = pty.write
         ..onResize = (cols, rows) => pty.resize(rows, cols);
       _sub = pty.output.listen(controller.write);
-      pty.exitCode.then((_) {
+      pty.exitCode.then((code) {
         _exited = true;
+        _exitCode = code;
+        if (!_exitCompleter.isCompleted) _exitCompleter.complete(code);
         onExit?.call();
       });
     } catch (e) {
-      debugPrint('Failed to start shell PTY: $e');
+      debugPrint('Failed to start PTY: $e');
+      _exited = true;
+      _exitCode = -1;
+      if (!_exitCompleter.isCompleted) _exitCompleter.complete(-1);
     }
   }
 
@@ -74,6 +124,7 @@ class TerminalSession {
     try {
       _pty?.kill();
     } catch (_) {}
+    if (!_exitCompleter.isCompleted) _exitCompleter.complete(-1);
     focusNode.dispose();
     controller.dispose();
   }

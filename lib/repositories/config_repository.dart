@@ -8,10 +8,11 @@ import 'mappers.dart';
 
 part 'config_repository.g.dart';
 
-/// Reads/observes saved launch configs. Write paths deferred.
+/// Reads/observes saved launch configs, and persists them.
 abstract interface class ConfigRepository {
   Stream<List<LaunchConfig>> watchConfigs();
   Future<LaunchConfig?> configById(String id);
+  Future<void> upsertConfig(LaunchConfig config);
   Future<void> deleteConfig(String id);
 }
 
@@ -34,6 +35,22 @@ class DriftConfigRepository implements ConfigRepository {
     )..where((t) => t.id.equals(id))).getSingleOrNull();
     return row?.toModel();
   }
+
+  @override
+  Future<void> upsertConfig(LaunchConfig c) =>
+      _db.into(_db.launchConfigs).insertOnConflictUpdate(
+        LaunchConfigsCompanion.insert(
+          id: c.id,
+          name: c.name,
+          description: Value(c.description),
+          machineId: c.machineId,
+          program: c.program,
+          command: c.command,
+          workingDir: Value(c.workingDir),
+          port: c.port,
+          envJson: Value(encodeEnv(c.env)),
+        ),
+      );
 
   @override
   Future<void> deleteConfig(String id) =>

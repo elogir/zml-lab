@@ -3,10 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/execution/job_executor.dart';
+import '../../../core/execution/native_io.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../../models/enums.dart';
+import '../../../models/env_var.dart';
+import '../../../models/job.dart';
+import '../../../models/launch_config.dart';
 import '../../../models/machine.dart';
 import '../../../repositories/config_repository.dart';
+import '../../../repositories/job_repository.dart';
 import '../../machines/application/machines_providers.dart';
 
 /// The custom job builder. Optionally pre-filled from a saved config.
@@ -41,22 +48,28 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
   final _description = TextEditingController();
   final List<_EnvEntry> _env = [];
   String? _selectedMachineId;
+  bool _portEdited = false;
 
   @override
   void initState() {
     super.initState();
+    _port.addListener(() => _portEdited = true);
     _prefill();
   }
 
   Future<void> _prefill() async {
     final id = widget.configId;
-    if (id == null) return;
+    if (id == null) {
+      _prefillFreePort();
+      return;
+    }
     final config = await ref.read(configRepositoryProvider).configById(id);
     if (config == null || !mounted) return;
     setState(() {
       _command.text = config.command;
       _workingDir.text = config.workingDir ?? '';
       _port.text = '${config.port}';
+      _portEdited = true; // came from the config; don't overwrite it
       _name.text = config.name;
       _description.text = config.description ?? '';
       _selectedMachineId = config.machineId;
@@ -64,6 +77,21 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
         ..clear()
         ..addAll(config.env.map((e) => _EnvEntry(key: e.key, value: e.value)));
     });
+  }
+
+  /// Fills the port with a genuinely free one, avoiding ports already claimed
+  /// by active jobs. Reads the jobs table directly (not the stream, which may
+  /// still be loading) so the avoid-set is never empty by accident. Skipped
+  /// once the user (or a config) has set the port.
+  Future<void> _prefillFreePort() async {
+    final jobs = await ref.read(jobRepositoryProvider).allJobs();
+    final taken = {
+      for (final j in jobs)
+        if (j.status.isActive) j.port,
+    };
+    final port = await findFreePort(avoid: taken);
+    if (!mounted || _portEdited) return;
+    setState(() => _port.text = '$port');
   }
 
   @override
@@ -80,6 +108,79 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
   }
 
   void _back() => context.go('/');
+
+  /// Reads the form into a Job + its target Machine, or null if it's not
+  /// launchable yet (no command, no machine, or an unparseable port).
+  (Job, Machine)? _resolve() {
+    final machines = ref.read(machinesStreamProvider).value ?? const [];
+    final machineId =
+        _selectedMachineId ?? (machines.isNotEmpty ? machines.first.id : null);
+    if (machineId == null) return null;
+    final machine = ref.read(machineMapProvider)[machineId];
+    if (machine == null) return null;
+
+    final command = _command.text.trim();
+    if (command.isEmpty) return null;
+    final port = int.tryParse(_port.text.trim());
+    if (port == null) return null;
+
+    final env = [
+      for (final e in _env)
+        if (e.keyCtrl.text.trim().isNotEmpty)
+          EnvVar(key: e.keyCtrl.text.trim(), value: e.valueCtrl.text),
+    ];
+    final typedName = _name.text.trim();
+    final description = _description.text.trim();
+    final workingDir = _workingDir.text.trim();
+
+    final job = Job(
+      id: 'job-${DateTime.now().microsecondsSinceEpoch}',
+      name: typedName.isEmpty ? deriveProgram(command) : typedName,
+      description: description.isEmpty ? null : description,
+      machineId: machineId,
+      program: deriveProgram(command),
+      command: command,
+      workingDir: workingDir.isEmpty ? null : workingDir,
+      port: port,
+      status: JobStatus.starting,
+      env: env,
+    );
+    return (job, machine);
+  }
+
+  Future<void> _saveConfigFrom(Job job) => ref
+      .read(configRepositoryProvider)
+      .upsertConfig(
+        LaunchConfig(
+          id: 'cfg-${DateTime.now().microsecondsSinceEpoch}',
+          name: job.name,
+          description: job.description,
+          machineId: job.machineId,
+          program: job.program,
+          command: job.command,
+          workingDir: job.workingDir,
+          port: job.port,
+          env: job.env,
+        ),
+      );
+
+  Future<void> _launch({required bool save}) async {
+    final resolved = _resolve();
+    if (resolved == null) return;
+    final (job, machine) = resolved;
+    if (save) await _saveConfigFrom(job);
+    await ref.read(jobExecutorProvider).launch(job, machine);
+    if (!mounted) return;
+    context.go('/jobs/${job.id}');
+  }
+
+  Future<void> _saveConfigOnly() async {
+    final resolved = _resolve();
+    if (resolved == null) return;
+    await _saveConfigFrom(resolved.$1);
+    if (!mounted) return;
+    _back();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -139,10 +240,11 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
               const SizedBox(height: AppSpacing.lg),
               LabeledInput(
                 label: 'Command line',
+                hint: 'use \$PORT for the port',
                 prefix: '\$',
                 placeholder:
-                    'llm-d serve --model meta-llama/Llama-3.1-8B-Instruct '
-                    '--tensor-parallel-size 2',
+                    'bazel run --@zml//platforms:metal=true //llmd:llmd -- '
+                    '--model … --listen 127.0.0.1:\$PORT',
                 controller: _command,
                 mono: true,
                 minLines: 3,
@@ -181,12 +283,15 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
                     label: 'Save & launch',
                     icon: LucideIcons.play,
                     variant: AppButtonVariant.primary,
-                    onPressed: _back,
+                    onPressed: () => _launch(save: true),
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  AppButton(label: 'Launch without saving', onPressed: _back),
+                  AppButton(
+                    label: 'Launch without saving',
+                    onPressed: () => _launch(save: false),
+                  ),
                   const SizedBox(width: AppSpacing.sm),
-                  AppButton(label: 'Save config only', onPressed: _back),
+                  AppButton(label: 'Save config only', onPressed: _saveConfigOnly),
                 ],
               ),
             ],
@@ -295,6 +400,11 @@ class _PortSection extends StatelessWidget {
         SizedBox(
           width: 160,
           child: AppTextField(controller: controller, mono: true),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Substituted into the command wherever you write \$PORT.',
+          style: context.text.smallMuted,
         ),
       ],
     );

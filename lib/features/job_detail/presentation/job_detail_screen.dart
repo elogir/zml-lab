@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/execution/job_executor.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/job.dart';
@@ -9,8 +10,10 @@ import '../../../models/machine.dart';
 import '../../benchmark/presentation/benchmark_view.dart';
 import '../../machines/application/machines_providers.dart';
 import '../application/job_detail_providers.dart';
+import '../application/profiler_controller.dart';
 import '../application/terminal_fullscreen.dart';
 import 'actions_panel.dart';
+import 'endpoint_test_dialog.dart';
 import 'job_terminal.dart';
 
 enum _DetailMode { terminal, benchmark }
@@ -44,6 +47,12 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
 
     final machine = ref.watch(machineMapProvider)[job.machineId];
     final endpoint = '${machine?.name ?? job.machineId}:${job.port}';
+    // The real host to reach the server on: loopback for a local job, else the
+    // machine's address.
+    final host = (machine != null && !machine.isLocal)
+        ? machine.address
+        : '127.0.0.1';
+    final profiler = ref.watch(profilerControllerProvider(job.id));
     final fullscreen = ref.watch(terminalFullscreenProvider);
 
     return Column(
@@ -92,7 +101,12 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                         ),
                   child: _mode == _DetailMode.terminal
                       ? JobTerminal(job: job, machine: machine)
-                      : BenchmarkView(jobId: job.id, endpoint: endpoint),
+                      : BenchmarkView(
+                          jobId: job.id,
+                          endpoint: endpoint,
+                          host: host,
+                          port: job.port,
+                        ),
                 ),
               ),
               if (!fullscreen)
@@ -101,6 +115,59 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                   collapsed: _actionsCollapsed,
                   onToggle: () =>
                       setState(() => _actionsCollapsed = !_actionsCollapsed),
+                  onKill: machine == null
+                      ? null
+                      : () => ref.read(jobExecutorProvider).kill(job, machine),
+                  onRestart: machine == null
+                      ? null
+                      : () => ref.read(jobExecutorProvider).restart(job, machine),
+                  onProfile: (machine == null || profiler.isBusy)
+                      ? null
+                      : () {
+                          final notifier = ref.read(
+                            profilerControllerProvider(job.id).notifier,
+                          );
+                          if (profiler.isReady) {
+                            notifier.reopen();
+                          } else {
+                            notifier.run(
+                              host: host,
+                              port: job.port,
+                              machine: machine,
+                            );
+                          }
+                        },
+                  onProfileStop: profiler.isReady
+                      ? () => ref
+                            .read(profilerControllerProvider(job.id).notifier)
+                            .stop()
+                      : null,
+                  profilerTitle: profiler.isReady
+                      ? 'Open profiler'
+                      : 'Run profiler',
+                  profilerSubtitle: switch (profiler.phase) {
+                    ProfilerPhase.ready => 'xprof running',
+                    ProfilerPhase.failed => profiler.message ?? 'failed',
+                    _ => profiler.message ?? 'new tab',
+                  },
+                  onTest: () =>
+                      showEndpointTest(context, host: host, port: job.port),
+                  onDelete: () {
+                    final id = job.id;
+                    // Use the root container, not `ref`: this State unmounts on
+                    // the navigation below, so its ref can't be used afterwards.
+                    final container =
+                        ProviderScope.containerOf(context, listen: false);
+                    context.go('/');
+                    // Tear the terminal down only AFTER the detail view has
+                    // unmounted. Disposing the borrowed session (its flterm
+                    // controller / native view) while the TerminalView is still
+                    // on screen hard-crashes the app — so defer past this frame.
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      container.invalidate(terminalMuxProvider(id));
+                      container.read(jobExecutorProvider).remove(id);
+                    });
+                  },
                 ),
             ],
           ),
