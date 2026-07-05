@@ -167,11 +167,14 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
     return (job, machine);
   }
 
+  /// Saves the form as a config — updating in place when the form was opened
+  /// from an existing config (editing must not spawn a copy; duplicating is
+  /// its own action on the configs screen).
   Future<void> _saveConfigFrom(Job job) => ref
       .read(configRepositoryProvider)
       .upsertConfig(
         LaunchConfig(
-          id: 'cfg-${DateTime.now().microsecondsSinceEpoch}',
+          id: widget.configId ?? 'cfg-${DateTime.now().microsecondsSinceEpoch}',
           name: job.name,
           description: job.description,
           machineId: job.machineId,
@@ -217,10 +220,17 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
             children: [
               BackLink(label: 'Back', onTap: _back),
               const SizedBox(height: AppSpacing.md),
-              Text('New custom job', style: context.text.title),
+              Text(
+                widget.configId == null ? 'New custom job' : 'Edit config',
+                style: context.text.title,
+              ),
               const SizedBox(height: 4),
               Text(
-                'Configure the process, then launch or save it as a reusable config.',
+                widget.configId == null
+                    ? 'Configure the process, then launch or save it as a '
+                          'reusable config.'
+                    : 'Changes save back to this config; launching uses the '
+                          'edited values.',
                 style: context.text.subtitle,
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -258,9 +268,12 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
                 label: 'Command line',
                 hint: 'use \$PORT for the port',
                 prefix: '\$',
+                // build && run the binary directly: `bazel run` would hold the
+                // workspace lock for the server's whole lifetime, so a second
+                // job on the same machine could never start.
                 placeholder:
-                    'bazel run --@zml//platforms:metal=true //llmd:llmd -- '
-                    '--model … --listen 127.0.0.1:\$PORT',
+                    'bazel build --@zml//platforms:metal=true //llmd:llmd && '
+                    'bazel-bin/llmd/llmd --model … --listen 0.0.0.0:\$PORT',
                 controller: _command,
                 mono: true,
                 minLines: 3,

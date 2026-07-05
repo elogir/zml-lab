@@ -135,13 +135,16 @@ class ProfilerController extends _$ProfilerController {
     final xprof = 'uvx xprof -l $_logdir -p $port';
     if (machine.isLocal) return xprof;
     // Remote: forward localhost:port → remote:port and run xprof on the remote
-    // (which reads the remote's /tmp/xprof).
+    // (which reads the remote's /tmp/xprof). Non-interactive ssh doesn't
+    // source .profile, so ~/.local/bin — where uv installs — isn't on PATH;
+    // prepend it explicitly ($HOME expands on the remote, not here).
+    final remote = 'PATH="\$HOME/.local/bin:\$PATH" $xprof';
     final ssh = StringBuffer('ssh -tt -L $port:localhost:$port');
     if (machine.sshPort != 22) ssh.write(' -p ${machine.sshPort}');
     if (machine.sshKey != null && machine.sshKey!.isNotEmpty) {
       ssh.write(" -i '${machine.sshKey}'");
     }
-    ssh.write(" ${machine.sshTarget} '$xprof'");
+    ssh.write(" ${machine.sshTarget} '$remote'");
     return ssh.toString();
   }
 

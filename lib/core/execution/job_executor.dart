@@ -77,8 +77,9 @@ class JobExecutor extends ChangeNotifier {
   }
 
   /// Launches [job] on [machine]: spawns the process, records `starting` + pid +
-  /// startedAt, then polls `/health` to promote it to `running`, and watches for
-  /// exit to record `exited`/`failed`.
+  /// startedAt, then probes the port (TCP connect — silent, no request for the
+  /// server to log) to promote it to `running`, and watches for exit to record
+  /// `exited`/`failed`.
   Future<void> launch(Job job, Machine machine) async {
     if (isRunning(job.id)) return; // already up
     final prior = _sessions[job.id]; // a leftover dead session, if any
@@ -95,12 +96,30 @@ class JobExecutor extends ChangeNotifier {
     final old = _sessions[job.id];
     if (old != null && !old.hasExited) {
       _killed.add(job.id); // graceful: its non-zero exit isn't a crash
-      old.sendSignal();
+      if (machine.isLocal) {
+        old.sendSignal();
+      } else {
+        // Remote: SIGINT the server by port on the host — our ssh dying never
+        // reaches it (see [kill]). The ssh session then unwinds by itself.
+        await _killRemotePort(machine, job.port);
+      }
       // Wait for the port to actually free before relaunching on it.
-      await old.whenExited.timeout(
+      final code = await old.whenExited.timeout(
         const Duration(seconds: 6),
         onTimeout: () => -1,
       );
+      if (code == -1 && !old.hasExited) {
+        // Didn't unwind (remote kill missed?) — cut our end and move on.
+        old.sendSignal();
+        await old.whenExited.timeout(
+          const Duration(seconds: 3),
+          onTimeout: () => -1,
+        );
+      }
+    } else if (!machine.isLocal) {
+      // No live session, but a previous server may have orphaned on the host
+      // (it outlives our ssh) — clear the job's port before rebinding it.
+      await _killRemotePort(machine, job.port);
     }
     _healthTimers.remove(job.id)?.cancel();
     _killed.remove(job.id);
@@ -153,10 +172,10 @@ class JobExecutor extends ChangeNotifier {
   }
 
   /// Stops every running job — called when the app is closing so nothing is left
-  /// behind. SIGINTs our PTYs (kills the local shell / closes the SSH tunnel so a
-  /// remote server gets SIGHUP) and, for local jobs, SIGINTs the server directly
-  /// by port (it's a grandchild in its own process group that the PTY signal can
-  /// miss). Both graceful; llmd shuts down on SIGINT.
+  /// behind. SIGINTs our PTYs, and reaches each server directly by port — the
+  /// PTY signal alone can miss it (locally it's a grandchild in its own process
+  /// group; remotely it's a child of the host's bazel daemon). All graceful;
+  /// llmd shuts down on SIGINT.
   Future<void> stopAll() async {
     for (final s in _sessions.values) {
       if (!s.hasExited) s.sendSignal();
@@ -167,22 +186,50 @@ class JobExecutor extends ChangeNotifier {
       final machine = await _machines.machineById(job.machineId);
       if (machine == null || machine.isLocal) {
         await killPortListeners(job.port);
+      } else {
+        await _killRemotePort(machine, job.port);
       }
     }
   }
 
   /// Stops a running job with SIGINT (llmd shuts down cleanly), keeping its final
   /// output on screen. The [_onExit] handler records the stopped status.
+  ///
+  /// Local: signal our own process tree. Remote: SIGINT the server *by port on
+  /// the host* — under `bazel run` it's a child of the remote bazel daemon,
+  /// so killing our ssh/tty never reaches it. The ssh session then unwinds on
+  /// its own as the server exits (its shutdown output streams into the
+  /// terminal); if it doesn't within 10s, cut our end.
   Future<void> kill(Job job, Machine machine) async {
     final session = _sessions[job.id];
     if (session != null && !session.hasExited) {
       _killed.add(job.id); // its non-zero exit reads as a clean stop
-      session.sendSignal();
+      if (machine.isLocal) {
+        session.sendSignal();
+      } else {
+        await _killRemotePort(machine, job.port);
+        unawaited(
+          session.whenExited.timeout(const Duration(seconds: 10), onTimeout: () {
+            if (!session.hasExited) session.sendSignal();
+            return -1;
+          }),
+        );
+      }
       return;
     }
-    // No live handle — record the stop directly.
+    // No live handle — record the stop directly; a remote server can outlive
+    // our ssh session, so also clear the job's port on the host.
+    if (!machine.isLocal) await _killRemotePort(machine, job.port);
     await _jobs.updateJobStatus(job.id, JobStatus.exited, clearPid: true);
   }
+
+  Future<void> _killRemotePort(Machine machine, int port) =>
+      killRemotePortListeners(
+        target: machine.sshTarget,
+        port: port,
+        sshPort: machine.sshPort,
+        identityFile: machine.sshKey,
+      );
 
   /// Starts the periodic health monitor. Runs for the app's life; calling
   /// again (settings change) reschedules at the new interval.
@@ -270,7 +317,9 @@ class JobExecutor extends ChangeNotifier {
     // Remote: run the same command over SSH, folding cd + env into the remote
     // shell (the local PTY just runs `ssh`).
     final remote = StringBuffer();
-    if (workingDir != null) remote.write('cd ${_shSingleQuote(workingDir)} && ');
+    if (workingDir != null) {
+      remote.write('cd ${_shQuoteRemotePath(workingDir)} && ');
+    }
     for (final e in env.entries) {
       remote.write('export ${e.key}=${_shSingleQuote(e.value)} && ');
     }
@@ -287,6 +336,17 @@ class JobExecutor extends ChangeNotifier {
 
   /// Wraps [s] in single quotes for a POSIX shell, escaping embedded quotes.
   static String _shSingleQuote(String s) => "'${s.replaceAll("'", r"'\''")}'";
+
+  /// Quotes a path for the *remote* shell, leaving a leading `~` unquoted so
+  /// the remote expands it to its own home — `cd '~/x'` would be a literal
+  /// tilde. We can't expand it locally (the remote home isn't ours).
+  static String _shQuoteRemotePath(String path) {
+    if (path == '~') return '~';
+    if (path.startsWith('~/')) {
+      return '~/${_shSingleQuote(path.substring(2))}';
+    }
+    return _shSingleQuote(path);
+  }
 
   @override
   void dispose() {

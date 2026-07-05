@@ -24,6 +24,32 @@ Future<void> killPortListeners(int port) async {
   } catch (_) {}
 }
 
+/// SIGINTs whatever is LISTENing on [port] on a remote host, over ssh — the
+/// remote mirror of [killPortListeners]. A remote job's server outlives its
+/// ssh/tty (under `bazel run` it's a child of the detached bazel daemon, so
+/// killing our ssh never reaches it); the port is the one handle we own.
+/// Uses `fuser -k -INT` (psmisc, stock on Ubuntu/Debian). Best-effort with a
+/// hard timeout so app close can't hang on a dead host.
+Future<void> killRemotePortListeners({
+  required String target,
+  required int port,
+  int sshPort = 22,
+  String? identityFile,
+  Duration timeout = const Duration(seconds: 8),
+}) async {
+  try {
+    await Process.run('/usr/bin/ssh', [
+      '-o', 'BatchMode=yes',
+      '-o', 'ConnectTimeout=5',
+      if (sshPort != 22) ...['-p', '$sshPort'],
+      if (identityFile != null && identityFile.isNotEmpty)
+        ...['-i', identityFile],
+      target,
+      'fuser -k -INT $port/tcp',
+    ]).timeout(timeout);
+  } catch (_) {}
+}
+
 /// Expands a leading `~` to the user's home directory, so a working directory
 /// like `~/Documents/monorepo` resolves (PTY chdir doesn't expand tildes).
 String expandUser(String path) {
@@ -213,25 +239,22 @@ Future<EndpointProbe> probeEndpoint(
   }
 }
 
-/// Whether an HTTP server is answering at `http://[host]:[port]/health`. Any
-/// completed HTTP response (even a non-200, e.g. while a model is still
-/// loading) counts as "up"; a refused connection or timeout counts as down.
+/// Whether something is accepting connections on `host:port` — a bare TCP
+/// connect that's closed immediately, deliberately NOT an HTTP request:
+/// servers log every request, so a `GET /health` heartbeat spams the job's
+/// console. A plain connect never produces a request line to log. Semantics
+/// match the old `/health` probe for llmd, which binds its listener only once
+/// the model is loaded.
 Future<bool> checkHealth(
   String host,
   int port, {
   Duration timeout = const Duration(milliseconds: 1200),
 }) async {
-  final client = HttpClient()..connectionTimeout = timeout;
   try {
-    final request = await client
-        .get(host, port, '/health')
-        .timeout(timeout);
-    final response = await request.close().timeout(timeout);
-    await response.drain<void>();
+    final socket = await Socket.connect(host, port, timeout: timeout);
+    socket.destroy();
     return true;
   } catch (_) {
     return false;
-  } finally {
-    client.close(force: true);
   }
 }
