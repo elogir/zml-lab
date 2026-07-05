@@ -30,6 +30,7 @@ class ActionsPanel extends StatelessWidget {
     required this.collapsed,
     required this.onToggle,
     this.onKill,
+    this.killArmed = false,
     this.onRestart,
     this.onCapture,
     this.captureSubtitle = 'send profiled request',
@@ -47,6 +48,10 @@ class ActionsPanel extends StatelessWidget {
 
   /// Stops the running process. Null when there's nothing to kill.
   final VoidCallback? onKill;
+
+  /// True once a kill was requested and the process is still alive — the tile
+  /// escalates to a force kill (SIGKILL).
+  final bool killArmed;
 
   /// Stops (if needed) and relaunches the job's process.
   final VoidCallback? onRestart;
@@ -100,8 +105,9 @@ class ActionsPanel extends StatelessWidget {
                 _ActionTile(
                   t: t,
                   icon: AppIcons.kill,
-                  title: 'Kill process',
-                  subtitle: 'SIGINT ${job.pid ?? '—'}',
+                  title: killArmed ? 'Force kill' : 'Kill process',
+                  subtitle:
+                      '${killArmed ? 'SIGKILL' : 'SIGINT'} ${job.pid ?? '—'}',
                   danger: true,
                   onTap: onKill,
                 ),
@@ -119,10 +125,10 @@ class ActionsPanel extends StatelessWidget {
                 subtitle: ':${job.port}/v1',
                 onTap: onTest,
               ),
-              // Profiling group. Capturing needs a live server; the xprof tile
-              // only needs trace files, but on a stopped job it's shown only
-              // while its server is still up (so it can be reopened/stopped).
-              if (!job.isStopped || onXprofStop != null) _Separator(t: t),
+              // Profiling group. Capturing needs a live server, so it hides on
+              // a stopped job; xprof only serves trace files, so launching,
+              // opening, and stopping it work whatever the process is doing.
+              _Separator(t: t),
               if (!job.isStopped)
                 _ActionTile(
                   t: t,
@@ -131,23 +137,26 @@ class ActionsPanel extends StatelessWidget {
                   subtitle: captureSubtitle,
                   onTap: onCapture,
                 ),
-              if (!job.isStopped || onXprofStop != null)
-                _ActionTile(
-                  t: t,
-                  icon: AppIcons.profiler,
-                  title: xprofTitle,
-                  subtitle: xprofSubtitle,
-                  onTap: onXprof,
-                  trailing: onXprofStop == null
-                      ? null
-                      : AppIconButton(
-                          icon: AppIcons.kill,
-                          size: 13,
-                          color: c.statusFailed,
-                          padding: const EdgeInsets.all(6),
-                          onPressed: onXprofStop,
-                        ),
-                ),
+              _ActionTile(
+                t: t,
+                icon: AppIcons.profiler,
+                title: xprofTitle,
+                subtitle: xprofSubtitle,
+                onTap: onXprof,
+                trailing: onXprofStop == null
+                    ? null
+                    : AppIconButton(
+                        icon: AppIcons.kill,
+                        size: 13,
+                        color: c.statusFailed,
+                        // The tile behind is already surfaceHover when the
+                        // pointer is here — a red-tinted hover pill is the
+                        // only feedback that can show.
+                        hoverColor: c.statusFailed,
+                        padding: const EdgeInsets.all(6),
+                        onPressed: onXprofStop,
+                      ),
+              ),
               if (job.isStopped)
                 _ActionTile(
                   t: t,

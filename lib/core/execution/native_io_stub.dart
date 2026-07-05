@@ -2,13 +2,14 @@
 // Execution is native-only; on web the form just shows a default port and no
 // job is ever launched.
 
-Future<void> killPortListeners(int port) async {}
+Future<void> killPortListeners(int port, {bool force = false}) async {}
 
 Future<void> killRemotePortListeners({
   required String target,
   required int port,
   int sshPort = 22,
   String? identityFile,
+  bool force = false,
   Duration timeout = const Duration(seconds: 8),
 }) async {}
 

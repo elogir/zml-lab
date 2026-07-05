@@ -80,6 +80,15 @@ class TerminalSession {
     } catch (_) {}
   }
 
+  /// SIGKILL — the force escalation when [sendSignal] didn't take. Same
+  /// keep-the-terminal contract; note it only reaches the PTY's direct child,
+  /// so callers also kill by port for a server in its own process group.
+  void sendKill() {
+    try {
+      _pty?.kill(ProcessSignal.sigkill);
+    } catch (_) {}
+  }
+
   void _start(String? workingDirectory, Map<String, String>? environment) {
     try {
       final shell = Platform.environment['SHELL'] ?? '/bin/zsh';

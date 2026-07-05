@@ -76,6 +76,11 @@ class JobExecutor extends ChangeNotifier {
     return s != null && !s.hasExited;
   }
 
+  /// Whether [kill] was already requested for a still-live process — the next
+  /// [kill] escalates to SIGKILL, and the UI labels the action accordingly.
+  bool killRequested(String jobId) =>
+      _killed.contains(jobId) && isRunning(jobId);
+
   /// Launches [job] on [machine]: spawns the process, records `starting` + pid +
   /// startedAt, then probes the port (TCP connect — silent, no request for the
   /// server to log) to promote it to `running`, and watches for exit to record
@@ -194,6 +199,9 @@ class JobExecutor extends ChangeNotifier {
 
   /// Stops a running job with SIGINT (llmd shuts down cleanly), keeping its final
   /// output on screen. The [_onExit] handler records the stopped status.
+  /// Calling it again while the process is still alive escalates to SIGKILL —
+  /// both to our PTY child and by port, which is what actually reaches a
+  /// server sitting in its own process group.
   ///
   /// Local: signal our own process tree. Remote: SIGINT the server *by port on
   /// the host* — under `bazel run` it's a child of the remote bazel daemon,
@@ -203,17 +211,29 @@ class JobExecutor extends ChangeNotifier {
   Future<void> kill(Job job, Machine machine) async {
     final session = _sessions[job.id];
     if (session != null && !session.hasExited) {
+      final force = _killed.contains(job.id); // second press → SIGKILL
       _killed.add(job.id); // its non-zero exit reads as a clean stop
+      notifyListeners(); // arms the UI's force-kill label
       if (machine.isLocal) {
-        session.sendSignal();
+        if (force) {
+          session.sendKill();
+          await killPortListeners(job.port, force: true);
+        } else {
+          session.sendSignal();
+        }
       } else {
-        await _killRemotePort(machine, job.port);
-        unawaited(
-          session.whenExited.timeout(const Duration(seconds: 10), onTimeout: () {
-            if (!session.hasExited) session.sendSignal();
-            return -1;
-          }),
-        );
+        await _killRemotePort(machine, job.port, force: force);
+        if (force) {
+          session.sendKill(); // cut our ssh end too, don't wait for unwind
+        } else {
+          unawaited(
+            session.whenExited.timeout(const Duration(seconds: 10),
+                onTimeout: () {
+              if (!session.hasExited) session.sendSignal();
+              return -1;
+            }),
+          );
+        }
       }
       return;
     }
@@ -223,12 +243,13 @@ class JobExecutor extends ChangeNotifier {
     await _jobs.updateJobStatus(job.id, JobStatus.exited, clearPid: true);
   }
 
-  Future<void> _killRemotePort(Machine machine, int port) =>
+  Future<void> _killRemotePort(Machine machine, int port, {bool force = false}) =>
       killRemotePortListeners(
         target: machine.sshTarget,
         port: port,
         sshPort: machine.sshPort,
         identityFile: machine.sshKey,
+        force: force,
       );
 
   /// Starts the periodic health monitor. Runs for the app's life; calling

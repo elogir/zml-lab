@@ -121,6 +121,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                       ? JobTerminal(job: job, machine: machine)
                       : BenchmarkView(
                           jobId: job.id,
+                          jobName: job.name,
                           endpoint: endpoint,
                           host: host,
                           port: job.port,
@@ -135,7 +136,14 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                       setState(() => _actionsCollapsed = !_actionsCollapsed),
                   onKill: machine == null
                       ? null
-                      : () => ref.read(jobExecutorProvider).kill(job, machine),
+                      : () {
+                          ref.read(jobExecutorProvider).kill(job, machine);
+                          // Arming happens synchronously in kill() — re-read
+                          // killRequested so the tile flips to Force kill.
+                          setState(() {});
+                        },
+                  killArmed:
+                      ref.read(jobExecutorProvider).killRequested(job.id),
                   onRestart: machine == null
                       ? null
                       : () => ref.read(jobExecutorProvider).restart(job, machine),
