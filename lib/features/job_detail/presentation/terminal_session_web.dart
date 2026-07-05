@@ -10,6 +10,7 @@ import 'package:flutter/widgets.dart';
 class TerminalSession {
   TerminalSession({
     this.runCommand,
+    this.initialCommand,
     String? workingDirectory,
     Map<String, String>? environment,
   }) {
@@ -17,6 +18,7 @@ class TerminalSession {
   }
 
   final String? runCommand;
+  final String? initialCommand;
 
   final TerminalController controller = TerminalController();
   late final FocusNode focusNode;
