@@ -2,22 +2,27 @@ import Cocoa
 import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
-  /// Identities of key events already dispatched once, to break a redispatch
-  /// cycle between the Flutter engine and an embedded WKWebView:
+  /// Key events already dispatched once, to break a redispatch cycle between
+  /// the Flutter engine and an embedded WKWebView:
   ///
-  /// With the webview as first responder, WebKit delivers an unhandled
-  /// keydown to the page and then bubbles it up the responder chain to
-  /// FlutterView; the Flutter engine, seeing nobody claim it, *redispatches a
-  /// copy* through `sendEvent` — where it reaches the webview again, WebKit
-  /// re-bubbles it as what looks like a brand-new event (defeating the
-  /// engine's own redispatch guard), and the cycle spins forever. One
+  /// With the webview as first responder, WebKit delivers a keydown to the
+  /// page asynchronously; when the page doesn't claim it, WebKit *re-sends
+  /// the same NSEvent instance* through `[NSApp sendEvent:]`
+  /// (WebViewImpl::doneWithKeyEvent) so the rest of the app gets a second
+  /// chance at it. That re-sent event bubbles up to FlutterView, whose
+  /// keyboard manager — also finding it unhandled — redispatches it down the
+  /// responder chain, WebKit re-sends again, and the cycle spins forever
+  /// (each side's own redispatch guard only covers its synchronous leg). One
   /// physical keypress became ~180k keydowns; a page that zooms while a key
   /// is held (xprof's trace viewer) zooms until the tab dies.
   ///
-  /// A real key event never repeats with the same (timestamp, type, keyCode)
-  /// — even auto-repeat gets fresh timestamps — so dropping exact repeats
-  /// kills the loop without touching normal typing anywhere else.
-  private var seenKeyEvents: [(TimeInterval, NSEvent.EventType, UInt16)] = []
+  /// Identity must be the event *instance* (===): WebKit re-sends the same
+  /// object (WebViewImpl::doneWithKeyEvent passes the event straight to
+  /// `[NSApp sendEvent:]`), while every genuine event — including
+  /// auto-repeats — arrives as a fresh instance, so nothing real is ever
+  /// dropped. Events are retained while in the buffer so a deallocated
+  /// event's address can't be recycled into a false match.
+  private var seenKeyEvents: [NSEvent] = []
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -32,11 +37,10 @@ class MainFlutterWindow: NSWindow {
 
   override func sendEvent(_ event: NSEvent) {
     if event.type == .keyDown || event.type == .keyUp {
-      let identity = (event.timestamp, event.type, event.keyCode)
-      if seenKeyEvents.contains(where: { $0 == identity }) {
-        return // a redispatched echo, not a new press — drop it
+      if seenKeyEvents.contains(where: { $0 === event }) {
+        return // a re-sent echo, not a new press — drop it
       }
-      seenKeyEvents.append(identity)
+      seenKeyEvents.append(event)
       if seenKeyEvents.count > 16 {
         seenKeyEvents.removeFirst(seenKeyEvents.count - 16)
       }
