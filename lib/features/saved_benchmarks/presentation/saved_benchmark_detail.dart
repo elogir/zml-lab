@@ -141,7 +141,16 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              Text(b.endpoint, style: context.text.monoSmall),
+                              Icon(
+                                AppIcons.machines,
+                                size: 12,
+                                color: c.textFaint,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                '${b.machineLabel} ${b.portLabel}',
+                                style: context.text.monoSmall,
+                              ),
                               const SizedBox(width: AppSpacing.md),
                               Text(
                                 formatAgo(b.createdAt),

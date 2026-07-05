@@ -111,6 +111,7 @@ extension SavedBenchmarkRowMapper on SavedBenchmarkRow {
     id: id,
     name: name,
     endpoint: endpoint,
+    machineName: machineName,
     prompt: prompt,
     batchSize: batchSize,
     aggregateTokensPerSecond: aggregateTokensPerSecond,

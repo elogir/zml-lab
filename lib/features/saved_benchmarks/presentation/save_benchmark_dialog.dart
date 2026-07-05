@@ -13,6 +13,7 @@ Future<void> showSaveBenchmarkDialog(
   BuildContext context, {
   required BenchmarkRun run,
   required String endpoint,
+  required String machineName,
   required String defaultName,
 }) {
   return Navigator.of(context, rootNavigator: true).push(
@@ -22,8 +23,12 @@ Future<void> showSaveBenchmarkDialog(
       barrierColor: const Color(0x99000000),
       barrierLabel: 'Dismiss',
       transitionDuration: AppDurations.normal,
-      pageBuilder: (context, _, _) =>
-          _SaveDialog(run: run, endpoint: endpoint, defaultName: defaultName),
+      pageBuilder: (context, _, _) => _SaveDialog(
+        run: run,
+        endpoint: endpoint,
+        machineName: machineName,
+        defaultName: defaultName,
+      ),
       transitionsBuilder: (context, anim, _, child) {
         final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
         return FadeTransition(
@@ -42,11 +47,13 @@ class _SaveDialog extends ConsumerStatefulWidget {
   const _SaveDialog({
     required this.run,
     required this.endpoint,
+    required this.machineName,
     required this.defaultName,
   });
 
   final BenchmarkRun run;
   final String endpoint;
+  final String machineName;
   final String defaultName;
 
   @override
@@ -75,6 +82,7 @@ class _SaveDialogState extends ConsumerState<_SaveDialog> {
             id: 'b-${DateTime.now().microsecondsSinceEpoch}',
             name: name,
             endpoint: widget.endpoint,
+            machineName: widget.machineName,
             prompt: run.prompt,
             batchSize: run.requests.length,
             aggregateTokensPerSecond: run.aggregateTokensPerSecond,

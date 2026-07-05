@@ -106,7 +106,16 @@ class _BenchmarkCard extends ConsumerWidget {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              Text(b.endpoint, style: context.text.monoSmall),
+              Icon(AppIcons.machines, size: 12, color: c.textFaint),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  '${b.machineLabel} ${b.portLabel}',
+                  style: context.text.monoSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               const SizedBox(width: AppSpacing.md),
               Text('batch ${b.batchSize}', style: context.text.smallMuted),
               const Spacer(),

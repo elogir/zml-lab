@@ -15,7 +15,9 @@ T _$identity<T>(T value) => value;
 mixin _$SavedBenchmark {
 
  String get id; String get name;/// Where it ran, for display — e.g. `orion:8001`.
- String get endpoint; String get prompt; int get batchSize; double get aggregateTokensPerSecond; int get completed; int get medianTtftMs; int get elapsedMs; DateTime get createdAt;/// The per-request responses (text + metrics) captured at save time.
+ String get endpoint;/// The machine it ran on (its friendly name). Null for runs saved before
+/// this was tracked — callers fall back to the endpoint's host.
+ String? get machineName; String get prompt; int get batchSize; double get aggregateTokensPerSecond; int get completed; int get medianTtftMs; int get elapsedMs; DateTime get createdAt;/// The per-request responses (text + metrics) captured at save time.
  List<BenchmarkRequest> get requests;
 /// Create a copy of SavedBenchmark
 /// with the given fields replaced by the non-null parameter values.
@@ -27,16 +29,16 @@ $SavedBenchmarkCopyWith<SavedBenchmark> get copyWith => _$SavedBenchmarkCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedBenchmark&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.endpoint, endpoint) || other.endpoint == endpoint)&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&(identical(other.aggregateTokensPerSecond, aggregateTokensPerSecond) || other.aggregateTokensPerSecond == aggregateTokensPerSecond)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.medianTtftMs, medianTtftMs) || other.medianTtftMs == medianTtftMs)&&(identical(other.elapsedMs, elapsedMs) || other.elapsedMs == elapsedMs)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other.requests, requests));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedBenchmark&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.endpoint, endpoint) || other.endpoint == endpoint)&&(identical(other.machineName, machineName) || other.machineName == machineName)&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&(identical(other.aggregateTokensPerSecond, aggregateTokensPerSecond) || other.aggregateTokensPerSecond == aggregateTokensPerSecond)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.medianTtftMs, medianTtftMs) || other.medianTtftMs == medianTtftMs)&&(identical(other.elapsedMs, elapsedMs) || other.elapsedMs == elapsedMs)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other.requests, requests));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,name,endpoint,prompt,batchSize,aggregateTokensPerSecond,completed,medianTtftMs,elapsedMs,createdAt,const DeepCollectionEquality().hash(requests));
+int get hashCode => Object.hash(runtimeType,id,name,endpoint,machineName,prompt,batchSize,aggregateTokensPerSecond,completed,medianTtftMs,elapsedMs,createdAt,const DeepCollectionEquality().hash(requests));
 
 @override
 String toString() {
-  return 'SavedBenchmark(id: $id, name: $name, endpoint: $endpoint, prompt: $prompt, batchSize: $batchSize, aggregateTokensPerSecond: $aggregateTokensPerSecond, completed: $completed, medianTtftMs: $medianTtftMs, elapsedMs: $elapsedMs, createdAt: $createdAt, requests: $requests)';
+  return 'SavedBenchmark(id: $id, name: $name, endpoint: $endpoint, machineName: $machineName, prompt: $prompt, batchSize: $batchSize, aggregateTokensPerSecond: $aggregateTokensPerSecond, completed: $completed, medianTtftMs: $medianTtftMs, elapsedMs: $elapsedMs, createdAt: $createdAt, requests: $requests)';
 }
 
 
@@ -47,7 +49,7 @@ abstract mixin class $SavedBenchmarkCopyWith<$Res>  {
   factory $SavedBenchmarkCopyWith(SavedBenchmark value, $Res Function(SavedBenchmark) _then) = _$SavedBenchmarkCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String endpoint, String prompt, int batchSize, double aggregateTokensPerSecond, int completed, int medianTtftMs, int elapsedMs, DateTime createdAt, List<BenchmarkRequest> requests
+ String id, String name, String endpoint, String? machineName, String prompt, int batchSize, double aggregateTokensPerSecond, int completed, int medianTtftMs, int elapsedMs, DateTime createdAt, List<BenchmarkRequest> requests
 });
 
 
@@ -64,12 +66,13 @@ class _$SavedBenchmarkCopyWithImpl<$Res>
 
 /// Create a copy of SavedBenchmark
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? endpoint = null,Object? prompt = null,Object? batchSize = null,Object? aggregateTokensPerSecond = null,Object? completed = null,Object? medianTtftMs = null,Object? elapsedMs = null,Object? createdAt = null,Object? requests = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? endpoint = null,Object? machineName = freezed,Object? prompt = null,Object? batchSize = null,Object? aggregateTokensPerSecond = null,Object? completed = null,Object? medianTtftMs = null,Object? elapsedMs = null,Object? createdAt = null,Object? requests = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,endpoint: null == endpoint ? _self.endpoint : endpoint // ignore: cast_nullable_to_non_nullable
-as String,prompt: null == prompt ? _self.prompt : prompt // ignore: cast_nullable_to_non_nullable
+as String,machineName: freezed == machineName ? _self.machineName : machineName // ignore: cast_nullable_to_non_nullable
+as String?,prompt: null == prompt ? _self.prompt : prompt // ignore: cast_nullable_to_non_nullable
 as String,batchSize: null == batchSize ? _self.batchSize : batchSize // ignore: cast_nullable_to_non_nullable
 as int,aggregateTokensPerSecond: null == aggregateTokensPerSecond ? _self.aggregateTokensPerSecond : aggregateTokensPerSecond // ignore: cast_nullable_to_non_nullable
 as double,completed: null == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
@@ -162,10 +165,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String endpoint,  String prompt,  int batchSize,  double aggregateTokensPerSecond,  int completed,  int medianTtftMs,  int elapsedMs,  DateTime createdAt,  List<BenchmarkRequest> requests)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String endpoint,  String? machineName,  String prompt,  int batchSize,  double aggregateTokensPerSecond,  int completed,  int medianTtftMs,  int elapsedMs,  DateTime createdAt,  List<BenchmarkRequest> requests)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SavedBenchmark() when $default != null:
-return $default(_that.id,_that.name,_that.endpoint,_that.prompt,_that.batchSize,_that.aggregateTokensPerSecond,_that.completed,_that.medianTtftMs,_that.elapsedMs,_that.createdAt,_that.requests);case _:
+return $default(_that.id,_that.name,_that.endpoint,_that.machineName,_that.prompt,_that.batchSize,_that.aggregateTokensPerSecond,_that.completed,_that.medianTtftMs,_that.elapsedMs,_that.createdAt,_that.requests);case _:
   return orElse();
 
 }
@@ -183,10 +186,10 @@ return $default(_that.id,_that.name,_that.endpoint,_that.prompt,_that.batchSize,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String endpoint,  String prompt,  int batchSize,  double aggregateTokensPerSecond,  int completed,  int medianTtftMs,  int elapsedMs,  DateTime createdAt,  List<BenchmarkRequest> requests)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String endpoint,  String? machineName,  String prompt,  int batchSize,  double aggregateTokensPerSecond,  int completed,  int medianTtftMs,  int elapsedMs,  DateTime createdAt,  List<BenchmarkRequest> requests)  $default,) {final _that = this;
 switch (_that) {
 case _SavedBenchmark():
-return $default(_that.id,_that.name,_that.endpoint,_that.prompt,_that.batchSize,_that.aggregateTokensPerSecond,_that.completed,_that.medianTtftMs,_that.elapsedMs,_that.createdAt,_that.requests);case _:
+return $default(_that.id,_that.name,_that.endpoint,_that.machineName,_that.prompt,_that.batchSize,_that.aggregateTokensPerSecond,_that.completed,_that.medianTtftMs,_that.elapsedMs,_that.createdAt,_that.requests);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -203,10 +206,10 @@ return $default(_that.id,_that.name,_that.endpoint,_that.prompt,_that.batchSize,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String endpoint,  String prompt,  int batchSize,  double aggregateTokensPerSecond,  int completed,  int medianTtftMs,  int elapsedMs,  DateTime createdAt,  List<BenchmarkRequest> requests)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String endpoint,  String? machineName,  String prompt,  int batchSize,  double aggregateTokensPerSecond,  int completed,  int medianTtftMs,  int elapsedMs,  DateTime createdAt,  List<BenchmarkRequest> requests)?  $default,) {final _that = this;
 switch (_that) {
 case _SavedBenchmark() when $default != null:
-return $default(_that.id,_that.name,_that.endpoint,_that.prompt,_that.batchSize,_that.aggregateTokensPerSecond,_that.completed,_that.medianTtftMs,_that.elapsedMs,_that.createdAt,_that.requests);case _:
+return $default(_that.id,_that.name,_that.endpoint,_that.machineName,_that.prompt,_that.batchSize,_that.aggregateTokensPerSecond,_that.completed,_that.medianTtftMs,_that.elapsedMs,_that.createdAt,_that.requests);case _:
   return null;
 
 }
@@ -217,14 +220,17 @@ return $default(_that.id,_that.name,_that.endpoint,_that.prompt,_that.batchSize,
 /// @nodoc
 
 
-class _SavedBenchmark implements SavedBenchmark {
-  const _SavedBenchmark({required this.id, required this.name, required this.endpoint, required this.prompt, required this.batchSize, required this.aggregateTokensPerSecond, required this.completed, required this.medianTtftMs, required this.elapsedMs, required this.createdAt, final  List<BenchmarkRequest> requests = const <BenchmarkRequest>[]}): _requests = requests;
+class _SavedBenchmark extends SavedBenchmark {
+  const _SavedBenchmark({required this.id, required this.name, required this.endpoint, this.machineName, required this.prompt, required this.batchSize, required this.aggregateTokensPerSecond, required this.completed, required this.medianTtftMs, required this.elapsedMs, required this.createdAt, final  List<BenchmarkRequest> requests = const <BenchmarkRequest>[]}): _requests = requests,super._();
   
 
 @override final  String id;
 @override final  String name;
 /// Where it ran, for display — e.g. `orion:8001`.
 @override final  String endpoint;
+/// The machine it ran on (its friendly name). Null for runs saved before
+/// this was tracked — callers fall back to the endpoint's host.
+@override final  String? machineName;
 @override final  String prompt;
 @override final  int batchSize;
 @override final  double aggregateTokensPerSecond;
@@ -252,16 +258,16 @@ _$SavedBenchmarkCopyWith<_SavedBenchmark> get copyWith => __$SavedBenchmarkCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedBenchmark&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.endpoint, endpoint) || other.endpoint == endpoint)&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&(identical(other.aggregateTokensPerSecond, aggregateTokensPerSecond) || other.aggregateTokensPerSecond == aggregateTokensPerSecond)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.medianTtftMs, medianTtftMs) || other.medianTtftMs == medianTtftMs)&&(identical(other.elapsedMs, elapsedMs) || other.elapsedMs == elapsedMs)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other._requests, _requests));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedBenchmark&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.endpoint, endpoint) || other.endpoint == endpoint)&&(identical(other.machineName, machineName) || other.machineName == machineName)&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&(identical(other.aggregateTokensPerSecond, aggregateTokensPerSecond) || other.aggregateTokensPerSecond == aggregateTokensPerSecond)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.medianTtftMs, medianTtftMs) || other.medianTtftMs == medianTtftMs)&&(identical(other.elapsedMs, elapsedMs) || other.elapsedMs == elapsedMs)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other._requests, _requests));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,name,endpoint,prompt,batchSize,aggregateTokensPerSecond,completed,medianTtftMs,elapsedMs,createdAt,const DeepCollectionEquality().hash(_requests));
+int get hashCode => Object.hash(runtimeType,id,name,endpoint,machineName,prompt,batchSize,aggregateTokensPerSecond,completed,medianTtftMs,elapsedMs,createdAt,const DeepCollectionEquality().hash(_requests));
 
 @override
 String toString() {
-  return 'SavedBenchmark(id: $id, name: $name, endpoint: $endpoint, prompt: $prompt, batchSize: $batchSize, aggregateTokensPerSecond: $aggregateTokensPerSecond, completed: $completed, medianTtftMs: $medianTtftMs, elapsedMs: $elapsedMs, createdAt: $createdAt, requests: $requests)';
+  return 'SavedBenchmark(id: $id, name: $name, endpoint: $endpoint, machineName: $machineName, prompt: $prompt, batchSize: $batchSize, aggregateTokensPerSecond: $aggregateTokensPerSecond, completed: $completed, medianTtftMs: $medianTtftMs, elapsedMs: $elapsedMs, createdAt: $createdAt, requests: $requests)';
 }
 
 
@@ -272,7 +278,7 @@ abstract mixin class _$SavedBenchmarkCopyWith<$Res> implements $SavedBenchmarkCo
   factory _$SavedBenchmarkCopyWith(_SavedBenchmark value, $Res Function(_SavedBenchmark) _then) = __$SavedBenchmarkCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String endpoint, String prompt, int batchSize, double aggregateTokensPerSecond, int completed, int medianTtftMs, int elapsedMs, DateTime createdAt, List<BenchmarkRequest> requests
+ String id, String name, String endpoint, String? machineName, String prompt, int batchSize, double aggregateTokensPerSecond, int completed, int medianTtftMs, int elapsedMs, DateTime createdAt, List<BenchmarkRequest> requests
 });
 
 
@@ -289,12 +295,13 @@ class __$SavedBenchmarkCopyWithImpl<$Res>
 
 /// Create a copy of SavedBenchmark
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? endpoint = null,Object? prompt = null,Object? batchSize = null,Object? aggregateTokensPerSecond = null,Object? completed = null,Object? medianTtftMs = null,Object? elapsedMs = null,Object? createdAt = null,Object? requests = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? endpoint = null,Object? machineName = freezed,Object? prompt = null,Object? batchSize = null,Object? aggregateTokensPerSecond = null,Object? completed = null,Object? medianTtftMs = null,Object? elapsedMs = null,Object? createdAt = null,Object? requests = null,}) {
   return _then(_SavedBenchmark(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,endpoint: null == endpoint ? _self.endpoint : endpoint // ignore: cast_nullable_to_non_nullable
-as String,prompt: null == prompt ? _self.prompt : prompt // ignore: cast_nullable_to_non_nullable
+as String,machineName: freezed == machineName ? _self.machineName : machineName // ignore: cast_nullable_to_non_nullable
+as String?,prompt: null == prompt ? _self.prompt : prompt // ignore: cast_nullable_to_non_nullable
 as String,batchSize: null == batchSize ? _self.batchSize : batchSize // ignore: cast_nullable_to_non_nullable
 as int,aggregateTokensPerSecond: null == aggregateTokensPerSecond ? _self.aggregateTokensPerSecond : aggregateTokensPerSecond // ignore: cast_nullable_to_non_nullable
 as double,completed: null == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
