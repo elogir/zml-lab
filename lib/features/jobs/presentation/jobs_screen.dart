@@ -2,11 +2,13 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/execution/job_executor.dart';
 import '../../../core/providers/clock.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/format.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/job.dart';
+import '../../job_detail/presentation/job_terminal.dart';
 import '../../new_job/presentation/new_job_modal.dart';
 import '../application/jobs_providers.dart';
 
@@ -160,15 +162,16 @@ class _HeaderRow extends StatelessWidget {
   }
 }
 
-class _JobRow extends StatelessWidget {
+class _JobRow extends ConsumerWidget {
   const _JobRow({required this.entry});
 
   final JobListEntry entry;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final job = entry.job;
+    final machine = entry.machine;
     return HoverRegion(
       onTap: () => context.go('/jobs/${job.id}'),
       builder: (context, hovered) => Container(
@@ -216,14 +219,82 @@ class _JobRow extends StatelessWidget {
               width: _portW,
               child: Text('${job.port}', style: context.text.monoSecondary),
             ),
+            // Fixed-width trailing so swapping uptime↔actions on hover doesn't
+            // shift the row. On hover, quick actions replace the uptime/chevron.
             SizedBox(
-              width: _uptimeW,
-              child: _UptimeText(job: job),
+              width: _uptimeW + 20,
+              child: (hovered && machine != null)
+                  ? Align(
+                      alignment: Alignment.centerRight,
+                      child: _QuickActions(
+                        job: job,
+                        onKill: () =>
+                            ref.read(jobExecutorProvider).kill(job, machine),
+                        onRestart: () => ref
+                            .read(jobExecutorProvider)
+                            .restart(job, machine),
+                        onDelete: () {
+                          ref.invalidate(terminalMuxProvider(job.id));
+                          ref.read(jobExecutorProvider).remove(job.id);
+                        },
+                      ),
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: _UptimeText(job: job)),
+                        Icon(
+                          AppIcons.chevronRight,
+                          size: 16,
+                          color: c.textFaint,
+                        ),
+                      ],
+                    ),
             ),
-            Icon(AppIcons.chevronRight, size: 16, color: c.textFaint),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Per-job hover actions in the list: stop/relaunch a running job, or
+/// relaunch/delete a stopped one — the common lifecycle without opening detail.
+class _QuickActions extends StatelessWidget {
+  const _QuickActions({
+    required this.job,
+    required this.onKill,
+    required this.onRestart,
+    required this.onDelete,
+  });
+
+  final Job job;
+  final VoidCallback onKill;
+  final VoidCallback onRestart;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final danger = context.colors.statusFailed;
+    // Restart always on the left, the destructive action (delete/kill) on the
+    // right — so a button doesn't jump sides between running and stopped.
+    final children = job.isStopped
+        ? [
+            _button(AppIcons.restart, onRestart),
+            _button(AppIcons.delete, onDelete, hoverColor: danger),
+          ]
+        : [
+            _button(AppIcons.restart, onRestart),
+            _button(AppIcons.kill, onKill, hoverColor: danger),
+          ];
+    return Row(mainAxisSize: MainAxisSize.min, children: children);
+  }
+
+  Widget _button(IconData icon, VoidCallback onTap, {Color? hoverColor}) {
+    return AppIconButton(
+      icon: icon,
+      size: 15,
+      onPressed: onTap,
+      hoverColor: hoverColor,
     );
   }
 }
