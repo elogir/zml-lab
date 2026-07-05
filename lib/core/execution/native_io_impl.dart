@@ -2,11 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// SIGINTs whatever is listening on [port] on loopback. Used to stop a job's
-/// server on app close: the process (e.g. llmd under `bazel run`) is a grandchild
-/// in its own process group that a PTY-close SIGHUP misses, but it does bind the
-/// port we track, so we can find and signal it directly. Best-effort.
-Future<void> killPortListeners(int port) async {
+/// SIGINTs whatever is listening on [port] on loopback ([force] escalates to
+/// SIGKILL). Used to stop a job's server on app close: the process (e.g. llmd
+/// under `bazel run`) is a grandchild in its own process group that a
+/// PTY-close SIGHUP misses, but it does bind the port we track, so we can
+/// find and signal it directly. Best-effort.
+Future<void> killPortListeners(int port, {bool force = false}) async {
   try {
     final shell = Platform.environment['SHELL'] ?? '/bin/zsh';
     final r = await Process.run(shell, [
@@ -17,7 +18,10 @@ Future<void> killPortListeners(int port) async {
       final pid = int.tryParse(line.trim());
       if (pid != null) {
         try {
-          Process.killPid(pid, ProcessSignal.sigint);
+          Process.killPid(
+            pid,
+            force ? ProcessSignal.sigkill : ProcessSignal.sigint,
+          );
         } catch (_) {}
       }
     }
@@ -35,6 +39,7 @@ Future<void> killRemotePortListeners({
   required int port,
   int sshPort = 22,
   String? identityFile,
+  bool force = false,
   Duration timeout = const Duration(seconds: 8),
 }) async {
   try {
@@ -45,7 +50,7 @@ Future<void> killRemotePortListeners({
       if (identityFile != null && identityFile.isNotEmpty)
         ...['-i', identityFile],
       target,
-      'fuser -k -INT $port/tcp',
+      'fuser -k -${force ? 'KILL' : 'INT'} $port/tcp',
     ]).timeout(timeout);
   } catch (_) {}
 }

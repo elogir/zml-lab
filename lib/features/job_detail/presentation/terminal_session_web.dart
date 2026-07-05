@@ -35,6 +35,8 @@ class TerminalSession {
 
   void sendSignal() {}
 
+  void sendKill() {}
+
   void dispose() {
     focusNode.dispose();
     controller.dispose();
