@@ -8,24 +8,27 @@ part of 'benchmark_chat_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Drives a chat with a job's endpoint inside the benchmark focus popup. Seeded
-/// (per job + request) from the clicked benchmark request; each [send] appends
-/// the user's prompt and streams a single reply token-by-token.
+/// Drives a real chat with a job's endpoint inside the benchmark focus popup.
+/// Seeded (per job + request) from the clicked benchmark request; each [send]
+/// appends the user's prompt and streams a single reply from
+/// `/v1/chat/completions`, sending the whole conversation as context.
 
 @ProviderFor(BenchmarkChatController)
 final benchmarkChatControllerProvider = BenchmarkChatControllerFamily._();
 
-/// Drives a chat with a job's endpoint inside the benchmark focus popup. Seeded
-/// (per job + request) from the clicked benchmark request; each [send] appends
-/// the user's prompt and streams a single reply token-by-token.
+/// Drives a real chat with a job's endpoint inside the benchmark focus popup.
+/// Seeded (per job + request) from the clicked benchmark request; each [send]
+/// appends the user's prompt and streams a single reply from
+/// `/v1/chat/completions`, sending the whole conversation as context.
 final class BenchmarkChatControllerProvider
     extends $NotifierProvider<BenchmarkChatController, BenchmarkChat> {
-  /// Drives a chat with a job's endpoint inside the benchmark focus popup. Seeded
-  /// (per job + request) from the clicked benchmark request; each [send] appends
-  /// the user's prompt and streams a single reply token-by-token.
+  /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
+  /// Seeded (per job + request) from the clicked benchmark request; each [send]
+  /// appends the user's prompt and streams a single reply from
+  /// `/v1/chat/completions`, sending the whole conversation as context.
   BenchmarkChatControllerProvider._({
     required BenchmarkChatControllerFamily super.from,
-    required (String, int) super.argument,
+    required (String, int, String, int) super.argument,
   }) : super(
          retry: null,
          name: r'benchmarkChatControllerProvider',
@@ -69,11 +72,12 @@ final class BenchmarkChatControllerProvider
 }
 
 String _$benchmarkChatControllerHash() =>
-    r'9c2ccb49b49493d0b77b692ce4db3ca26acb1bf8';
+    r'5d2a0654cdde3ef614658b441008510ab4b1d14f';
 
-/// Drives a chat with a job's endpoint inside the benchmark focus popup. Seeded
-/// (per job + request) from the clicked benchmark request; each [send] appends
-/// the user's prompt and streams a single reply token-by-token.
+/// Drives a real chat with a job's endpoint inside the benchmark focus popup.
+/// Seeded (per job + request) from the clicked benchmark request; each [send]
+/// appends the user's prompt and streams a single reply from
+/// `/v1/chat/completions`, sending the whole conversation as context.
 
 final class BenchmarkChatControllerFamily extends $Family
     with
@@ -82,7 +86,7 @@ final class BenchmarkChatControllerFamily extends $Family
           BenchmarkChat,
           BenchmarkChat,
           BenchmarkChat,
-          (String, int)
+          (String, int, String, int)
         > {
   BenchmarkChatControllerFamily._()
     : super(
@@ -93,27 +97,38 @@ final class BenchmarkChatControllerFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// Drives a chat with a job's endpoint inside the benchmark focus popup. Seeded
-  /// (per job + request) from the clicked benchmark request; each [send] appends
-  /// the user's prompt and streams a single reply token-by-token.
+  /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
+  /// Seeded (per job + request) from the clicked benchmark request; each [send]
+  /// appends the user's prompt and streams a single reply from
+  /// `/v1/chat/completions`, sending the whole conversation as context.
 
-  BenchmarkChatControllerProvider call(String jobId, int index) =>
-      BenchmarkChatControllerProvider._(argument: (jobId, index), from: this);
+  BenchmarkChatControllerProvider call(
+    String jobId,
+    int index,
+    String host,
+    int port,
+  ) => BenchmarkChatControllerProvider._(
+    argument: (jobId, index, host, port),
+    from: this,
+  );
 
   @override
   String toString() => r'benchmarkChatControllerProvider';
 }
 
-/// Drives a chat with a job's endpoint inside the benchmark focus popup. Seeded
-/// (per job + request) from the clicked benchmark request; each [send] appends
-/// the user's prompt and streams a single reply token-by-token.
+/// Drives a real chat with a job's endpoint inside the benchmark focus popup.
+/// Seeded (per job + request) from the clicked benchmark request; each [send]
+/// appends the user's prompt and streams a single reply from
+/// `/v1/chat/completions`, sending the whole conversation as context.
 
 abstract class _$BenchmarkChatController extends $Notifier<BenchmarkChat> {
-  late final _$args = ref.$arg as (String, int);
+  late final _$args = ref.$arg as (String, int, String, int);
   String get jobId => _$args.$1;
   int get index => _$args.$2;
+  String get host => _$args.$3;
+  int get port => _$args.$4;
 
-  BenchmarkChat build(String jobId, int index);
+  BenchmarkChat build(String jobId, int index, String host, int port);
   @$mustCallSuper
   @override
   void runBuild() {
@@ -126,6 +141,9 @@ abstract class _$BenchmarkChatController extends $Notifier<BenchmarkChat> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args.$1, _$args.$2));
+    element.handleCreate(
+      ref,
+      () => build(_$args.$1, _$args.$2, _$args.$3, _$args.$4),
+    );
   }
 }

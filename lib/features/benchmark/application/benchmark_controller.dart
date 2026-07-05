@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/execution/native_io.dart';
 import '../../../models/benchmark.dart';
 
 part 'benchmark_controller.g.dart';
@@ -11,46 +11,45 @@ const defaultBenchmarkPrompt =
     'Summarize the tradeoffs between tensor and pipeline parallelism '
     'for large models.';
 
-/// Canned completions, revealed token-by-token to fake streaming.
-const _answers = <String>[
-  'Tensor parallelism shards each layer across GPUs, so every device holds a '
-      'slice of the same weight matrix and they exchange activations with an '
-      'all-reduce on every step. That keeps per-GPU memory low but makes the '
-      'interconnect the bottleneck — it only pays off inside a single node '
-      'with fast NVLink or equivalent fabric.',
-  'The throughput you observe depends far more on the KV-cache budget than on '
-      'raw FLOPs once the model fits in memory. Each concurrent request '
-      'reserves cache proportional to its context length, so the scheduler '
-      'admits requests until that pool is exhausted and queues the remainder.',
-  'A clean way to reason about this is to separate prefill from decode. '
-      'Prefill is compute-heavy and parallel across the whole prompt, so it '
-      'scales well with more devices and larger batches. Decode is '
-      'memory-bound and inherently sequential, one token at a time, so it '
-      'benefits from a larger batch of concurrent requests instead.',
-  'Pipeline parallelism splits the model by layers across devices and streams '
-      'micro-batches through the stages. It tolerates slower links between '
-      'nodes, but a bubble forms at the start and end of each batch, so you '
-      'trade some latency for the ability to span more machines cheaply.',
-];
+/// How many tokens each request asks for. Long enough to reach steady-state
+/// decode so the throughput reading is meaningful, short enough to stay snappy.
+const _maxTokensPerRequest = 256;
 
-/// Drives a fake benchmark run: a batch of requests that stream tokens with
-/// live per-request and aggregate throughput. Cancelable mid-flight.
+/// Mutable per-request scratch, updated by the stream as tokens arrive and
+/// folded into an immutable [BenchmarkRequest] on each flush. Decouples network
+/// events (which can be very frequent) from widget rebuilds.
+class _Progress {
+  _Progress({required this.index, required this.start});
+  final int index;
+  final DateTime start;
+  DateTime? firstTokenAt;
+  DateTime? endAt;
+  final StringBuffer buffer = StringBuffer();
+  int chunkTokens = 0; // fallback token count (content deltas seen)
+  int usageTokens = 0; // exact count from the server's usage, when present
+  BenchmarkRequestStatus status = BenchmarkRequestStatus.streaming;
+
+  int get tokens => usageTokens > 0 ? usageTokens : chunkTokens;
+}
+
+/// Drives a real benchmark run: fires [batchSize] concurrent streaming requests
+/// at the job's `/v1/chat/completions` endpoint and reports per-request and
+/// aggregate throughput live. Cancelable mid-flight.
 ///
 /// Keep-alive (keyed by job id) so a run — and the prompt/batch settings —
-/// survive switching to the terminal tab or navigating away and back, the same
-/// way a job's terminals persist. A live run keeps ticking in the background;
-/// only invalidating the provider tears it down (which cancels the ticker).
+/// survive switching to the terminal tab or navigating away and back. The live
+/// requests keep streaming in the background; invalidating the provider (or
+/// cancelling) aborts them.
 @Riverpod(keepAlive: true)
 class BenchmarkController extends _$BenchmarkController {
+  final List<StreamSubscription<ChatToken>> _subs = [];
   Timer? _ticker;
-  final _rng = Random();
   DateTime? _startAt;
-  List<double> _rates = const [];
-  List<int> _targets = const [];
+  List<_Progress> _progs = [];
 
   @override
   BenchmarkRun build(String jobId) {
-    ref.onDispose(() => _ticker?.cancel());
+    ref.onDispose(_teardown);
     return const BenchmarkRun(prompt: defaultBenchmarkPrompt, batchSize: 8);
   }
 
@@ -59,35 +58,68 @@ class BenchmarkController extends _$BenchmarkController {
   void setBatchSize(int size) =>
       state = state.copyWith(batchSize: size.clamp(1, 64));
 
-  void start() {
-    _ticker?.cancel();
+  /// Fires the batch at `http://[host]:[port]/v1/chat/completions`.
+  void start({required String host, required int port}) {
+    _teardown();
     final n = state.batchSize;
-    _startAt = DateTime.now();
-    _rates = List.generate(n, (_) => 30 + _rng.nextDouble() * 15);
-    _targets = List.generate(n, (i) => _answers[i % _answers.length].split(' ').length);
+    final prompt =
+        state.prompt.trim().isEmpty ? defaultBenchmarkPrompt : state.prompt;
+    final now = DateTime.now();
+    _startAt = now;
+    _progs = List.generate(n, (i) => _Progress(index: i + 1, start: now));
+
     state = state.copyWith(
       isRunning: true,
       elapsed: Duration.zero,
       frozenAggregate: 0,
-      requests: List.generate(
-        n,
-        (i) => BenchmarkRequest(
-          index: i + 1,
-          status: BenchmarkRequestStatus.streaming,
-        ),
-      ),
+      requests: [
+        for (final p in _progs)
+          BenchmarkRequest(
+            index: p.index,
+            status: BenchmarkRequestStatus.streaming,
+          ),
+      ],
     );
-    _ticker = Timer.periodic(const Duration(milliseconds: 100), (_) => _tick());
+
+    final messages = [
+      {'role': 'user', 'content': prompt},
+    ];
+    for (final p in _progs) {
+      final sub = streamChat(host, port, messages, maxTokens: _maxTokensPerRequest)
+          .listen(
+            (tok) => _onToken(p, tok),
+            onError: (_) => _finish(p, failed: true),
+            onDone: () => _finish(p, failed: false),
+            cancelOnError: true,
+          );
+      _subs.add(sub);
+    }
+
+    _ticker = Timer.periodic(const Duration(milliseconds: 120), (_) => _flush());
   }
 
   void cancel() {
+    for (final s in _subs) {
+      s.cancel();
+    }
+    _subs.clear();
     _ticker?.cancel();
+
+    final now = DateTime.now();
+    final start = _startAt;
+    for (final p in _progs) {
+      if (!p.status.isTerminal) {
+        p.status = BenchmarkRequestStatus.done;
+        p.endAt = now;
+      }
+    }
     state = state.copyWith(
       isRunning: false,
-      // If we never reached a natural first-completion, lock the aggregate in
-      // at whatever concurrency was live at the moment of cancellation.
+      // Lock the aggregate at whatever was live if we never hit a natural
+      // first-completion (same reasoning as the freeze below).
       frozenAggregate:
           state.aggregateFrozen ? state.frozenAggregate : _liveAggregate(),
+      elapsed: start != null ? now.difference(start) : state.elapsed,
       requests: [
         for (final r in state.requests)
           r.status == BenchmarkRequestStatus.streaming
@@ -97,75 +129,90 @@ class BenchmarkController extends _$BenchmarkController {
     );
   }
 
-  /// Sum of the current rate of every request still streaming.
   double _liveAggregate() => state.requests
       .where((r) => r.status == BenchmarkRequestStatus.streaming)
       .fold(0.0, (sum, r) => sum + r.tokensPerSecond);
 
-  void _tick() {
+  void _onToken(_Progress p, ChatToken tok) {
+    p.firstTokenAt ??= DateTime.now();
+    final content = tok.content;
+    if (content != null && content.isNotEmpty) {
+      p.buffer.write(content);
+      p.chunkTokens += 1;
+    }
+    if (tok.completionTokens != null && tok.completionTokens! > 0) {
+      p.usageTokens = tok.completionTokens!;
+    }
+  }
+
+  void _finish(_Progress p, {required bool failed}) {
+    if (p.status.isTerminal) return;
+    p.status =
+        failed ? BenchmarkRequestStatus.failed : BenchmarkRequestStatus.done;
+    p.endAt = DateTime.now();
+    _flush(); // reflect the completion (and the aggregate freeze) immediately
+  }
+
+  /// Folds the scratch progress into immutable request state. Per-request tok/s
+  /// is decode speed (tokens since first token / decode time); once a request
+  /// ends its `endAt` is fixed so its reading holds steady.
+  void _flush() {
     final start = _startAt;
     if (start == null) return;
-    final elapsed = DateTime.now().difference(start);
+    final now = DateTime.now();
 
-    var anyStreaming = false;
-    final next = <BenchmarkRequest>[];
-    for (final r in state.requests) {
-      if (r.status.isTerminal) {
-        next.add(r);
-        continue;
-      }
-      final i = r.index - 1;
-      final rate = _rates[i];
-      final target = _targets[i];
-      final ttft = r.ttftMs ?? (90 + _rng.nextInt(190));
-      final produced =
-          ((elapsed.inMilliseconds - ttft) / 1000.0 * rate).floor();
-      final tokens = produced.clamp(0, target);
-      final done = tokens >= target;
-      anyStreaming = anyStreaming || !done;
-      next.add(
-        r.copyWith(
-          status: done
-              ? BenchmarkRequestStatus.done
-              : BenchmarkRequestStatus.streaming,
-          ttftMs: ttft,
-          tokens: tokens,
-          tokensPerSecond: done
-              ? r.tokensPerSecond
-              : (rate + (_rng.nextDouble() * 6 - 3)).clamp(1, 999),
-          latencyMs: done ? elapsed.inMilliseconds : null,
-          text: _reveal(i, tokens),
+    final requests = <BenchmarkRequest>[];
+    for (final p in _progs) {
+      final endRef = p.endAt ?? now;
+      final decodeMs = p.firstTokenAt == null
+          ? 0
+          : endRef.difference(p.firstTokenAt!).inMilliseconds;
+      final tps = decodeMs > 0 ? p.tokens / (decodeMs / 1000.0) : 0.0;
+      requests.add(
+        BenchmarkRequest(
+          index: p.index,
+          status: p.status,
+          text: p.buffer.toString(),
+          tokens: p.tokens,
+          tokensPerSecond: tps,
+          ttftMs: p.firstTokenAt?.difference(p.start).inMilliseconds,
+          latencyMs: p.status.isTerminal
+              ? (p.endAt ?? now).difference(p.start).inMilliseconds
+              : null,
         ),
       );
     }
 
-    // Freeze the aggregate the first time a request finishes. Up to this tick
-    // the whole batch was streaming, so the combined rate right now is the
-    // throughput at the batch size that was launched — the number worth
-    // keeping. After this, the batch is smaller and survivors accelerate.
-    final justCompleted =
-        !state.aggregateFrozen && next.any((r) => r.status.isTerminal);
-    final frozen = justCompleted
-        ? next
-              .where(
-                (r) =>
-                    r.status == BenchmarkRequestStatus.streaming ||
-                    r.status == BenchmarkRequestStatus.done,
-              )
-              .fold(0.0, (sum, r) => sum + r.tokensPerSecond)
-        : state.frozenAggregate;
+    // Freeze the aggregate the first time a request finishes — up to then the
+    // whole batch is at full concurrency, so the combined rate is the real
+    // throughput at the launched batch size (see [BenchmarkRun]).
+    var frozen = state.frozenAggregate;
+    if (!state.aggregateFrozen && requests.any((r) => r.status.isTerminal)) {
+      frozen = requests
+          .where(
+            (r) =>
+                r.status == BenchmarkRequestStatus.streaming ||
+                r.status == BenchmarkRequestStatus.done,
+          )
+          .fold(0.0, (sum, r) => sum + r.tokensPerSecond);
+    }
 
+    final anyActive = _progs.any((p) => !p.status.isTerminal);
     state = state.copyWith(
-      requests: next,
-      elapsed: elapsed,
-      isRunning: anyStreaming,
+      requests: requests,
+      elapsed: now.difference(start),
+      isRunning: anyActive,
       frozenAggregate: frozen,
     );
-    if (!anyStreaming) _ticker?.cancel();
+    if (!anyActive) _ticker?.cancel();
   }
 
-  String _reveal(int index, int tokens) {
-    final words = _answers[index % _answers.length].split(' ');
-    return words.take(tokens).join(' ');
+  void _teardown() {
+    for (final s in _subs) {
+      s.cancel();
+    }
+    _subs.clear();
+    _ticker?.cancel();
+    _progs = [];
   }
 }

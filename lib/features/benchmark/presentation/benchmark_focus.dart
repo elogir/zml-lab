@@ -9,7 +9,13 @@ import '../application/benchmark_chat_controller.dart';
 /// Opens the clicked benchmark request as a chat: its prompt and reply seed the
 /// conversation, and the user can keep sending single requests and watch each
 /// reply stream back.
-Future<void> showBenchmarkFocus(BuildContext context, String jobId, int index) {
+Future<void> showBenchmarkFocus(
+  BuildContext context,
+  String jobId,
+  int index,
+  String host,
+  int port,
+) {
   return Navigator.of(context, rootNavigator: true).push(
     PageRouteBuilder<void>(
       opaque: false,
@@ -17,7 +23,8 @@ Future<void> showBenchmarkFocus(BuildContext context, String jobId, int index) {
       barrierDismissible: true,
       barrierLabel: 'Close',
       transitionDuration: AppDurations.normal,
-      pageBuilder: (context, _, _) => _ChatView(jobId: jobId, index: index),
+      pageBuilder: (context, _, _) =>
+          _ChatView(jobId: jobId, index: index, host: host, port: port),
       transitionsBuilder: (context, anim, _, child) => FadeTransition(
         opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
         child: child,
@@ -27,10 +34,17 @@ Future<void> showBenchmarkFocus(BuildContext context, String jobId, int index) {
 }
 
 class _ChatView extends ConsumerStatefulWidget {
-  const _ChatView({required this.jobId, required this.index});
+  const _ChatView({
+    required this.jobId,
+    required this.index,
+    required this.host,
+    required this.port,
+  });
 
   final String jobId;
   final int index;
+  final String host;
+  final int port;
 
   @override
   ConsumerState<_ChatView> createState() => _ChatViewState();
@@ -48,7 +62,12 @@ class _ChatViewState extends ConsumerState<_ChatView> {
   }
 
   BenchmarkChatController get _controller => ref.read(
-    benchmarkChatControllerProvider(widget.jobId, widget.index).notifier,
+    benchmarkChatControllerProvider(
+      widget.jobId,
+      widget.index,
+      widget.host,
+      widget.port,
+    ).notifier,
   );
 
   void _send() {
@@ -71,11 +90,21 @@ class _ChatViewState extends ConsumerState<_ChatView> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final chat = ref.watch(
-      benchmarkChatControllerProvider(widget.jobId, widget.index),
+      benchmarkChatControllerProvider(
+      widget.jobId,
+      widget.index,
+      widget.host,
+      widget.port,
+    ),
     );
     // Follow the tail as tokens stream in.
     ref.listen(
-      benchmarkChatControllerProvider(widget.jobId, widget.index),
+      benchmarkChatControllerProvider(
+      widget.jobId,
+      widget.index,
+      widget.host,
+      widget.port,
+    ),
       (_, _) => _scrollToBottom(),
     );
 

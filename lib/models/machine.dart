@@ -28,4 +28,11 @@ abstract class Machine with _$Machine {
 
   /// `user@address` when a user is set, else just the address.
   String get sshTarget => user == null ? address : '$user@$address';
+
+  /// Whether this host runs jobs directly, without SSH. Inferred from the
+  /// address pointing at the machine the app itself runs on.
+  bool get isLocal {
+    final a = address.trim().toLowerCase();
+    return a == 'localhost' || a == '127.0.0.1' || a == '::1' || a == '0.0.0.0';
+  }
 }

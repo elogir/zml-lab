@@ -30,11 +30,44 @@ class ActionsPanel extends StatelessWidget {
     required this.job,
     required this.collapsed,
     required this.onToggle,
+    this.onKill,
+    this.onRestart,
+    this.onProfile,
+    this.onProfileStop,
+    this.profilerTitle = 'Run profiler',
+    this.profilerSubtitle = 'new tab',
+    this.onTest,
+    this.onDelete,
   });
 
   final Job job;
   final bool collapsed;
   final VoidCallback onToggle;
+
+  /// Stops the running process. Null when there's nothing to kill.
+  final VoidCallback? onKill;
+
+  /// Stops (if needed) and relaunches the job's process.
+  final VoidCallback? onRestart;
+
+  /// Captures a profile trace and opens it in xprof, or (once ready) re-opens
+  /// its tab. Null while a capture is in flight.
+  final VoidCallback? onProfile;
+
+  /// Stops the running xprof server. Non-null only once a profiler is ready.
+  final VoidCallback? onProfileStop;
+
+  /// Title of the profiler tile ('Run profiler' or 'Open profiler').
+  final String profilerTitle;
+
+  /// Live status line for the profiler tile ('new tab', 'capturing trace…', …).
+  final String profilerSubtitle;
+
+  /// Probes the job's endpoint (opens a result popup).
+  final VoidCallback? onTest;
+
+  /// Deletes the job (stops it if needed and removes the row).
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -61,20 +94,32 @@ class ActionsPanel extends StatelessWidget {
                   t: t,
                   icon: AppIcons.kill,
                   title: 'Kill process',
-                  subtitle: 'SIGTERM ${job.pid ?? '—'}',
+                  subtitle: 'SIGINT ${job.pid ?? '—'}',
                   danger: true,
+                  onTap: onKill,
                 ),
               _ActionTile(
                 t: t,
                 icon: AppIcons.profiler,
-                title: 'Run profiler',
-                subtitle: 'new tab',
+                title: profilerTitle,
+                subtitle: profilerSubtitle,
+                onTap: onProfile,
+                trailing: onProfileStop == null
+                    ? null
+                    : AppIconButton(
+                        icon: AppIcons.kill,
+                        size: 13,
+                        color: c.statusFailed,
+                        padding: const EdgeInsets.all(6),
+                        onPressed: onProfileStop,
+                      ),
               ),
               _ActionTile(
                 t: t,
                 icon: AppIcons.restart,
                 title: 'Restart',
                 subtitle: 'relaunch process',
+                onTap: onRestart,
               ),
               _ActionTile(
                 t: t,
@@ -88,7 +133,17 @@ class ActionsPanel extends StatelessWidget {
                 icon: AppIcons.testEndpoint,
                 title: 'Test endpoint',
                 subtitle: ':${job.port}/v1',
+                onTap: onTest,
               ),
+              if (job.isStopped)
+                _ActionTile(
+                  t: t,
+                  icon: AppIcons.delete,
+                  title: 'Delete job',
+                  subtitle: 'remove from list',
+                  danger: true,
+                  onTap: onDelete,
+                ),
             ],
           ),
         );
@@ -158,6 +213,7 @@ class _ActionTile extends StatelessWidget {
     required this.subtitle,
     this.danger = false,
     this.onTap,
+    this.trailing,
   });
 
   final double t;
@@ -166,6 +222,10 @@ class _ActionTile extends StatelessWidget {
   final String subtitle;
   final bool danger;
   final VoidCallback? onTap;
+
+  /// Optional control pinned to the tile's right edge (e.g. a stop button),
+  /// shown only when expanded.
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +249,8 @@ class _ActionTile extends StatelessWidget {
           final highlightLeft = _lerp((_collapsedInner - _iconBox) / 2, 0, t);
           final iconLeft = _lerp((_collapsedInner - _iconSize) / 2, _iconLeftPad, t);
           const labelLeft = _iconLeftPad + _iconSize + _labelGap;
-          final labelW = (iw - labelLeft - AppSpacing.md)
+          final trailingW = trailing == null ? 0.0 : 34.0;
+          final labelW = (iw - labelLeft - AppSpacing.md - trailingW)
               .clamp(0.0, double.infinity);
 
           return HoverRegion(
@@ -259,6 +320,18 @@ class _ActionTile extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (trailing != null)
+                      Positioned(
+                        right: AppSpacing.sm,
+                        top: 0,
+                        height: tileHeight,
+                        child: Center(
+                          child: IgnorePointer(
+                            ignoring: t < 0.9,
+                            child: Opacity(opacity: t, child: trailing),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               );

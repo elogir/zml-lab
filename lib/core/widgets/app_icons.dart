@@ -34,6 +34,7 @@ abstract final class AppIcons {
   static const IconData web = LucideIcons.globe;
   static const IconData fullscreen = LucideIcons.maximize2;
   static const IconData exitFullscreen = LucideIcons.minimize2;
+  static const IconData lock = LucideIcons.lock;
 
   // Web view chrome
   static const IconData navBack = LucideIcons.arrowLeft;

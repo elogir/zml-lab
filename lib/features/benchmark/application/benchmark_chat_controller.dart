@@ -1,57 +1,36 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/execution/native_io.dart';
 import '../../../models/benchmark.dart';
 import '../../../models/benchmark_chat.dart';
 import 'benchmark_controller.dart';
 
 part 'benchmark_chat_controller.g.dart';
 
-/// Canned replies, cycled through to fake a streaming chat. Purely presentation
-/// stand-ins until a real endpoint is wired up.
-const _replies = <String>[
-  'Good question. The short version: it depends on where the bottleneck is. '
-      'If you are memory-bound during decode, a larger batch of concurrent '
-      'requests helps far more than adding devices, because each step is '
-      'already latency-bound on a single token.',
-  'You can push the batch higher until the KV-cache pool is exhausted — after '
-      'that the scheduler queues new requests rather than admitting them, so '
-      'throughput plateaus and per-request latency climbs. Watch the cache '
-      'occupancy, not just GPU utilisation.',
-  'For a 70B model on a single node, tensor parallelism across the GPUs keeps '
-      'per-device memory manageable and the NVLink fabric hides most of the '
-      'all-reduce cost. Across nodes you would reach for pipeline parallelism '
-      'instead and eat a small bubble at the batch edges.',
-  'Prefill and decode behave differently: prefill is compute-bound and scales '
-      'with more devices, decode is memory-bound and scales with concurrency. '
-      'Tuning them together is usually what moves aggregate tokens/sec.',
-  'Yes — that is expected. As requests in the batch finish, the survivors get '
-      'a larger share of the server and speed up, so the per-request rate rises '
-      'even though the aggregate at full concurrency is the number to quote.',
-];
+/// Tokens a single chat reply asks for — longer than a batch request since this
+/// is an interactive conversation, not a throughput probe.
+const _chatMaxTokens = 512;
 
-/// Drives a chat with a job's endpoint inside the benchmark focus popup. Seeded
-/// (per job + request) from the clicked benchmark request; each [send] appends
-/// the user's prompt and streams a single reply token-by-token.
+/// Drives a real chat with a job's endpoint inside the benchmark focus popup.
+/// Seeded (per job + request) from the clicked benchmark request; each [send]
+/// appends the user's prompt and streams a single reply from
+/// `/v1/chat/completions`, sending the whole conversation as context.
 @riverpod
 class BenchmarkChatController extends _$BenchmarkChatController {
-  Timer? _ticker;
-  final _rng = Random();
-  int _replyCursor = 0;
-
-  DateTime? _turnStart;
-  double _rate = 0;
-  int _target = 0;
-  int _ttftMs = 0;
+  StreamSubscription<ChatToken>? _sub;
+  late String _host;
+  late int _port;
 
   @override
-  BenchmarkChat build(String jobId, int index) {
-    ref.onDispose(() => _ticker?.cancel());
+  BenchmarkChat build(String jobId, int index, String host, int port) {
+    _host = host;
+    _port = port;
+    ref.onDispose(() => _sub?.cancel());
     // Seed the first turn from the request that was opened: its prompt and the
-    // reply it already produced. Read (not watch) — the chat is a snapshot the
-    // user drives from here, not a live mirror of the batch.
+    // reply it already produced in the batch. Read (not watch) — the chat is a
+    // snapshot the user drives from here, not a live mirror of the batch.
     final run = ref.read(benchmarkControllerProvider(jobId));
     final request = run.requests.firstWhere(
       (r) => r.index == index,
@@ -86,51 +65,79 @@ class BenchmarkChatController extends _$BenchmarkChatController {
   void replay(int turnIndex) {
     if (turnIndex < 0 || turnIndex >= state.turns.length) return;
     if (!state.turns[turnIndex].fromUser) return;
+    _sub?.cancel();
     state = state.copyWith(turns: state.turns.sublist(0, turnIndex + 1));
     _startReply();
   }
 
-  /// Append an empty reply turn and stream a canned answer into it.
-  void _startReply() {
-    _ticker?.cancel();
-    final reply = _replies[_replyCursor % _replies.length];
-    _replyCursor++;
-    _target = reply.split(' ').length;
-    _rate = 28 + _rng.nextDouble() * 22;
-    _ttftMs = 80 + _rng.nextInt(160);
-    _turnStart = DateTime.now();
+  /// The conversation so far as OpenAI chat messages (skipping any empty seed
+  /// reply so we don't send a blank assistant turn).
+  List<Map<String, String>> _messages() => [
+    for (final t in state.turns)
+      if (t.text.trim().isNotEmpty)
+        {'role': t.fromUser ? 'user' : 'assistant', 'content': t.text},
+  ];
 
+  /// Append an empty reply turn and stream the real answer into it.
+  void _startReply() {
+    _sub?.cancel();
+    final messages = _messages();
+    final start = DateTime.now();
+    final replyIndex = state.turns.length;
     state = state.copyWith(
       turns: [...state.turns, const ChatTurn(fromUser: false, streaming: true)],
     );
-    _ticker = Timer.periodic(
-      const Duration(milliseconds: 60),
-      (_) => _tick(reply),
+
+    DateTime? firstTokenAt;
+    final buffer = StringBuffer();
+    var chunkTokens = 0;
+    var usageTokens = 0;
+
+    void write({required bool streaming, bool failed = false}) {
+      final tokens = usageTokens > 0 ? usageTokens : chunkTokens;
+      final now = DateTime.now();
+      final decodeMs = firstTokenAt == null
+          ? 0
+          : now.difference(firstTokenAt!).inMilliseconds;
+      final tps = decodeMs > 0 ? tokens / (decodeMs / 1000.0) : 0.0;
+      final text = buffer.toString();
+      _setTurn(
+        replyIndex,
+        ChatTurn(
+          fromUser: false,
+          text: text.isEmpty && failed ? '(request failed)' : text,
+          streaming: streaming,
+          tokens: tokens,
+          tokensPerSecond: tps,
+          ttftMs: firstTokenAt?.difference(start).inMilliseconds,
+          latencyMs: streaming ? null : now.difference(start).inMilliseconds,
+        ),
+      );
+    }
+
+    _sub = streamChat(_host, _port, messages, maxTokens: _chatMaxTokens).listen(
+      (tok) {
+        firstTokenAt ??= DateTime.now();
+        final content = tok.content;
+        if (content != null && content.isNotEmpty) {
+          buffer.write(content);
+          chunkTokens += 1;
+        }
+        if (tok.completionTokens != null && tok.completionTokens! > 0) {
+          usageTokens = tok.completionTokens!;
+        }
+        write(streaming: true);
+      },
+      onError: (_) => write(streaming: false, failed: true),
+      onDone: () => write(streaming: false),
+      cancelOnError: true,
     );
   }
 
-  void _tick(String reply) {
-    final start = _turnStart;
-    if (start == null) return;
-    final elapsedMs = DateTime.now().difference(start).inMilliseconds;
-    final produced = ((elapsedMs - _ttftMs) / 1000.0 * _rate).floor();
-    final tokens = produced.clamp(0, _target);
-    final done = tokens >= _target;
-    final words = reply.split(' ');
-
+  void _setTurn(int i, ChatTurn turn) {
+    if (i < 0 || i >= state.turns.length) return;
     final turns = [...state.turns];
-    turns[turns.length - 1] = ChatTurn(
-      fromUser: false,
-      text: words.take(tokens).join(' '),
-      streaming: !done,
-      tokens: tokens,
-      tokensPerSecond: done
-          ? turns.last.tokensPerSecond
-          : (_rate + (_rng.nextDouble() * 6 - 3)).clamp(1, 999),
-      ttftMs: _ttftMs,
-      latencyMs: done ? elapsedMs : null,
-    );
+    turns[i] = turn;
     state = state.copyWith(turns: turns);
-    if (done) _ticker?.cancel();
   }
 }

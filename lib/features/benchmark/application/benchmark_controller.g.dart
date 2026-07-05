@@ -8,33 +8,36 @@ part of 'benchmark_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Drives a fake benchmark run: a batch of requests that stream tokens with
-/// live per-request and aggregate throughput. Cancelable mid-flight.
+/// Drives a real benchmark run: fires [batchSize] concurrent streaming requests
+/// at the job's `/v1/chat/completions` endpoint and reports per-request and
+/// aggregate throughput live. Cancelable mid-flight.
 ///
 /// Keep-alive (keyed by job id) so a run — and the prompt/batch settings —
-/// survive switching to the terminal tab or navigating away and back, the same
-/// way a job's terminals persist. A live run keeps ticking in the background;
-/// only invalidating the provider tears it down (which cancels the ticker).
+/// survive switching to the terminal tab or navigating away and back. The live
+/// requests keep streaming in the background; invalidating the provider (or
+/// cancelling) aborts them.
 
 @ProviderFor(BenchmarkController)
 final benchmarkControllerProvider = BenchmarkControllerFamily._();
 
-/// Drives a fake benchmark run: a batch of requests that stream tokens with
-/// live per-request and aggregate throughput. Cancelable mid-flight.
+/// Drives a real benchmark run: fires [batchSize] concurrent streaming requests
+/// at the job's `/v1/chat/completions` endpoint and reports per-request and
+/// aggregate throughput live. Cancelable mid-flight.
 ///
 /// Keep-alive (keyed by job id) so a run — and the prompt/batch settings —
-/// survive switching to the terminal tab or navigating away and back, the same
-/// way a job's terminals persist. A live run keeps ticking in the background;
-/// only invalidating the provider tears it down (which cancels the ticker).
+/// survive switching to the terminal tab or navigating away and back. The live
+/// requests keep streaming in the background; invalidating the provider (or
+/// cancelling) aborts them.
 final class BenchmarkControllerProvider
     extends $NotifierProvider<BenchmarkController, BenchmarkRun> {
-  /// Drives a fake benchmark run: a batch of requests that stream tokens with
-  /// live per-request and aggregate throughput. Cancelable mid-flight.
+  /// Drives a real benchmark run: fires [batchSize] concurrent streaming requests
+  /// at the job's `/v1/chat/completions` endpoint and reports per-request and
+  /// aggregate throughput live. Cancelable mid-flight.
   ///
   /// Keep-alive (keyed by job id) so a run — and the prompt/batch settings —
-  /// survive switching to the terminal tab or navigating away and back, the same
-  /// way a job's terminals persist. A live run keeps ticking in the background;
-  /// only invalidating the provider tears it down (which cancels the ticker).
+  /// survive switching to the terminal tab or navigating away and back. The live
+  /// requests keep streaming in the background; invalidating the provider (or
+  /// cancelling) aborts them.
   BenchmarkControllerProvider._({
     required BenchmarkControllerFamily super.from,
     required String super.argument,
@@ -80,15 +83,16 @@ final class BenchmarkControllerProvider
 }
 
 String _$benchmarkControllerHash() =>
-    r'e4eb9a43db8f07d840e5ba1a873ab59482cddd5a';
+    r'067cd1eebde2201361d81b2999e204530c68c50a';
 
-/// Drives a fake benchmark run: a batch of requests that stream tokens with
-/// live per-request and aggregate throughput. Cancelable mid-flight.
+/// Drives a real benchmark run: fires [batchSize] concurrent streaming requests
+/// at the job's `/v1/chat/completions` endpoint and reports per-request and
+/// aggregate throughput live. Cancelable mid-flight.
 ///
 /// Keep-alive (keyed by job id) so a run — and the prompt/batch settings —
-/// survive switching to the terminal tab or navigating away and back, the same
-/// way a job's terminals persist. A live run keeps ticking in the background;
-/// only invalidating the provider tears it down (which cancels the ticker).
+/// survive switching to the terminal tab or navigating away and back. The live
+/// requests keep streaming in the background; invalidating the provider (or
+/// cancelling) aborts them.
 
 final class BenchmarkControllerFamily extends $Family
     with
@@ -108,13 +112,14 @@ final class BenchmarkControllerFamily extends $Family
         isAutoDispose: false,
       );
 
-  /// Drives a fake benchmark run: a batch of requests that stream tokens with
-  /// live per-request and aggregate throughput. Cancelable mid-flight.
+  /// Drives a real benchmark run: fires [batchSize] concurrent streaming requests
+  /// at the job's `/v1/chat/completions` endpoint and reports per-request and
+  /// aggregate throughput live. Cancelable mid-flight.
   ///
   /// Keep-alive (keyed by job id) so a run — and the prompt/batch settings —
-  /// survive switching to the terminal tab or navigating away and back, the same
-  /// way a job's terminals persist. A live run keeps ticking in the background;
-  /// only invalidating the provider tears it down (which cancels the ticker).
+  /// survive switching to the terminal tab or navigating away and back. The live
+  /// requests keep streaming in the background; invalidating the provider (or
+  /// cancelling) aborts them.
 
   BenchmarkControllerProvider call(String jobId) =>
       BenchmarkControllerProvider._(argument: jobId, from: this);
@@ -123,13 +128,14 @@ final class BenchmarkControllerFamily extends $Family
   String toString() => r'benchmarkControllerProvider';
 }
 
-/// Drives a fake benchmark run: a batch of requests that stream tokens with
-/// live per-request and aggregate throughput. Cancelable mid-flight.
+/// Drives a real benchmark run: fires [batchSize] concurrent streaming requests
+/// at the job's `/v1/chat/completions` endpoint and reports per-request and
+/// aggregate throughput live. Cancelable mid-flight.
 ///
 /// Keep-alive (keyed by job id) so a run — and the prompt/batch settings —
-/// survive switching to the terminal tab or navigating away and back, the same
-/// way a job's terminals persist. A live run keeps ticking in the background;
-/// only invalidating the provider tears it down (which cancels the ticker).
+/// survive switching to the terminal tab or navigating away and back. The live
+/// requests keep streaming in the background; invalidating the provider (or
+/// cancelling) aborts them.
 
 abstract class _$BenchmarkController extends $Notifier<BenchmarkRun> {
   late final _$args = ref.$arg as String;

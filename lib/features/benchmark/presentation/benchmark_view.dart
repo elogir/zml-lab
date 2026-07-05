@@ -17,10 +17,18 @@ class BenchmarkView extends ConsumerStatefulWidget {
     super.key,
     required this.jobId,
     required this.endpoint,
+    required this.host,
+    required this.port,
   });
 
   final String jobId;
+
+  /// Display label for the endpoint (e.g. `local:8001`).
   final String endpoint;
+
+  /// The real host + port the batch requests are sent to.
+  final String host;
+  final int port;
 
   @override
   ConsumerState<BenchmarkView> createState() => _BenchmarkViewState();
@@ -51,7 +59,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
   BenchmarkController get _controller =>
       ref.read(benchmarkControllerProvider(widget.jobId).notifier);
 
-  void _send() => _controller.start();
+  void _send() => _controller.start(host: widget.host, port: widget.port);
 
   void _saveBenchmark() {
     final run = ref.read(benchmarkControllerProvider(widget.jobId));
@@ -98,7 +106,12 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
         Expanded(
           child: run.requests.isEmpty
               ? _EmptyState(endpoint: widget.endpoint)
-              : _Grid(run: run, jobId: widget.jobId),
+              : _Grid(
+                  run: run,
+                  jobId: widget.jobId,
+                  host: widget.host,
+                  port: widget.port,
+                ),
         ),
       ],
     );
@@ -310,10 +323,17 @@ class _StreamingPill extends StatelessWidget {
 }
 
 class _Grid extends StatelessWidget {
-  const _Grid({required this.run, required this.jobId});
+  const _Grid({
+    required this.run,
+    required this.jobId,
+    required this.host,
+    required this.port,
+  });
 
   final BenchmarkRun run;
   final String jobId;
+  final String host;
+  final int port;
 
   static const double _spacing = AppSpacing.md;
   static const double _minCardWidth = 280;
@@ -346,7 +366,8 @@ class _Grid extends StatelessWidget {
             final request = run.requests[i];
             return BenchmarkRequestCard(
               request: request,
-              onExpand: () => showBenchmarkFocus(context, jobId, request.index),
+              onExpand: () =>
+                  showBenchmarkFocus(context, jobId, request.index, host, port),
             );
           },
         );
