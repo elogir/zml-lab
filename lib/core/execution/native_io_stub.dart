@@ -4,6 +4,14 @@
 
 Future<void> killPortListeners(int port) async {}
 
+Future<void> killRemotePortListeners({
+  required String target,
+  required int port,
+  int sshPort = 22,
+  String? identityFile,
+  Duration timeout = const Duration(seconds: 8),
+}) async {}
+
 String expandUser(String path) => path;
 
 typedef ChatToken = ({
