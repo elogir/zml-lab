@@ -100,6 +100,8 @@ class _MachineCard extends ConsumerWidget {
     final running = jobs
         .where((j) => j.machineId == machine.id && j.status.isActive)
         .length;
+    // Live probe: gray while the first check runs, then green/red.
+    final up = ref.watch(machineReachableProvider(machine.id)).value;
 
     return AppCard(
       onTap: () => context.go('/machines/${machine.id}/edit'),
@@ -114,7 +116,11 @@ class _MachineCard extends ConsumerWidget {
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: machine.online ? c.statusRunning : c.textMuted,
+                  color: up == null
+                      ? c.textMuted
+                      : up
+                      ? c.statusRunning
+                      : c.statusFailed,
                   shape: BoxShape.circle,
                 ),
               ),
