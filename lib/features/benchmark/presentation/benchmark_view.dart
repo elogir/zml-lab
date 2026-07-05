@@ -16,12 +16,16 @@ class BenchmarkView extends ConsumerStatefulWidget {
   const BenchmarkView({
     super.key,
     required this.jobId,
+    required this.jobName,
     required this.endpoint,
     required this.host,
     required this.port,
   });
 
   final String jobId;
+
+  /// The job's display name — the default name when saving a run.
+  final String jobName;
 
   /// Display label for the endpoint (e.g. `local:8001`).
   final String endpoint;
@@ -70,7 +74,12 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
 
   void _saveBenchmark() {
     final run = ref.read(benchmarkControllerProvider(widget.jobId));
-    showSaveBenchmarkDialog(context, run: run, endpoint: widget.endpoint);
+    showSaveBenchmarkDialog(
+      context,
+      run: run,
+      endpoint: widget.endpoint,
+      defaultName: widget.jobName,
+    );
   }
 
   Future<void> _editPrompt() async {
@@ -232,6 +241,7 @@ class _Controls extends StatelessWidget {
                 icon: AppIcons.kill,
                 size: 15,
                 color: c.statusFailed,
+                hoverColor: c.statusFailed,
                 padding: const EdgeInsets.all(9),
                 onPressed: onCancel,
               ),

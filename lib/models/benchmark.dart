@@ -61,6 +61,11 @@ abstract class BenchmarkRun with _$BenchmarkRun {
 
     /// Sampling temperature. Null means the server's default.
     double? temperature,
+
+    /// Bumped each time a new batch is started. Chats opened from a request
+    /// key their seed to this, so they reset when the run they came from is
+    /// replaced.
+    @Default(0) int runToken,
     @Default(<BenchmarkRequest>[]) List<BenchmarkRequest> requests,
     @Default(false) bool isRunning,
     @Default(Duration.zero) Duration elapsed,

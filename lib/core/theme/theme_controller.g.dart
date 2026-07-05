@@ -111,4 +111,4 @@ final class AppColorsProvider
   }
 }
 
-String _$appColorsHash() => r'56f6b5cc4d796bc1fb1e07bf3f07ad9a7fa76355';
+String _$appColorsHash() => r'aca5e185a81ad5fc6444da891de58c01b4f8066f';
