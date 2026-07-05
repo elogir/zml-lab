@@ -16,7 +16,7 @@ part of 'profiler_controller.dart';
 /// it to serve, then expose the URL — the terminal opens it in a web tab.
 ///
 /// Keep-alive (keyed by job id) so the xprof server keeps running while you
-/// navigate, and can be re-opened.
+/// navigate, and can be re-opened or stopped.
 
 @ProviderFor(ProfilerController)
 final profilerControllerProvider = ProfilerControllerFamily._();
@@ -29,7 +29,7 @@ final profilerControllerProvider = ProfilerControllerFamily._();
 /// it to serve, then expose the URL — the terminal opens it in a web tab.
 ///
 /// Keep-alive (keyed by job id) so the xprof server keeps running while you
-/// navigate, and can be re-opened.
+/// navigate, and can be re-opened or stopped.
 final class ProfilerControllerProvider
     extends $NotifierProvider<ProfilerController, ProfilerRun> {
   /// Runs a profiler capture for a job and serves the trace with `xprof`.
@@ -40,7 +40,7 @@ final class ProfilerControllerProvider
   /// it to serve, then expose the URL — the terminal opens it in a web tab.
   ///
   /// Keep-alive (keyed by job id) so the xprof server keeps running while you
-  /// navigate, and can be re-opened.
+  /// navigate, and can be re-opened or stopped.
   ProfilerControllerProvider._({
     required ProfilerControllerFamily super.from,
     required String super.argument,
@@ -86,7 +86,7 @@ final class ProfilerControllerProvider
 }
 
 String _$profilerControllerHash() =>
-    r'3b0e31a09c200d8e9f9a2ecb5e7ea94ccee28d3c';
+    r'cca89853dd0fefbccc048fd04723d578075e18d6';
 
 /// Runs a profiler capture for a job and serves the trace with `xprof`.
 ///
@@ -96,7 +96,7 @@ String _$profilerControllerHash() =>
 /// it to serve, then expose the URL — the terminal opens it in a web tab.
 ///
 /// Keep-alive (keyed by job id) so the xprof server keeps running while you
-/// navigate, and can be re-opened.
+/// navigate, and can be re-opened or stopped.
 
 final class ProfilerControllerFamily extends $Family
     with
@@ -124,7 +124,7 @@ final class ProfilerControllerFamily extends $Family
   /// it to serve, then expose the URL — the terminal opens it in a web tab.
   ///
   /// Keep-alive (keyed by job id) so the xprof server keeps running while you
-  /// navigate, and can be re-opened.
+  /// navigate, and can be re-opened or stopped.
 
   ProfilerControllerProvider call(String jobId) =>
       ProfilerControllerProvider._(argument: jobId, from: this);
@@ -141,7 +141,7 @@ final class ProfilerControllerFamily extends $Family
 /// it to serve, then expose the URL — the terminal opens it in a web tab.
 ///
 /// Keep-alive (keyed by job id) so the xprof server keeps running while you
-/// navigate, and can be re-opened.
+/// navigate, and can be re-opened or stopped.
 
 abstract class _$ProfilerController extends $Notifier<ProfilerRun> {
   late final _$args = ref.$arg as String;

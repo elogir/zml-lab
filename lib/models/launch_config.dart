@@ -13,9 +13,6 @@ abstract class LaunchConfig with _$LaunchConfig {
     required String name,
     String? description,
     required String machineId,
-    /// Short program label shown as a badge (e.g. `vllm`, `llmd`), inferred
-    /// from the command.
-    required String program,
     required String command,
     String? workingDir,
     required int port,

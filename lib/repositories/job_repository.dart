@@ -71,7 +71,6 @@ class DriftJobRepository implements JobRepository {
           name: job.name,
           description: Value(job.description),
           machineId: job.machineId,
-          program: job.program,
           command: job.command,
           workingDir: Value(job.workingDir),
           port: job.port,

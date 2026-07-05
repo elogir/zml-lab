@@ -13,17 +13,6 @@ import 'native_io.dart';
 
 part 'job_executor.g.dart';
 
-/// Derives the program badge ('llmd' / 'vllm' / …) from a command line. The
-/// form doesn't ask for it, but the job list shows it.
-String deriveProgram(String command) {
-  final lower = command.toLowerCase();
-  if (lower.contains('vllm')) return 'vllm';
-  if (lower.contains('llmd') || lower.contains('llm-d')) return 'llmd';
-  final tokens = command.trim().split(RegExp(r'\s+'));
-  final first = tokens.isEmpty ? 'process' : tokens.first;
-  return first.isEmpty ? 'process' : first.split('/').last;
-}
-
 /// Substitutes the job's port into the command wherever `$PORT`/`${PORT}`
 /// appears, so the launched server binds the port the app tracks (status dot,
 /// test-endpoint, benchmark all use it).

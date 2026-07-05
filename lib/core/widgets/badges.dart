@@ -78,24 +78,3 @@ class StatusBadge extends StatelessWidget {
     );
   }
 }
-
-/// Monospace pill labeling the program (`vllm`, `llmd`, …).
-class ProgramBadge extends StatelessWidget {
-  const ProgramBadge(this.program, {super.key});
-
-  final String program;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: c.surfaceSelected,
-        borderRadius: AppRadius.smAll,
-        border: Border.all(color: c.border),
-      ),
-      child: Text(program, style: context.text.monoBadge),
-    );
-  }
-}

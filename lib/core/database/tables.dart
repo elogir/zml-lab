@@ -27,7 +27,6 @@ class LaunchConfigs extends Table {
   TextColumn get name => text()();
   TextColumn get description => text().nullable()();
   TextColumn get machineId => text()();
-  TextColumn get program => text()();
   TextColumn get command => text()();
   TextColumn get workingDir => text().nullable()();
   IntColumn get port => integer()();
@@ -77,7 +76,6 @@ class Jobs extends Table {
   TextColumn get name => text()();
   TextColumn get description => text().nullable()();
   TextColumn get machineId => text()();
-  TextColumn get program => text()();
   TextColumn get command => text()();
   TextColumn get workingDir => text().nullable()();
   IntColumn get port => integer()();

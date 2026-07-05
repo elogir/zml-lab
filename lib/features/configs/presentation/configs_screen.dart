@@ -29,7 +29,6 @@ class _ConfigsScreenState extends ConsumerState<ConfigsScreen> {
       final machineName = machines[c.machineId]?.name ?? c.machineId;
       return c.name.toLowerCase().contains(q) ||
           (c.description?.toLowerCase().contains(q) ?? false) ||
-          c.program.toLowerCase().contains(q) ||
           c.command.toLowerCase().contains(q) ||
           machineName.toLowerCase().contains(q) ||
           '${c.port}'.contains(q);
