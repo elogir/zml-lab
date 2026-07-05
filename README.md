@@ -32,5 +32,4 @@ Release build: `flutter build macos --release` →
 `build/macos/Build/Products/Release/zml_lab.app`.
 
 Built with Flutter (no Material — custom widgets over `WidgetsApp`), riverpod,
-drift, and [flterm](https://pub.dev/packages/flterm). Jobs die with the app by
-design: closing the window SIGINTs everything it started.
+drift, and [flterm](https://pub.dev/packages/flterm).
