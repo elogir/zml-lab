@@ -7,12 +7,13 @@ import '../../../models/benchmark.dart';
 import '../../../models/saved_benchmark.dart';
 import '../../../repositories/saved_benchmark_repository.dart';
 
-/// Prompts for a name and stores [run] (with its responses) as a
-/// [SavedBenchmark] against [endpoint].
+/// Prompts for a name (pre-filled with [defaultName], the job's name) and
+/// stores [run] (with its responses) as a [SavedBenchmark] against [endpoint].
 Future<void> showSaveBenchmarkDialog(
   BuildContext context, {
   required BenchmarkRun run,
   required String endpoint,
+  required String defaultName,
 }) {
   return Navigator.of(context, rootNavigator: true).push(
     PageRouteBuilder<void>(
@@ -22,7 +23,7 @@ Future<void> showSaveBenchmarkDialog(
       barrierLabel: 'Dismiss',
       transitionDuration: AppDurations.normal,
       pageBuilder: (context, _, _) =>
-          _SaveDialog(run: run, endpoint: endpoint),
+          _SaveDialog(run: run, endpoint: endpoint, defaultName: defaultName),
       transitionsBuilder: (context, anim, _, child) {
         final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
         return FadeTransition(
@@ -38,10 +39,15 @@ Future<void> showSaveBenchmarkDialog(
 }
 
 class _SaveDialog extends ConsumerStatefulWidget {
-  const _SaveDialog({required this.run, required this.endpoint});
+  const _SaveDialog({
+    required this.run,
+    required this.endpoint,
+    required this.defaultName,
+  });
 
   final BenchmarkRun run;
   final String endpoint;
+  final String defaultName;
 
   @override
   ConsumerState<_SaveDialog> createState() => _SaveDialogState();
@@ -49,7 +55,7 @@ class _SaveDialog extends ConsumerStatefulWidget {
 
 class _SaveDialogState extends ConsumerState<_SaveDialog> {
   late final TextEditingController _name = TextEditingController(
-    text: '${widget.endpoint} · batch ${widget.run.requests.length}',
+    text: widget.defaultName,
   );
 
   @override

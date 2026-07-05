@@ -95,19 +95,13 @@ class _BenchmarkCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  b.name,
-                  style: context.text.body.copyWith(fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(formatAgo(b.createdAt), style: context.text.smallMuted),
-            ],
+          // The top-right corner stays clear: the hover delete button floats
+          // there, so the date lives on the second row instead.
+          Text(
+            b.name,
+            style: context.text.body.copyWith(fontWeight: FontWeight.w600),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: AppSpacing.sm),
           Row(
@@ -115,6 +109,8 @@ class _BenchmarkCard extends ConsumerWidget {
               Text(b.endpoint, style: context.text.monoSmall),
               const SizedBox(width: AppSpacing.md),
               Text('batch ${b.batchSize}', style: context.text.smallMuted),
+              const Spacer(),
+              Text(formatAgo(b.createdAt), style: context.text.smallMuted),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),

@@ -8,12 +8,15 @@ part of 'profiler_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Runs a profiler capture for a job and serves the trace with `xprof`.
+/// Drives profiling for a job, in two independent steps the UI exposes as
+/// separate actions:
 ///
-/// Steps: (1) fire one request with the `x-zml-profiler` header so llmd writes a
-/// trace to `/tmp/xprof`; (2) launch `uvx xprof -l /tmp/xprof -p <port>` on the
-/// job's machine (over SSH with a port-forward for a remote one); (3) wait for
-/// it to serve, then expose the URL — the terminal opens it in a web tab.
+/// - [capture]: fire one request with the `x-zml-profiler` header so llmd
+///   writes a trace to `/tmp/xprof` — works whether or not xprof is up.
+/// - [launch]: serve the machine's `/tmp/xprof` with `uvx xprof` (over SSH
+///   with a port-forward for a remote machine) and expose the URL — the
+///   terminal opens it in a web tab. [reopen] re-opens that tab; [stop] kills
+///   the server.
 ///
 /// Keep-alive (keyed by job id) so the xprof server keeps running while you
 /// navigate, and can be re-opened or stopped.
@@ -21,23 +24,29 @@ part of 'profiler_controller.dart';
 @ProviderFor(ProfilerController)
 final profilerControllerProvider = ProfilerControllerFamily._();
 
-/// Runs a profiler capture for a job and serves the trace with `xprof`.
+/// Drives profiling for a job, in two independent steps the UI exposes as
+/// separate actions:
 ///
-/// Steps: (1) fire one request with the `x-zml-profiler` header so llmd writes a
-/// trace to `/tmp/xprof`; (2) launch `uvx xprof -l /tmp/xprof -p <port>` on the
-/// job's machine (over SSH with a port-forward for a remote one); (3) wait for
-/// it to serve, then expose the URL — the terminal opens it in a web tab.
+/// - [capture]: fire one request with the `x-zml-profiler` header so llmd
+///   writes a trace to `/tmp/xprof` — works whether or not xprof is up.
+/// - [launch]: serve the machine's `/tmp/xprof` with `uvx xprof` (over SSH
+///   with a port-forward for a remote machine) and expose the URL — the
+///   terminal opens it in a web tab. [reopen] re-opens that tab; [stop] kills
+///   the server.
 ///
 /// Keep-alive (keyed by job id) so the xprof server keeps running while you
 /// navigate, and can be re-opened or stopped.
 final class ProfilerControllerProvider
     extends $NotifierProvider<ProfilerController, ProfilerRun> {
-  /// Runs a profiler capture for a job and serves the trace with `xprof`.
+  /// Drives profiling for a job, in two independent steps the UI exposes as
+  /// separate actions:
   ///
-  /// Steps: (1) fire one request with the `x-zml-profiler` header so llmd writes a
-  /// trace to `/tmp/xprof`; (2) launch `uvx xprof -l /tmp/xprof -p <port>` on the
-  /// job's machine (over SSH with a port-forward for a remote one); (3) wait for
-  /// it to serve, then expose the URL — the terminal opens it in a web tab.
+  /// - [capture]: fire one request with the `x-zml-profiler` header so llmd
+  ///   writes a trace to `/tmp/xprof` — works whether or not xprof is up.
+  /// - [launch]: serve the machine's `/tmp/xprof` with `uvx xprof` (over SSH
+  ///   with a port-forward for a remote machine) and expose the URL — the
+  ///   terminal opens it in a web tab. [reopen] re-opens that tab; [stop] kills
+  ///   the server.
   ///
   /// Keep-alive (keyed by job id) so the xprof server keeps running while you
   /// navigate, and can be re-opened or stopped.
@@ -86,14 +95,17 @@ final class ProfilerControllerProvider
 }
 
 String _$profilerControllerHash() =>
-    r'cca89853dd0fefbccc048fd04723d578075e18d6';
+    r'b64df05da5641fef06c2d126e54d1bdd0c8c395f';
 
-/// Runs a profiler capture for a job and serves the trace with `xprof`.
+/// Drives profiling for a job, in two independent steps the UI exposes as
+/// separate actions:
 ///
-/// Steps: (1) fire one request with the `x-zml-profiler` header so llmd writes a
-/// trace to `/tmp/xprof`; (2) launch `uvx xprof -l /tmp/xprof -p <port>` on the
-/// job's machine (over SSH with a port-forward for a remote one); (3) wait for
-/// it to serve, then expose the URL — the terminal opens it in a web tab.
+/// - [capture]: fire one request with the `x-zml-profiler` header so llmd
+///   writes a trace to `/tmp/xprof` — works whether or not xprof is up.
+/// - [launch]: serve the machine's `/tmp/xprof` with `uvx xprof` (over SSH
+///   with a port-forward for a remote machine) and expose the URL — the
+///   terminal opens it in a web tab. [reopen] re-opens that tab; [stop] kills
+///   the server.
 ///
 /// Keep-alive (keyed by job id) so the xprof server keeps running while you
 /// navigate, and can be re-opened or stopped.
@@ -116,12 +128,15 @@ final class ProfilerControllerFamily extends $Family
         isAutoDispose: false,
       );
 
-  /// Runs a profiler capture for a job and serves the trace with `xprof`.
+  /// Drives profiling for a job, in two independent steps the UI exposes as
+  /// separate actions:
   ///
-  /// Steps: (1) fire one request with the `x-zml-profiler` header so llmd writes a
-  /// trace to `/tmp/xprof`; (2) launch `uvx xprof -l /tmp/xprof -p <port>` on the
-  /// job's machine (over SSH with a port-forward for a remote one); (3) wait for
-  /// it to serve, then expose the URL — the terminal opens it in a web tab.
+  /// - [capture]: fire one request with the `x-zml-profiler` header so llmd
+  ///   writes a trace to `/tmp/xprof` — works whether or not xprof is up.
+  /// - [launch]: serve the machine's `/tmp/xprof` with `uvx xprof` (over SSH
+  ///   with a port-forward for a remote machine) and expose the URL — the
+  ///   terminal opens it in a web tab. [reopen] re-opens that tab; [stop] kills
+  ///   the server.
   ///
   /// Keep-alive (keyed by job id) so the xprof server keeps running while you
   /// navigate, and can be re-opened or stopped.
@@ -133,12 +148,15 @@ final class ProfilerControllerFamily extends $Family
   String toString() => r'profilerControllerProvider';
 }
 
-/// Runs a profiler capture for a job and serves the trace with `xprof`.
+/// Drives profiling for a job, in two independent steps the UI exposes as
+/// separate actions:
 ///
-/// Steps: (1) fire one request with the `x-zml-profiler` header so llmd writes a
-/// trace to `/tmp/xprof`; (2) launch `uvx xprof -l /tmp/xprof -p <port>` on the
-/// job's machine (over SSH with a port-forward for a remote one); (3) wait for
-/// it to serve, then expose the URL — the terminal opens it in a web tab.
+/// - [capture]: fire one request with the `x-zml-profiler` header so llmd
+///   writes a trace to `/tmp/xprof` — works whether or not xprof is up.
+/// - [launch]: serve the machine's `/tmp/xprof` with `uvx xprof` (over SSH
+///   with a port-forward for a remote machine) and expose the URL — the
+///   terminal opens it in a web tab. [reopen] re-opens that tab; [stop] kills
+///   the server.
 ///
 /// Keep-alive (keyed by job id) so the xprof server keeps running while you
 /// navigate, and can be re-opened or stopped.
