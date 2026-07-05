@@ -13,9 +13,11 @@ import '../../configs/application/configs_providers.dart';
 import '../../machines/application/machines_providers.dart';
 
 /// Opens the custom job form, optionally pre-filled from a saved config.
-/// Uses the typed route so the query key always matches the generated one.
+/// Pushed (not `go`) so the form's Back returns to the screen it was opened
+/// from — the configs tab stays the configs tab. Uses the typed route so the
+/// query key always matches the generated one.
 void openConfigInForm(BuildContext context, String configId) =>
-    NewCustomJobRoute(configId: configId).go(context);
+    NewCustomJobRoute(configId: configId).push<void>(context);
 
 /// Presents the "New job" chooser as a centered modal over the current
 /// screen: pick a saved config to launch it right away, or build a custom job.
@@ -118,7 +120,8 @@ class _ModalBodyState extends ConsumerState<_ModalBody> {
   void _openCustom(BuildContext context) {
     final router = GoRouter.of(context);
     Navigator.of(context).pop();
-    router.go(const NewCustomJobRoute().location);
+    // Push so the form's Back returns to the screen the modal was opened on.
+    router.push<void>(const NewCustomJobRoute().location);
   }
 
   /// Launches [config] as-is: builds a job from it and starts it immediately,

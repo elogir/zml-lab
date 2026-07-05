@@ -59,6 +59,17 @@ class SavedBenchmarks extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// App-wide preferences as a key/value store (values stringified). One row
+/// per setting; absent keys mean "use the built-in default".
+@DataClassName('SettingRow')
+class Settings extends Table {
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {key};
+}
+
 /// Visited URLs for the web-tab address bar history/autocomplete.
 @DataClassName('BrowserHistoryRow')
 class BrowserHistoryEntries extends Table {

@@ -75,7 +75,10 @@ class Sidebar extends ConsumerWidget {
                 icon: AppIcons.jobs,
                 label: 'Jobs',
                 badge: running,
-                active: loc == '/' || loc.startsWith('/jobs'),
+                // The new-job form is contextual (pushed from any tab), so it
+                // claims no tab; job detail still counts as Jobs.
+                active: loc == '/' ||
+                    (loc.startsWith('/jobs') && !loc.startsWith('/jobs/new')),
                 onTap: () => context.go('/'),
               ),
               _NavItem(
@@ -102,6 +105,16 @@ class Sidebar extends ConsumerWidget {
                 active: loc.startsWith('/machines'),
                 onTap: () => context.go('/machines'),
               ),
+              const Spacer(),
+              _NavItem(
+                t: t,
+                icon: AppIcons.settings,
+                label: 'Settings',
+                badge: 0,
+                active: loc.startsWith('/settings'),
+                onTap: () => context.go('/settings'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
             ],
           ),
         );

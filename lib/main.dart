@@ -9,6 +9,7 @@ import 'dart:async';
 import 'app.dart';
 import 'core/bootstrap.dart';
 import 'core/execution/job_executor.dart';
+import 'features/settings/application/settings_controller.dart';
 import 'repositories/machine_repository.dart';
 
 Future<void> main() async {
@@ -43,9 +44,15 @@ Future<void> main() async {
     });
   }
 
-  // Own the container so we can seed the local machine before the first frame
-  // (and so the same instance backs the whole app).
+  // Own the container so we can seed the local machine and load settings
+  // before the first frame (and so the same instance backs the whole app).
   final container = ProviderContainer();
+  try {
+    // Before the first frame so the persisted theme doesn't flash.
+    await container.read(settingsControllerProvider.notifier).load();
+  } catch (e) {
+    debugPrint('settings load failed: $e');
+  }
   try {
     await ensureLocalMachine(container.read(machineRepositoryProvider));
   } catch (e) {

@@ -8,32 +8,46 @@ part of 'theme_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// App brightness. Defaults to dark (the shipped design); light is ready.
+/// The OS appearance, kept live: re-reads whenever macOS switches between
+/// light and dark (via a [WidgetsBindingObserver], which composes with other
+/// binding observers — unlike claiming `onPlatformBrightnessChanged`).
 
-@ProviderFor(ThemeModeController)
-final themeModeControllerProvider = ThemeModeControllerProvider._();
+@ProviderFor(platformBrightness)
+final platformBrightnessProvider = PlatformBrightnessProvider._();
 
-/// App brightness. Defaults to dark (the shipped design); light is ready.
-final class ThemeModeControllerProvider
-    extends $NotifierProvider<ThemeModeController, Brightness> {
-  /// App brightness. Defaults to dark (the shipped design); light is ready.
-  ThemeModeControllerProvider._()
+/// The OS appearance, kept live: re-reads whenever macOS switches between
+/// light and dark (via a [WidgetsBindingObserver], which composes with other
+/// binding observers — unlike claiming `onPlatformBrightnessChanged`).
+
+final class PlatformBrightnessProvider
+    extends $FunctionalProvider<Brightness, Brightness, Brightness>
+    with $Provider<Brightness> {
+  /// The OS appearance, kept live: re-reads whenever macOS switches between
+  /// light and dark (via a [WidgetsBindingObserver], which composes with other
+  /// binding observers — unlike claiming `onPlatformBrightnessChanged`).
+  PlatformBrightnessProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'themeModeControllerProvider',
-        isAutoDispose: true,
+        name: r'platformBrightnessProvider',
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$themeModeControllerHash();
+  String debugGetCreateSourceHash() => _$platformBrightnessHash();
 
   @$internal
   @override
-  ThemeModeController create() => ThemeModeController();
+  $ProviderElement<Brightness> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  Brightness create(Ref ref) {
+    return platformBrightness(ref);
+  }
 
   /// {@macro riverpod.override_with_value}
   Override overrideWithValue(Brightness value) {
@@ -44,47 +58,33 @@ final class ThemeModeControllerProvider
   }
 }
 
-String _$themeModeControllerHash() =>
-    r'2744526fd6f6fb02159614ed3d91cbac8ea6454d';
+String _$platformBrightnessHash() =>
+    r'b64a9ec3cd339ee8201df5d15a39aab07c1621a3';
 
-/// App brightness. Defaults to dark (the shipped design); light is ready.
-
-abstract class _$ThemeModeController extends $Notifier<Brightness> {
-  Brightness build();
-  @$mustCallSuper
-  @override
-  void runBuild() {
-    final ref = this.ref as $Ref<Brightness, Brightness>;
-    final element =
-        ref.element
-            as $ClassProviderElement<
-              AnyNotifier<Brightness, Brightness>,
-              Brightness,
-              Object?,
-              Object?
-            >;
-    element.handleCreate(ref, build);
-  }
-}
-
-/// The active palette, derived from the current brightness.
+/// The active palette: the theme-mode setting resolved against the OS
+/// appearance (only watched in system mode, so a forced theme doesn't rebuild
+/// on OS switches).
 
 @ProviderFor(appColors)
 final appColorsProvider = AppColorsProvider._();
 
-/// The active palette, derived from the current brightness.
+/// The active palette: the theme-mode setting resolved against the OS
+/// appearance (only watched in system mode, so a forced theme doesn't rebuild
+/// on OS switches).
 
 final class AppColorsProvider
     extends $FunctionalProvider<AppColors, AppColors, AppColors>
     with $Provider<AppColors> {
-  /// The active palette, derived from the current brightness.
+  /// The active palette: the theme-mode setting resolved against the OS
+  /// appearance (only watched in system mode, so a forced theme doesn't rebuild
+  /// on OS switches).
   AppColorsProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
         name: r'appColorsProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -111,4 +111,4 @@ final class AppColorsProvider
   }
 }
 
-String _$appColorsHash() => r'0d091cfb0c39b47ecf227d15151bd859c00b0ad0';
+String _$appColorsHash() => r'56f6b5cc4d796bc1fb1e07bf3f07ad9a7fa76355';

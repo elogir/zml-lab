@@ -35,6 +35,7 @@ class AppColors {
     required this.primaryButtonFg,
     required this.terminalBackground,
     required this.terminalBorder,
+    required this.terminalTabActive,
     required this.trafficRed,
     required this.trafficYellow,
     required this.trafficGreen,
@@ -96,6 +97,12 @@ class AppColors {
   /// blends into the near-black background.
   final Color terminalBorder;
 
+  /// The active tab in the terminal tab bar. Dark theme: the terminal
+  /// background, so the tab merges into the pane below. Light theme: a
+  /// selected-surface gray (the pane stays dark, so merging is impossible —
+  /// the tab follows the light chrome instead).
+  final Color terminalTabActive;
+
   // macOS-style window control dots.
   final Color trafficRed;
   final Color trafficYellow;
@@ -125,6 +132,7 @@ class AppColors {
     primaryButtonFg: Color(0xFF0B0C0F),
     terminalBackground: Color(0xFF0B0C0E),
     terminalBorder: Color(0xFF3B424E),
+    terminalTabActive: Color(0xFF0B0C0E),
     trafficRed: Color(0xFFFF5F57),
     trafficYellow: Color(0xFFFEBC2E),
     trafficGreen: Color(0xFF28C840),
@@ -156,6 +164,7 @@ class AppColors {
     primaryButtonFg: Color(0xFFFFFFFF),
     terminalBackground: Color(0xFF0B0C0E),
     terminalBorder: Color(0xFF3B424E),
+    terminalTabActive: Color(0xFFEAECEF),
     trafficRed: Color(0xFFFF5F57),
     trafficYellow: Color(0xFFFEBC2E),
     trafficGreen: Color(0xFF28C840),

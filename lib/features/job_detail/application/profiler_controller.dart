@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/execution/job_executor.dart';
 import '../../../core/execution/native_io.dart';
 import '../../../models/machine.dart';
 import '../presentation/terminal_session.dart';
@@ -54,7 +55,20 @@ class ProfilerController extends _$ProfilerController {
 
   @override
   ProfilerRun build(String jobId) {
-    ref.onDispose(() => _xprof?.dispose());
+    // A failure message describes the process it ran against — once the
+    // executor spawns a replacement, clear it back to idle instead of showing
+    // a stale error against the fresh server. (Plain addListener: the executor
+    // is a ChangeNotifier; its provider state never changes.)
+    final executor = ref.watch(jobExecutorProvider);
+    void onExecutorChanged() {
+      if (state.phase == ProfilerPhase.failed) state = const ProfilerRun();
+    }
+
+    executor.addListener(onExecutorChanged);
+    ref.onDispose(() {
+      executor.removeListener(onExecutorChanged);
+      _xprof?.dispose();
+    });
     return const ProfilerRun();
   }
 

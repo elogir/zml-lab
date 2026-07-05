@@ -15,6 +15,7 @@ import '../../../models/machine.dart';
 import '../../../repositories/config_repository.dart';
 import '../../../repositories/job_repository.dart';
 import '../../machines/application/machines_providers.dart';
+import '../../settings/application/settings_controller.dart';
 
 /// The custom job builder. Optionally pre-filled from a saved config.
 /// Fields are wired to controllers; the launch/save actions are deferred.
@@ -80,17 +81,26 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
     });
   }
 
-  /// Fills the port with a genuinely free one, avoiding ports already claimed
-  /// by active jobs. Reads the jobs table directly (not the stream, which may
-  /// still be loading) so the avoid-set is never empty by accident. Skipped
-  /// once the user (or a config) has set the port.
+  /// Fills the port with a genuinely free one from the configured range,
+  /// avoiding ports already claimed by active jobs. Reads the jobs table
+  /// directly (not the stream, which may still be loading) so the avoid-set is
+  /// never empty by accident. Skipped once the user (or a config) has set the
+  /// port.
   Future<void> _prefillFreePort() async {
     final jobs = await ref.read(jobRepositoryProvider).allJobs();
     final taken = {
       for (final j in jobs)
         if (j.status.isActive) j.port,
     };
-    final port = await findFreePort(avoid: taken);
+    final s = ref.read(settingsControllerProvider);
+    final port = await findFreePort(
+      start: s.portRangeStart,
+      // Guard a misconfigured range (end at/below start) to one candidate.
+      end: s.portRangeEnd > s.portRangeStart
+          ? s.portRangeEnd
+          : s.portRangeStart + 1,
+      avoid: taken,
+    );
     if (!mounted || _portEdited) return;
     setState(() => _port.text = '$port');
   }
@@ -108,7 +118,15 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
     super.dispose();
   }
 
-  void _back() => context.go('/');
+  /// Back to wherever the form was opened from (jobs, configs, …); the form
+  /// is pushed, so a plain pop restores the previous screen and tab.
+  void _back() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/');
+    }
+  }
 
   /// Reads the form into a Job + its target Machine, or null if it's not
   /// launchable yet (no command, no machine, or an unparseable port).
@@ -197,7 +215,7 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              BackLink(label: 'Back to jobs', onTap: _back),
+              BackLink(label: 'Back', onTap: _back),
               const SizedBox(height: AppSpacing.md),
               Text('New custom job', style: context.text.title),
               const SizedBox(height: 4),

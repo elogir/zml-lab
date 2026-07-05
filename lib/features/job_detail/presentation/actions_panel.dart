@@ -99,27 +99,31 @@ class ActionsPanel extends StatelessWidget {
                 ),
               _ActionTile(
                 t: t,
-                icon: AppIcons.profiler,
-                title: profilerTitle,
-                subtitle: profilerSubtitle,
-                onTap: onProfile,
-                trailing: onProfileStop == null
-                    ? null
-                    : AppIconButton(
-                        icon: AppIcons.kill,
-                        size: 13,
-                        color: c.statusFailed,
-                        padding: const EdgeInsets.all(6),
-                        onPressed: onProfileStop,
-                      ),
-              ),
-              _ActionTile(
-                t: t,
                 icon: AppIcons.restart,
                 title: 'Restart',
                 subtitle: 'relaunch process',
                 onTap: onRestart,
               ),
+              // Profiling needs a live server — hidden on a stopped job,
+              // except while a captured xprof session is still up (so it can
+              // be reopened or stopped).
+              if (!job.isStopped || onProfileStop != null)
+                _ActionTile(
+                  t: t,
+                  icon: AppIcons.profiler,
+                  title: profilerTitle,
+                  subtitle: profilerSubtitle,
+                  onTap: onProfile,
+                  trailing: onProfileStop == null
+                      ? null
+                      : AppIconButton(
+                          icon: AppIcons.kill,
+                          size: 13,
+                          color: c.statusFailed,
+                          padding: const EdgeInsets.all(6),
+                          onPressed: onProfileStop,
+                        ),
+                ),
               _ActionTile(
                 t: t,
                 icon: AppIcons.testEndpoint,

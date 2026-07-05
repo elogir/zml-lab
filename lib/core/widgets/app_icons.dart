@@ -9,6 +9,7 @@ abstract final class AppIcons {
   static const IconData configs = LucideIcons.settings2;
   static const IconData machines = LucideIcons.monitor;
   static const IconData savedBenchmarks = LucideIcons.chartColumnBig;
+  static const IconData settings = LucideIcons.settings;
   static const IconData collapseSidebar = LucideIcons.panelLeft;
   static const IconData chevronRight = LucideIcons.chevronRight;
   static const IconData chevronLeft = LucideIcons.chevronLeft;
@@ -16,6 +17,7 @@ abstract final class AppIcons {
 
   // Actions
   static const IconData add = LucideIcons.plus;
+  static const IconData minus = LucideIcons.minus;
   static const IconData play = LucideIcons.play;
   static const IconData close = LucideIcons.x;
   static const IconData delete = LucideIcons.trash2;
@@ -46,6 +48,11 @@ abstract final class AppIcons {
   static const IconData search = LucideIcons.search;
   static const IconData findPrev = LucideIcons.chevronUp;
   static const IconData findNext = LucideIcons.chevronDown;
+
+  // Theme modes
+  static const IconData themeSystem = LucideIcons.monitor;
+  static const IconData themeLight = LucideIcons.sun;
+  static const IconData themeDark = LucideIcons.moon;
 
   // Machine details
   static const IconData gpu = LucideIcons.cpu;
