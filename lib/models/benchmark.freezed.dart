@@ -14,7 +14,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$BenchmarkRequest {
 
- int get index; BenchmarkRequestStatus get status; String get text; int get tokens; double get tokensPerSecond; int? get ttftMs; int? get latencyMs;/// The server's `finish_reason` for the reply, once one arrived
+ int get index; BenchmarkRequestStatus get status; String get text;/// The model's thinking output (from `reasoning_content`), shown above the
+/// answer for reasoning models. Empty when the model doesn't emit any.
+ String get reasoning; int get tokens; double get tokensPerSecond; int? get ttftMs; int? get latencyMs;/// The server's `finish_reason` for the reply, once one arrived
 /// (`stop`, `length`, `tool_calls`, …).
  String? get finishReason;
 /// Create a copy of BenchmarkRequest
@@ -27,16 +29,16 @@ $BenchmarkRequestCopyWith<BenchmarkRequest> get copyWith => _$BenchmarkRequestCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkRequest&&(identical(other.index, index) || other.index == index)&&(identical(other.status, status) || other.status == status)&&(identical(other.text, text) || other.text == text)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkRequest&&(identical(other.index, index) || other.index == index)&&(identical(other.status, status) || other.status == status)&&(identical(other.text, text) || other.text == text)&&(identical(other.reasoning, reasoning) || other.reasoning == reasoning)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,index,status,text,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason);
+int get hashCode => Object.hash(runtimeType,index,status,text,reasoning,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason);
 
 @override
 String toString() {
-  return 'BenchmarkRequest(index: $index, status: $status, text: $text, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason)';
+  return 'BenchmarkRequest(index: $index, status: $status, text: $text, reasoning: $reasoning, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason)';
 }
 
 
@@ -47,7 +49,7 @@ abstract mixin class $BenchmarkRequestCopyWith<$Res>  {
   factory $BenchmarkRequestCopyWith(BenchmarkRequest value, $Res Function(BenchmarkRequest) _then) = _$BenchmarkRequestCopyWithImpl;
 @useResult
 $Res call({
- int index, BenchmarkRequestStatus status, String text, int tokens, double tokensPerSecond, int? ttftMs, int? latencyMs, String? finishReason
+ int index, BenchmarkRequestStatus status, String text, String reasoning, int tokens, double tokensPerSecond, int? ttftMs, int? latencyMs, String? finishReason
 });
 
 
@@ -64,11 +66,12 @@ class _$BenchmarkRequestCopyWithImpl<$Res>
 
 /// Create a copy of BenchmarkRequest
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? index = null,Object? status = null,Object? text = null,Object? tokens = null,Object? tokensPerSecond = null,Object? ttftMs = freezed,Object? latencyMs = freezed,Object? finishReason = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? index = null,Object? status = null,Object? text = null,Object? reasoning = null,Object? tokens = null,Object? tokensPerSecond = null,Object? ttftMs = freezed,Object? latencyMs = freezed,Object? finishReason = freezed,}) {
   return _then(_self.copyWith(
 index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
 as int,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as BenchmarkRequestStatus,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String,reasoning: null == reasoning ? _self.reasoning : reasoning // ignore: cast_nullable_to_non_nullable
 as String,tokens: null == tokens ? _self.tokens : tokens // ignore: cast_nullable_to_non_nullable
 as int,tokensPerSecond: null == tokensPerSecond ? _self.tokensPerSecond : tokensPerSecond // ignore: cast_nullable_to_non_nullable
 as double,ttftMs: freezed == ttftMs ? _self.ttftMs : ttftMs // ignore: cast_nullable_to_non_nullable
@@ -159,10 +162,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int index,  BenchmarkRequestStatus status,  String text,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs,  String? finishReason)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int index,  BenchmarkRequestStatus status,  String text,  String reasoning,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs,  String? finishReason)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _BenchmarkRequest() when $default != null:
-return $default(_that.index,_that.status,_that.text,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs,_that.finishReason);case _:
+return $default(_that.index,_that.status,_that.text,_that.reasoning,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs,_that.finishReason);case _:
   return orElse();
 
 }
@@ -180,10 +183,10 @@ return $default(_that.index,_that.status,_that.text,_that.tokens,_that.tokensPer
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int index,  BenchmarkRequestStatus status,  String text,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs,  String? finishReason)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int index,  BenchmarkRequestStatus status,  String text,  String reasoning,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs,  String? finishReason)  $default,) {final _that = this;
 switch (_that) {
 case _BenchmarkRequest():
-return $default(_that.index,_that.status,_that.text,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs,_that.finishReason);case _:
+return $default(_that.index,_that.status,_that.text,_that.reasoning,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs,_that.finishReason);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +203,10 @@ return $default(_that.index,_that.status,_that.text,_that.tokens,_that.tokensPer
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int index,  BenchmarkRequestStatus status,  String text,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs,  String? finishReason)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int index,  BenchmarkRequestStatus status,  String text,  String reasoning,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs,  String? finishReason)?  $default,) {final _that = this;
 switch (_that) {
 case _BenchmarkRequest() when $default != null:
-return $default(_that.index,_that.status,_that.text,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs,_that.finishReason);case _:
+return $default(_that.index,_that.status,_that.text,_that.reasoning,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs,_that.finishReason);case _:
   return null;
 
 }
@@ -215,12 +218,15 @@ return $default(_that.index,_that.status,_that.text,_that.tokens,_that.tokensPer
 
 
 class _BenchmarkRequest extends BenchmarkRequest {
-  const _BenchmarkRequest({required this.index, this.status = BenchmarkRequestStatus.queued, this.text = '', this.tokens = 0, this.tokensPerSecond = 0, this.ttftMs, this.latencyMs, this.finishReason}): super._();
+  const _BenchmarkRequest({required this.index, this.status = BenchmarkRequestStatus.queued, this.text = '', this.reasoning = '', this.tokens = 0, this.tokensPerSecond = 0, this.ttftMs, this.latencyMs, this.finishReason}): super._();
   
 
 @override final  int index;
 @override@JsonKey() final  BenchmarkRequestStatus status;
 @override@JsonKey() final  String text;
+/// The model's thinking output (from `reasoning_content`), shown above the
+/// answer for reasoning models. Empty when the model doesn't emit any.
+@override@JsonKey() final  String reasoning;
 @override@JsonKey() final  int tokens;
 @override@JsonKey() final  double tokensPerSecond;
 @override final  int? ttftMs;
@@ -239,16 +245,16 @@ _$BenchmarkRequestCopyWith<_BenchmarkRequest> get copyWith => __$BenchmarkReques
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkRequest&&(identical(other.index, index) || other.index == index)&&(identical(other.status, status) || other.status == status)&&(identical(other.text, text) || other.text == text)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkRequest&&(identical(other.index, index) || other.index == index)&&(identical(other.status, status) || other.status == status)&&(identical(other.text, text) || other.text == text)&&(identical(other.reasoning, reasoning) || other.reasoning == reasoning)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,index,status,text,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason);
+int get hashCode => Object.hash(runtimeType,index,status,text,reasoning,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason);
 
 @override
 String toString() {
-  return 'BenchmarkRequest(index: $index, status: $status, text: $text, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason)';
+  return 'BenchmarkRequest(index: $index, status: $status, text: $text, reasoning: $reasoning, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason)';
 }
 
 
@@ -259,7 +265,7 @@ abstract mixin class _$BenchmarkRequestCopyWith<$Res> implements $BenchmarkReque
   factory _$BenchmarkRequestCopyWith(_BenchmarkRequest value, $Res Function(_BenchmarkRequest) _then) = __$BenchmarkRequestCopyWithImpl;
 @override @useResult
 $Res call({
- int index, BenchmarkRequestStatus status, String text, int tokens, double tokensPerSecond, int? ttftMs, int? latencyMs, String? finishReason
+ int index, BenchmarkRequestStatus status, String text, String reasoning, int tokens, double tokensPerSecond, int? ttftMs, int? latencyMs, String? finishReason
 });
 
 
@@ -276,11 +282,12 @@ class __$BenchmarkRequestCopyWithImpl<$Res>
 
 /// Create a copy of BenchmarkRequest
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? status = null,Object? text = null,Object? tokens = null,Object? tokensPerSecond = null,Object? ttftMs = freezed,Object? latencyMs = freezed,Object? finishReason = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? status = null,Object? text = null,Object? reasoning = null,Object? tokens = null,Object? tokensPerSecond = null,Object? ttftMs = freezed,Object? latencyMs = freezed,Object? finishReason = freezed,}) {
   return _then(_BenchmarkRequest(
 index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
 as int,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as BenchmarkRequestStatus,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String,reasoning: null == reasoning ? _self.reasoning : reasoning // ignore: cast_nullable_to_non_nullable
 as String,tokens: null == tokens ? _self.tokens : tokens // ignore: cast_nullable_to_non_nullable
 as int,tokensPerSecond: null == tokensPerSecond ? _self.tokensPerSecond : tokensPerSecond // ignore: cast_nullable_to_non_nullable
 as double,ttftMs: freezed == ttftMs ? _self.ttftMs : ttftMs // ignore: cast_nullable_to_non_nullable

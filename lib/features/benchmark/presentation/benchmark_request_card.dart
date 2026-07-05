@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/benchmark.dart';
+import 'reasoning_view.dart';
 
 Color benchmarkStatusColor(BenchmarkRequestStatus status, AppColors c) =>
     switch (status) {
@@ -77,7 +78,7 @@ class BenchmarkRequestCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: ClipRect(
-              child: request.text.isEmpty
+              child: request.text.isEmpty && request.reasoning.isEmpty
                   ? Text(
                       '…',
                       style: context.text.monoSmall.copyWith(
@@ -100,12 +101,19 @@ class BenchmarkRequestCard extends StatelessWidget {
                           ),
                           child: Align(
                             alignment: Alignment.topLeft,
-                            child: AppMarkdown(
-                              request.text,
-                              style: context.text.small.copyWith(
-                                color: c.textSecondary,
-                                height: 1.5,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (request.reasoning.isNotEmpty)
+                                  ReasoningView(request.reasoning, dense: true),
+                                AppMarkdown(
+                                  request.text,
+                                  style: context.text.small.copyWith(
+                                    color: c.textSecondary,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),

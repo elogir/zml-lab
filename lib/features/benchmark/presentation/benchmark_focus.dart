@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/benchmark_chat.dart';
 import '../application/benchmark_chat_controller.dart';
+import 'reasoning_view.dart';
 
 /// Opens the clicked benchmark request as a chat: its prompt and reply seed the
 /// conversation, and the user can keep sending single requests and watch each
@@ -275,14 +276,19 @@ class _Turn extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (turn.reasoning.isNotEmpty) ReasoningView(turn.reasoning),
                 if (turn.text.isEmpty)
-                  Text(
-                    '…',
-                    style: context.text.mono.copyWith(
-                      color: c.textSecondary,
-                      height: 1.5,
-                    ),
-                  )
+                  // Placeholder only before anything (not while thinking) shows.
+                  if (turn.reasoning.isEmpty)
+                    Text(
+                      '…',
+                      style: context.text.mono.copyWith(
+                        color: c.textSecondary,
+                        height: 1.5,
+                      ),
+                    )
+                  else
+                    const SizedBox.shrink()
                 else
                   // The model's reply, rendered as markdown.
                   AppMarkdown(

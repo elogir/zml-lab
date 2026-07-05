@@ -74,6 +74,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
   ChatTurn _seedTurn(BenchmarkRequest r) => ChatTurn(
     fromUser: false,
     text: r.text,
+    reasoning: r.reasoning,
     streaming: r.status == BenchmarkRequestStatus.streaming,
     tokens: r.tokens,
     tokensPerSecond: r.tokensPerSecond,
@@ -131,6 +132,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
 
     DateTime? firstTokenAt;
     final buffer = StringBuffer();
+    final reasoning = StringBuffer();
     var chunkTokens = 0;
     var usageTokens = 0;
     String? finishReason;
@@ -148,6 +150,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
         ChatTurn(
           fromUser: false,
           text: text.isEmpty && failed ? '(request failed)' : text,
+          reasoning: reasoning.toString(),
           streaming: streaming,
           tokens: tokens,
           tokensPerSecond: tps,
@@ -169,9 +172,18 @@ class BenchmarkChatController extends _$BenchmarkChatController {
           temperature: run.temperature,
         ).listen(
           (tok) {
-            firstTokenAt ??= DateTime.now();
             final content = tok.content;
-            if (content != null && content.isNotEmpty) {
+            final reason = tok.reasoning;
+            final hasContent = content != null && content.isNotEmpty;
+            final hasReasoning = reason != null && reason.isNotEmpty;
+            // Clock starts at the first real token (see the batch controller),
+            // so the ttft isn't folded into the tok/s window.
+            if (hasContent || hasReasoning) firstTokenAt ??= DateTime.now();
+            if (hasReasoning) {
+              reasoning.write(reason);
+              chunkTokens += 1;
+            }
+            if (hasContent) {
               buffer.write(content);
               chunkTokens += 1;
             }

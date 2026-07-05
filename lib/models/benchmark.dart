@@ -30,6 +30,10 @@ abstract class BenchmarkRequest with _$BenchmarkRequest {
     required int index,
     @Default(BenchmarkRequestStatus.queued) BenchmarkRequestStatus status,
     @Default('') String text,
+
+    /// The model's thinking output (from `reasoning_content`), shown above the
+    /// answer for reasoning models. Empty when the model doesn't emit any.
+    @Default('') String reasoning,
     @Default(0) int tokens,
     @Default(0) double tokensPerSecond,
     int? ttftMs,
