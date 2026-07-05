@@ -220,7 +220,7 @@ return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_tha
 
 
 class _AppSettings implements AppSettings {
-  const _AppSettings({this.themeMode = AppThemeMode.system, this.terminalFontSize = 14.0, this.portRangeStart = 8000, this.portRangeEnd = 8100, this.healthIntervalSeconds = 5, this.benchPrompt = defaultBenchmarkPrompt, this.benchBatchSize = 8, this.benchMaxTokens, this.benchTemperature});
+  const _AppSettings({this.themeMode = AppThemeMode.system, this.terminalFontSize = 14.0, this.portRangeStart = 8000, this.portRangeEnd = 8100, this.healthIntervalSeconds = 5, this.benchPrompt = defaultBenchmarkPrompt, this.benchBatchSize = 16, this.benchMaxTokens, this.benchTemperature});
   
 
 @override@JsonKey() final  AppThemeMode themeMode;

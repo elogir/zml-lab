@@ -39,7 +39,7 @@ abstract class AppSettings with _$AppSettings {
 
     // Defaults a job's benchmark tab starts with.
     @Default(defaultBenchmarkPrompt) String benchPrompt,
-    @Default(8) int benchBatchSize,
+    @Default(16) int benchBatchSize,
 
     /// Null = unlimited (the server stops at EOS or its max seqlen).
     int? benchMaxTokens,
