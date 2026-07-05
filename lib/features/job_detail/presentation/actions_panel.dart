@@ -31,10 +31,12 @@ class ActionsPanel extends StatelessWidget {
     required this.onToggle,
     this.onKill,
     this.onRestart,
-    this.onProfile,
-    this.onProfileStop,
-    this.profilerTitle = 'Run profiler',
-    this.profilerSubtitle = 'new tab',
+    this.onCapture,
+    this.captureSubtitle = 'send profiled request',
+    this.onXprof,
+    this.onXprofStop,
+    this.xprofTitle = 'Launch xprof',
+    this.xprofSubtitle = 'serve captured traces',
     this.onTest,
     this.onDelete,
   });
@@ -49,18 +51,24 @@ class ActionsPanel extends StatelessWidget {
   /// Stops (if needed) and relaunches the job's process.
   final VoidCallback? onRestart;
 
-  /// Captures a profile trace and opens it in xprof, or (once ready) re-opens
-  /// its tab. Null while a capture is in flight.
-  final VoidCallback? onProfile;
+  /// Sends one profiled request so the server writes a trace — independent of
+  /// xprof. Null while a capture is in flight.
+  final VoidCallback? onCapture;
 
-  /// Stops the running xprof server. Non-null only once a profiler is ready.
-  final VoidCallback? onProfileStop;
+  /// Live status line for the capture tile ('capturing…', 'trace captured').
+  final String captureSubtitle;
 
-  /// Title of the profiler tile ('Run profiler' or 'Open profiler').
-  final String profilerTitle;
+  /// Launches xprof, or (once ready) re-opens its tab. Null while launching.
+  final VoidCallback? onXprof;
 
-  /// Live status line for the profiler tile ('new tab', 'capturing trace…', …).
-  final String profilerSubtitle;
+  /// Stops the running xprof server. Non-null only once xprof is ready.
+  final VoidCallback? onXprofStop;
+
+  /// Title of the xprof tile ('Launch xprof' or 'Open xprof').
+  final String xprofTitle;
+
+  /// Live status line for the xprof tile ('starting xprof…', 'xprof running').
+  final String xprofSubtitle;
 
   /// Probes the job's endpoint (opens a result popup).
   final VoidCallback? onTest;
@@ -104,26 +112,6 @@ class ActionsPanel extends StatelessWidget {
                 subtitle: 'relaunch process',
                 onTap: onRestart,
               ),
-              // Profiling needs a live server — hidden on a stopped job,
-              // except while a captured xprof session is still up (so it can
-              // be reopened or stopped).
-              if (!job.isStopped || onProfileStop != null)
-                _ActionTile(
-                  t: t,
-                  icon: AppIcons.profiler,
-                  title: profilerTitle,
-                  subtitle: profilerSubtitle,
-                  onTap: onProfile,
-                  trailing: onProfileStop == null
-                      ? null
-                      : AppIconButton(
-                          icon: AppIcons.kill,
-                          size: 13,
-                          color: c.statusFailed,
-                          padding: const EdgeInsets.all(6),
-                          onPressed: onProfileStop,
-                        ),
-                ),
               _ActionTile(
                 t: t,
                 icon: AppIcons.testEndpoint,
@@ -131,6 +119,35 @@ class ActionsPanel extends StatelessWidget {
                 subtitle: ':${job.port}/v1',
                 onTap: onTest,
               ),
+              // Profiling group. Capturing needs a live server; the xprof tile
+              // only needs trace files, but on a stopped job it's shown only
+              // while its server is still up (so it can be reopened/stopped).
+              if (!job.isStopped || onXprofStop != null) _Separator(t: t),
+              if (!job.isStopped)
+                _ActionTile(
+                  t: t,
+                  icon: AppIcons.captureTrace,
+                  title: 'Capture trace',
+                  subtitle: captureSubtitle,
+                  onTap: onCapture,
+                ),
+              if (!job.isStopped || onXprofStop != null)
+                _ActionTile(
+                  t: t,
+                  icon: AppIcons.profiler,
+                  title: xprofTitle,
+                  subtitle: xprofSubtitle,
+                  onTap: onXprof,
+                  trailing: onXprofStop == null
+                      ? null
+                      : AppIconButton(
+                          icon: AppIcons.kill,
+                          size: 13,
+                          color: c.statusFailed,
+                          padding: const EdgeInsets.all(6),
+                          onPressed: onXprofStop,
+                        ),
+                ),
               if (job.isStopped)
                 _ActionTile(
                   t: t,
@@ -197,6 +214,26 @@ class _Header extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Thin rule between action groups. Insets match the tile highlight when
+/// expanded and shrink toward the icon square when collapsed.
+class _Separator extends StatelessWidget {
+  const _Separator({required this.t});
+
+  final double t;
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = _lerp((_collapsedInner - _iconBox) / 2, 0, t) + AppSpacing.sm;
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: inset,
+        vertical: AppSpacing.sm,
+      ),
+      child: Container(height: 1, color: context.colors.borderMuted),
     );
   }
 }

@@ -139,7 +139,16 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                   onRestart: machine == null
                       ? null
                       : () => ref.read(jobExecutorProvider).restart(job, machine),
-                  onProfile: (machine == null || profiler.isBusy)
+                  onCapture: profiler.capturing
+                      ? null
+                      : () => ref
+                            .read(profilerControllerProvider(job.id).notifier)
+                            .capture(host: host, port: job.port),
+                  captureSubtitle:
+                      profiler.captureMessage ?? 'send profiled request',
+                  onXprof:
+                      (machine == null ||
+                          profiler.phase == ProfilerPhase.launching)
                       ? null
                       : () {
                           final notifier = ref.read(
@@ -148,25 +157,22 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                           if (profiler.isReady) {
                             notifier.reopen();
                           } else {
-                            notifier.run(
-                              host: host,
-                              port: job.port,
+                            notifier.launch(
                               machine: machine,
+                              jobPort: job.port,
                             );
                           }
                         },
-                  onProfileStop: profiler.isReady
+                  onXprofStop: profiler.isReady
                       ? () => ref
                             .read(profilerControllerProvider(job.id).notifier)
                             .stop()
                       : null,
-                  profilerTitle: profiler.isReady
-                      ? 'Open profiler'
-                      : 'Run profiler',
-                  profilerSubtitle: switch (profiler.phase) {
+                  xprofTitle: profiler.isReady ? 'Open xprof' : 'Launch xprof',
+                  xprofSubtitle: switch (profiler.phase) {
                     ProfilerPhase.ready => 'xprof running',
                     ProfilerPhase.failed => profiler.message ?? 'failed',
-                    _ => profiler.message ?? 'new tab',
+                    _ => profiler.message ?? 'serve captured traces',
                   },
                   onTest: () =>
                       showEndpointTest(context, host: host, port: job.port),

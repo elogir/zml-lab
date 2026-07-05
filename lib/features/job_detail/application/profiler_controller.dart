@@ -9,18 +9,30 @@ import '../presentation/terminal_session.dart';
 
 part 'profiler_controller.g.dart';
 
-enum ProfilerPhase { idle, capturing, launching, ready, failed }
+enum ProfilerPhase { idle, launching, ready, failed }
 
-/// State of a profiler run: capture a trace, launch xprof, then expose its URL.
+/// Profiler state for a job — two independent halves:
+/// capturing a trace (one profiled request) and serving traces with xprof.
 class ProfilerRun {
   const ProfilerRun({
+    this.capturing = false,
+    this.captureMessage,
     this.phase = ProfilerPhase.idle,
     this.message,
     this.url,
     this.openToken = 0,
   });
 
+  /// True while a profiled request is in flight.
+  final bool capturing;
+
+  /// Status line for the capture tile ('capturing…', 'trace captured', error).
+  final String? captureMessage;
+
+  /// The xprof server's lifecycle.
   final ProfilerPhase phase;
+
+  /// Status line for the xprof tile while launching / after failing.
   final String? message;
 
   /// The xprof web UI URL, set once it's serving.
@@ -31,17 +43,40 @@ class ProfilerRun {
   /// remounted (navigating away and back).
   final int openToken;
 
-  bool get isBusy =>
-      phase == ProfilerPhase.capturing || phase == ProfilerPhase.launching;
   bool get isReady => phase == ProfilerPhase.ready && url != null;
+
+  static const _unset = Object();
+
+  ProfilerRun copyWith({
+    bool? capturing,
+    Object? captureMessage = _unset,
+    ProfilerPhase? phase,
+    Object? message = _unset,
+    Object? url = _unset,
+    int? openToken,
+  }) {
+    return ProfilerRun(
+      capturing: capturing ?? this.capturing,
+      captureMessage: identical(captureMessage, _unset)
+          ? this.captureMessage
+          : captureMessage as String?,
+      phase: phase ?? this.phase,
+      message: identical(message, _unset) ? this.message : message as String?,
+      url: identical(url, _unset) ? this.url : url as String?,
+      openToken: openToken ?? this.openToken,
+    );
+  }
 }
 
-/// Runs a profiler capture for a job and serves the trace with `xprof`.
+/// Drives profiling for a job, in two independent steps the UI exposes as
+/// separate actions:
 ///
-/// Steps: (1) fire one request with the `x-zml-profiler` header so llmd writes a
-/// trace to `/tmp/xprof`; (2) launch `uvx xprof -l /tmp/xprof -p <port>` on the
-/// job's machine (over SSH with a port-forward for a remote one); (3) wait for
-/// it to serve, then expose the URL — the terminal opens it in a web tab.
+/// - [capture]: fire one request with the `x-zml-profiler` header so llmd
+///   writes a trace to `/tmp/xprof` — works whether or not xprof is up.
+/// - [launch]: serve the machine's `/tmp/xprof` with `uvx xprof` (over SSH
+///   with a port-forward for a remote machine) and expose the URL — the
+///   terminal opens it in a web tab. [reopen] re-opens that tab; [stop] kills
+///   the server.
 ///
 /// Keep-alive (keyed by job id) so the xprof server keeps running while you
 /// navigate, and can be re-opened or stopped.
@@ -55,13 +90,23 @@ class ProfilerController extends _$ProfilerController {
 
   @override
   ProfilerRun build(String jobId) {
-    // A failure message describes the process it ran against — once the
-    // executor spawns a replacement, clear it back to idle instead of showing
-    // a stale error against the fresh server. (Plain addListener: the executor
-    // is a ChangeNotifier; its provider state never changes.)
+    // Failure/status messages describe the process they ran against — once the
+    // executor spawns a replacement, clear them instead of showing stale
+    // errors against the fresh server. A ready xprof stays: it serves trace
+    // files, not the live process. (Plain addListener: the executor is a
+    // ChangeNotifier; its provider state never changes.)
     final executor = ref.watch(jobExecutorProvider);
     void onExecutorChanged() {
-      if (state.phase == ProfilerPhase.failed) state = const ProfilerRun();
+      final s = state;
+      final failed = s.phase == ProfilerPhase.failed;
+      if (s.captureMessage == null && !failed) return;
+      state = failed
+          ? s.copyWith(
+              captureMessage: null,
+              phase: ProfilerPhase.idle,
+              message: null,
+            )
+          : s.copyWith(captureMessage: null);
     }
 
     executor.addListener(onExecutorChanged);
@@ -72,67 +117,79 @@ class ProfilerController extends _$ProfilerController {
     return const ProfilerRun();
   }
 
-  Future<void> run({
-    required String host,
-    required int port,
-    required Machine machine,
-  }) async {
-    if (state.isBusy) return;
+  /// Send one profiled request (llmd writes the trace to [_logdir]).
+  /// Independent of xprof — captures land whether or not it's serving.
+  Future<void> capture({required String host, required int port}) async {
+    if (state.capturing) return;
+    state = state.copyWith(capturing: true, captureMessage: 'capturing…');
     try {
-      state = const ProfilerRun(
-        phase: ProfilerPhase.capturing,
-        message: 'capturing trace…',
-      );
       await runProfileRequest(host, port);
+      state = state.copyWith(capturing: false, captureMessage: 'trace captured');
+    } catch (e) {
+      state = state.copyWith(capturing: false, captureMessage: '$e');
+    }
+  }
 
-      state = const ProfilerRun(
-        phase: ProfilerPhase.launching,
-        message: 'starting xprof…',
-      );
-      final xprofPort = await findFreePort(start: 8791, end: 8891, avoid: {port});
+  /// Start xprof serving [_logdir] on the job's machine, then expose its URL.
+  Future<void> launch({required Machine machine, required int jobPort}) async {
+    if (state.phase == ProfilerPhase.launching) return;
+    state = state.copyWith(
+      phase: ProfilerPhase.launching,
+      message: 'starting xprof…',
+      url: null,
+    );
+    try {
+      final xprofPort =
+          await findFreePort(start: 8791, end: 8891, avoid: {jobPort});
       _xprof?.dispose();
       _xprof = TerminalSession(runCommand: _xprofCommand(machine, xprofPort));
 
       final serving = await _waitForXprof(xprofPort);
       if (!serving) {
-        state = const ProfilerRun(
+        state = state.copyWith(
           phase: ProfilerPhase.failed,
           message: 'xprof did not start',
         );
         return;
       }
       _lastUrl = 'http://localhost:$xprofPort';
-      state = ProfilerRun(
+      state = state.copyWith(
         phase: ProfilerPhase.ready,
+        message: null,
         url: _lastUrl,
         openToken: ++_openToken,
       );
     } catch (e) {
-      state = ProfilerRun(phase: ProfilerPhase.failed, message: '$e');
+      state = state.copyWith(phase: ProfilerPhase.failed, message: '$e');
     }
   }
 
   /// Re-open the xprof tab (if the user closed it) — bumps the open token so the
-  /// terminal opens it again, without re-capturing.
+  /// terminal opens it again, without relaunching.
   void reopen() {
     if (_lastUrl == null) return;
-    state = ProfilerRun(
+    state = state.copyWith(
       phase: ProfilerPhase.ready,
       url: _lastUrl,
       openToken: ++_openToken,
     );
   }
 
-  /// Stop the xprof server and reset to idle.
+  /// Stop the xprof server and reset its half to idle.
   void stop() {
     _xprof?.dispose();
     _xprof = null;
     _lastUrl = null;
-    state = const ProfilerRun();
+    state = state.copyWith(
+      phase: ProfilerPhase.idle,
+      message: null,
+      url: null,
+    );
   }
 
   String _xprofCommand(Machine machine, int port) {
-    final xprof = 'uvx xprof -l $_logdir -p $port';
+    // mkdir first so xprof can serve a job that hasn't captured yet.
+    final xprof = 'mkdir -p $_logdir && uvx xprof -l $_logdir -p $port';
     if (machine.isLocal) return xprof;
     // Remote: forward localhost:port → remote:port and run xprof on the remote
     // (which reads the remote's /tmp/xprof). Non-interactive ssh doesn't
