@@ -25,6 +25,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/job.dart';
 import '../../../models/machine.dart';
+import '../../settings/application/settings_controller.dart';
 import '../application/browser_history.dart';
 import '../application/profiler_controller.dart';
 import '../application/terminal_fullscreen.dart';
@@ -261,6 +262,12 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     _lastXprofToken = ref
         .read(profilerControllerProvider(widget.job.id))
         .openToken;
+    // The executor may have replaced — and disposed — the job's process while
+    // this view was unmounted (a restart from the jobs list or the benchmark
+    // tab). Re-sync the borrowed pane to the live session before the first
+    // build, or it would mount a TerminalView on the disposed session's
+    // FocusNode and crash.
+    _syncToLiveSession(beforeFirstBuild: true);
   }
 
   @override
@@ -277,27 +284,41 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
   }
 
   /// The executor replaced this job's process (a restart) — swap the job's pane
-  /// to show the new session's output. The job's pane is the borrowed leaf if
-  /// there is one, else tab 0's first leaf (a job whose detail view opened
-  /// before it had a live process, e.g. relaunching a stopped one).
+  /// to show the new session's output.
   void _onExecutorChanged() {
     if (!mounted) return;
+    _syncToLiveSession();
+  }
+
+  /// Points the job's pane at the executor's current session if it isn't
+  /// already. The job's pane is the borrowed leaf if there is one, else tab
+  /// 0's first leaf (a job whose detail view opened before it had a live
+  /// process, e.g. relaunching a stopped one). With [beforeFirstBuild] the
+  /// swap mutates directly (initState — nothing has built yet).
+  void _syncToLiveSession({bool beforeFirstBuild = false}) {
     final live = _executor.sessionFor(widget.job.id);
     if (live == null) return;
 
-    final (tab, oldLeaf) = _findBorrowedLeaf() ?? (_tabs[0], _firstLeaf(_tabs[0].root));
+    final (tab, oldLeaf) =
+        _findBorrowedLeaf() ?? (_tabs[0], _firstLeaf(_tabs[0].root));
     final oldContent = oldLeaf.content;
     if (oldContent is _TermContent && identical(oldContent.session, live)) {
       return; // already showing the live session
     }
 
-    setState(() {
+    void swap() {
       final newLeaf = _Leaf(_TermContent(live, borrowed: true));
       _wireLeaf(newLeaf);
       tab.root = _replaceNode(tab.root, oldLeaf, newLeaf);
       if (_focusedId == oldLeaf.id) _focusedId = newLeaf.id;
-    });
-    _applyFocus();
+    }
+
+    if (beforeFirstBuild) {
+      swap();
+    } else {
+      setState(swap);
+      _applyFocus();
+    }
 
     // A replaced *owned* pane (a plain shell we adopted over) is ours to free;
     // a replaced *borrowed* one is owned by the executor, which disposes it.
@@ -877,7 +898,7 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
           padding: const EdgeInsets.only(left: 10, right: 8),
           decoration: BoxDecoration(
             color: active
-                ? c.terminalBackground
+                ? c.terminalTabActive
                 : (hovered ? c.surfaceHover : null),
             border: Border(
               right: BorderSide(color: c.terminalBorder),
@@ -1057,7 +1078,11 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
         ? TerminalView(
             controller: session.controller,
             focusNode: session.focusNode,
-            theme: TerminalTheme.dark(),
+            theme: TerminalTheme.dark().copyWith(
+              fontSize: ref.watch(
+                settingsControllerProvider.select((s) => s.terminalFontSize),
+              ),
+            ),
             fontData: font,
             autofocus: focused,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1451,24 +1476,41 @@ class _WebViewState extends ConsumerState<_WebView> {
     return 'https://www.google.com/search?q=${Uri.encodeQueryComponent(t)}';
   }
 
-  /// A dark, terminal-matching error page shown in place of a failed load.
+  /// The current palette as CSS hex values for the built-in pages below, so
+  /// they match the app theme (light and dark) instead of hardcoding dark.
+  ({String bg, String title, String body, String accent, String border})
+  _pageCss() {
+    final c = context.colors;
+    String hex(Color color) =>
+        '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
+    return (
+      bg: hex(c.window),
+      title: hex(c.textPrimary),
+      body: hex(c.textSecondary),
+      accent: hex(c.accent),
+      border: hex(c.borderStrong),
+    );
+  }
+
+  /// A theme-matching error page shown in place of a failed load.
   String _errorHtml(String url, String description) {
     final u = _escapeHtml(url);
     final d = _escapeHtml(
       description.isEmpty ? 'The page could not be loaded.' : description,
     );
+    final css = _pageCss();
     return '''
 <!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   html,body{height:100%;margin:0}
-  body{background:#0B0C0E;color:#8A919B;
+  body{background:${css.bg};color:${css.body};
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
     display:flex;align-items:center;justify-content:center;padding:24px}
   .box{max-width:520px;text-align:center}
-  .title{color:#E6E8EB;font-size:15px;margin-bottom:12px}
-  .url{color:#6EA8FF;font-size:13px;word-break:break-all;margin-bottom:14px}
-  .desc{font-size:12px;line-height:1.6;color:#8A919B}
+  .title{color:${css.title};font-size:15px;margin-bottom:12px}
+  .url{color:${css.accent};font-size:13px;word-break:break-all;margin-bottom:14px}
+  .desc{font-size:12px;line-height:1.6;color:${css.body}}
 </style></head><body><div class="box">
   <div class="title">Can't reach this page</div>
   <div class="url">$u</div>
@@ -1481,24 +1523,26 @@ class _WebViewState extends ConsumerState<_WebView> {
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;');
 
-  /// A dark, terminal-matching start page shown for a blank new web tab.
-  static const String _newTabHtml = '''
+  /// A theme-matching start page shown for a blank new web tab.
+  String _newTabHtml() {
+    final css = _pageCss();
+    return '''
 <!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   html,body{margin:0;height:100%}
-  body{background:#0B0C0E;color:#8A919B;
+  body{background:${css.bg};color:${css.body};
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
     position:fixed;inset:0;
     display:flex;align-items:center;justify-content:center;
     -webkit-user-select:none;user-select:none}
   .box{text-align:center}
   .glyph{width:44px;height:44px;margin:0 auto 18px;opacity:.55;
-    border:1.5px solid #2A2E37;border-radius:12px;
+    border:1.5px solid ${css.border};border-radius:12px;
     display:flex;align-items:center;justify-content:center}
-  .glyph svg{width:22px;height:22px;stroke:#8A919B;fill:none;stroke-width:1.6}
-  .title{color:#E6E8EB;font-size:15px;margin-bottom:10px;letter-spacing:.02em}
-  .hint{font-size:12px;line-height:1.9;color:#8A919B}
+  .glyph svg{width:22px;height:22px;stroke:${css.body};fill:none;stroke-width:1.6}
+  .title{color:${css.title};font-size:15px;margin-bottom:10px;letter-spacing:.02em}
+  .hint{font-size:12px;line-height:1.9;color:${css.body}}
 </style></head><body><div class="box">
   <div class="glyph"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/>
     <line x1="2" y1="12" x2="22" y2="12"/>
@@ -1507,6 +1551,7 @@ class _WebViewState extends ConsumerState<_WebView> {
   <div class="title">New tab</div>
   <div class="hint">Type an address or search in the bar above.</div>
 </div></body></html>''';
+  }
 
   @override
   void dispose() {
@@ -1544,7 +1589,7 @@ class _WebViewState extends ConsumerState<_WebView> {
                     : URLRequest(url: WebUri(initial)),
                 // A styled start page instead of a blank white void.
                 initialData: initial.isEmpty
-                    ? InAppWebViewInitialData(data: _newTabHtml)
+                    ? InAppWebViewInitialData(data: _newTabHtml())
                     : null,
                 initialUserScripts: UnmodifiableListView([_findKeyScript]),
                 initialSettings: InAppWebViewSettings(

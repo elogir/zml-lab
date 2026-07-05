@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../features/job_detail/presentation/terminal_session.dart';
+import '../../features/settings/application/settings_controller.dart';
 import '../../models/enums.dart';
 import '../../models/job.dart';
 import '../../models/machine.dart';
@@ -183,12 +184,11 @@ class JobExecutor extends ChangeNotifier {
     await _jobs.updateJobStatus(job.id, JobStatus.exited, clearPid: true);
   }
 
-  /// Starts the periodic health monitor (idempotent). Runs for the app's life.
-  void startMonitoring() {
-    _monitor ??= Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _checkRunningJobs(),
-    );
+  /// Starts the periodic health monitor. Runs for the app's life; calling
+  /// again (settings change) reschedules at the new interval.
+  void startMonitoring(Duration interval) {
+    _monitor?.cancel();
+    _monitor = Timer.periodic(interval, (_) => _checkRunningJobs());
   }
 
   Future<void> _checkRunningJobs() async {
@@ -308,7 +308,20 @@ JobExecutor jobExecutor(Ref ref) {
   final executor = JobExecutor(
     ref.watch(jobRepositoryProvider),
     ref.watch(machineRepositoryProvider),
-  )..startMonitoring();
+  );
+  // Health-check cadence follows the setting — listen (not watch), so a
+  // change reschedules the timer without recreating the executor (which owns
+  // the live process sessions).
+  executor.startMonitoring(
+    Duration(
+      seconds: ref.read(settingsControllerProvider).healthIntervalSeconds,
+    ),
+  );
+  ref.listen(settingsControllerProvider, (prev, next) {
+    if (prev?.healthIntervalSeconds != next.healthIntervalSeconds) {
+      executor.startMonitoring(Duration(seconds: next.healthIntervalSeconds));
+    }
+  });
   ref.onDispose(executor.dispose);
   return executor;
 }

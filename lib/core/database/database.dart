@@ -15,6 +15,7 @@ part 'database.g.dart';
     Jobs,
     BrowserHistoryEntries,
     SavedBenchmarks,
+    Settings,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -31,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -61,6 +62,7 @@ class AppDatabase extends _$AppDatabase {
           "DELETE FROM machines WHERE id IN ('orion', 'vega')",
         );
       }
+      if (from < 5) await m.createTable(settings);
     },
   );
 }

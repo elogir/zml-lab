@@ -4,12 +4,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/execution/native_io.dart';
 import '../../../models/benchmark.dart';
+import '../../../models/settings.dart';
+import '../../settings/application/settings_controller.dart';
 
 part 'benchmark_controller.g.dart';
-
-const defaultBenchmarkPrompt =
-    'Summarize the tradeoffs between tensor and pipeline parallelism '
-    'for large models.';
 
 /// Mutable per-request scratch, updated by the stream as tokens arrive and
 /// folded into an immutable [BenchmarkRequest] on each flush. Decouples network
@@ -47,13 +45,21 @@ class BenchmarkController extends _$BenchmarkController {
   @override
   BenchmarkRun build(String jobId) {
     ref.onDispose(_teardown);
-    return const BenchmarkRun(prompt: defaultBenchmarkPrompt, batchSize: 8);
+    // Seed from the configured defaults (read, not watch: an already-open run
+    // keeps its state; changed defaults apply to freshly opened jobs).
+    final s = ref.read(settingsControllerProvider);
+    return BenchmarkRun(
+      prompt: s.benchPrompt,
+      batchSize: s.benchBatchSize,
+      maxTokens: s.benchMaxTokens,
+      temperature: s.benchTemperature,
+    );
   }
 
   void setPrompt(String prompt) => state = state.copyWith(prompt: prompt);
 
   void setBatchSize(int size) =>
-      state = state.copyWith(batchSize: size.clamp(1, 64));
+      state = state.copyWith(batchSize: size < 1 ? 1 : size);
 
   /// Null = unlimited: the server generates until EOS or its max seqlen.
   void setMaxTokens(int? tokens) => state = state.copyWith(

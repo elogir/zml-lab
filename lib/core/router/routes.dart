@@ -8,6 +8,7 @@ import '../../features/saved_benchmarks/presentation/saved_benchmarks_screen.dar
 import '../../features/machines/presentation/add_machine_screen.dart';
 import '../../features/machines/presentation/machines_screen.dart';
 import '../../features/new_job/presentation/custom_job_screen.dart';
+import '../../features/settings/presentation/settings_screen.dart';
 import '../shell/app_shell.dart';
 
 part 'routes.g.dart';
@@ -23,6 +24,7 @@ part 'routes.g.dart';
     TypedGoRoute<EditMachineRoute>(path: '/machines/:id/edit'),
     TypedGoRoute<NewCustomJobRoute>(path: '/jobs/new/custom'),
     TypedGoRoute<JobDetailRoute>(path: '/jobs/:id'),
+    TypedGoRoute<SettingsRoute>(path: '/settings'),
   ],
 )
 class AppShellRoute extends ShellRouteData {
@@ -101,6 +103,14 @@ class JobDetailRoute extends GoRouteData with $JobDetailRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) =>
       JobDetailScreen(jobId: id);
+}
+
+class SettingsRoute extends GoRouteData with $SettingsRoute {
+  const SettingsRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) =>
+      const SettingsScreen();
 }
 
 /// The app router. Built from the typed routes above.
