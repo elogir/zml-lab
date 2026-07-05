@@ -169,3 +169,96 @@ final class MachineMapProvider
 }
 
 String _$machineMapHash() => r'6285cac17f368386f274efbd3d6fff1938688109';
+
+/// Live reachability of a machine: null while the first probe runs, then a
+/// fresh answer every 10s while somebody is watching (auto-dispose stops the
+/// polling when no dot is on screen). Local is always reachable; a remote is
+/// probed with a silent TCP connect to its ssh port.
+
+@ProviderFor(machineReachable)
+final machineReachableProvider = MachineReachableFamily._();
+
+/// Live reachability of a machine: null while the first probe runs, then a
+/// fresh answer every 10s while somebody is watching (auto-dispose stops the
+/// polling when no dot is on screen). Local is always reachable; a remote is
+/// probed with a silent TCP connect to its ssh port.
+
+final class MachineReachableProvider
+    extends $FunctionalProvider<AsyncValue<bool?>, bool?, Stream<bool?>>
+    with $FutureModifier<bool?>, $StreamProvider<bool?> {
+  /// Live reachability of a machine: null while the first probe runs, then a
+  /// fresh answer every 10s while somebody is watching (auto-dispose stops the
+  /// polling when no dot is on screen). Local is always reachable; a remote is
+  /// probed with a silent TCP connect to its ssh port.
+  MachineReachableProvider._({
+    required MachineReachableFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'machineReachableProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$machineReachableHash();
+
+  @override
+  String toString() {
+    return r'machineReachableProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<bool?> $createElement($ProviderPointer pointer) =>
+      $StreamProviderElement(pointer);
+
+  @override
+  Stream<bool?> create(Ref ref) {
+    final argument = this.argument as String;
+    return machineReachable(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MachineReachableProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$machineReachableHash() => r'090cec307dadb4a011549a0efd76e9f22a9d2d16';
+
+/// Live reachability of a machine: null while the first probe runs, then a
+/// fresh answer every 10s while somebody is watching (auto-dispose stops the
+/// polling when no dot is on screen). Local is always reachable; a remote is
+/// probed with a silent TCP connect to its ssh port.
+
+final class MachineReachableFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<bool?>, String> {
+  MachineReachableFamily._()
+    : super(
+        retry: null,
+        name: r'machineReachableProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Live reachability of a machine: null while the first probe runs, then a
+  /// fresh answer every 10s while somebody is watching (auto-dispose stops the
+  /// polling when no dot is on screen). Local is always reachable; a remote is
+  /// probed with a silent TCP connect to its ssh port.
+
+  MachineReachableProvider call(String machineId) =>
+      MachineReachableProvider._(argument: machineId, from: this);
+
+  @override
+  String toString() => r'machineReachableProvider';
+}

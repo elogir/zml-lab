@@ -418,7 +418,7 @@ class _MachineGrid extends StatelessWidget {
   }
 }
 
-class _MachineOption extends StatelessWidget {
+class _MachineOption extends ConsumerWidget {
   const _MachineOption({
     required this.machine,
     required this.selected,
@@ -430,8 +430,9 @@ class _MachineOption extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
+    final up = ref.watch(machineReachableProvider(machine.id)).value;
     return AppCard(
       onTap: onTap,
       selected: selected,
@@ -445,7 +446,11 @@ class _MachineOption extends StatelessWidget {
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: machine.online ? c.statusRunning : c.textMuted,
+                  color: up == null
+                      ? c.textMuted
+                      : up
+                      ? c.statusRunning
+                      : c.statusFailed,
                   shape: BoxShape.circle,
                 ),
               ),

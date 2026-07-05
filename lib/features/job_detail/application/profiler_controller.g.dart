@@ -95,7 +95,7 @@ final class ProfilerControllerProvider
 }
 
 String _$profilerControllerHash() =>
-    r'b64df05da5641fef06c2d126e54d1bdd0c8c395f';
+    r'e1e990e0795ce47b10d8472fecddd6b61d7eebd9';
 
 /// Drives profiling for a job, in two independent steps the UI exposes as
 /// separate actions:

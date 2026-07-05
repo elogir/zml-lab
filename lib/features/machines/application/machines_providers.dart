@@ -1,5 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/execution/native_io.dart';
 import '../../../models/machine.dart';
 import '../../../repositories/machine_repository.dart';
 
@@ -18,4 +19,21 @@ Stream<Machine?> machineStream(Ref ref, String id) =>
 Map<String, Machine> machineMap(Ref ref) {
   final machines = ref.watch(machinesStreamProvider).value ?? const [];
   return {for (final m in machines) m.id: m};
+}
+
+/// Live reachability of a machine: null while the first probe runs, then a
+/// fresh answer every 10s while somebody is watching (auto-dispose stops the
+/// polling when no dot is on screen). Local is always reachable; a remote is
+/// probed with a silent TCP connect to its ssh port.
+@riverpod
+Stream<bool?> machineReachable(Ref ref, String machineId) async* {
+  yield null;
+  while (true) {
+    final m = ref.read(machineMapProvider)[machineId];
+    final up = m == null
+        ? false
+        : m.isLocal || await checkHealth(m.address, m.sshPort);
+    yield up;
+    await Future<void>.delayed(const Duration(seconds: 10));
+  }
 }
