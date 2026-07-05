@@ -15,9 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$LaunchConfig {
 
- String get id; String get name; String? get description; String get machineId;/// Short program label shown as a badge (e.g. `vllm`, `llmd`), inferred
-/// from the command.
- String get program; String get command; String? get workingDir; int get port; List<EnvVar> get env;
+ String get id; String get name; String? get description; String get machineId; String get command; String? get workingDir; int get port; List<EnvVar> get env;
 /// Create a copy of LaunchConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,16 +28,16 @@ $LaunchConfigCopyWith<LaunchConfig> get copyWith => _$LaunchConfigCopyWithImpl<L
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LaunchConfig&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.machineId, machineId) || other.machineId == machineId)&&(identical(other.program, program) || other.program == program)&&(identical(other.command, command) || other.command == command)&&(identical(other.workingDir, workingDir) || other.workingDir == workingDir)&&(identical(other.port, port) || other.port == port)&&const DeepCollectionEquality().equals(other.env, env));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LaunchConfig&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.machineId, machineId) || other.machineId == machineId)&&(identical(other.command, command) || other.command == command)&&(identical(other.workingDir, workingDir) || other.workingDir == workingDir)&&(identical(other.port, port) || other.port == port)&&const DeepCollectionEquality().equals(other.env, env));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,description,machineId,program,command,workingDir,port,const DeepCollectionEquality().hash(env));
+int get hashCode => Object.hash(runtimeType,id,name,description,machineId,command,workingDir,port,const DeepCollectionEquality().hash(env));
 
 @override
 String toString() {
-  return 'LaunchConfig(id: $id, name: $name, description: $description, machineId: $machineId, program: $program, command: $command, workingDir: $workingDir, port: $port, env: $env)';
+  return 'LaunchConfig(id: $id, name: $name, description: $description, machineId: $machineId, command: $command, workingDir: $workingDir, port: $port, env: $env)';
 }
 
 
@@ -50,7 +48,7 @@ abstract mixin class $LaunchConfigCopyWith<$Res>  {
   factory $LaunchConfigCopyWith(LaunchConfig value, $Res Function(LaunchConfig) _then) = _$LaunchConfigCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String? description, String machineId, String program, String command, String? workingDir, int port, List<EnvVar> env
+ String id, String name, String? description, String machineId, String command, String? workingDir, int port, List<EnvVar> env
 });
 
 
@@ -67,13 +65,12 @@ class _$LaunchConfigCopyWithImpl<$Res>
 
 /// Create a copy of LaunchConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? machineId = null,Object? program = null,Object? command = null,Object? workingDir = freezed,Object? port = null,Object? env = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? machineId = null,Object? command = null,Object? workingDir = freezed,Object? port = null,Object? env = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String?,machineId: null == machineId ? _self.machineId : machineId // ignore: cast_nullable_to_non_nullable
-as String,program: null == program ? _self.program : program // ignore: cast_nullable_to_non_nullable
 as String,command: null == command ? _self.command : command // ignore: cast_nullable_to_non_nullable
 as String,workingDir: freezed == workingDir ? _self.workingDir : workingDir // ignore: cast_nullable_to_non_nullable
 as String?,port: null == port ? _self.port : port // ignore: cast_nullable_to_non_nullable
@@ -163,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String machineId,  String program,  String command,  String? workingDir,  int port,  List<EnvVar> env)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String machineId,  String command,  String? workingDir,  int port,  List<EnvVar> env)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LaunchConfig() when $default != null:
-return $default(_that.id,_that.name,_that.description,_that.machineId,_that.program,_that.command,_that.workingDir,_that.port,_that.env);case _:
+return $default(_that.id,_that.name,_that.description,_that.machineId,_that.command,_that.workingDir,_that.port,_that.env);case _:
   return orElse();
 
 }
@@ -184,10 +181,10 @@ return $default(_that.id,_that.name,_that.description,_that.machineId,_that.prog
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String machineId,  String program,  String command,  String? workingDir,  int port,  List<EnvVar> env)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String machineId,  String command,  String? workingDir,  int port,  List<EnvVar> env)  $default,) {final _that = this;
 switch (_that) {
 case _LaunchConfig():
-return $default(_that.id,_that.name,_that.description,_that.machineId,_that.program,_that.command,_that.workingDir,_that.port,_that.env);case _:
+return $default(_that.id,_that.name,_that.description,_that.machineId,_that.command,_that.workingDir,_that.port,_that.env);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -204,10 +201,10 @@ return $default(_that.id,_that.name,_that.description,_that.machineId,_that.prog
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? description,  String machineId,  String program,  String command,  String? workingDir,  int port,  List<EnvVar> env)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? description,  String machineId,  String command,  String? workingDir,  int port,  List<EnvVar> env)?  $default,) {final _that = this;
 switch (_that) {
 case _LaunchConfig() when $default != null:
-return $default(_that.id,_that.name,_that.description,_that.machineId,_that.program,_that.command,_that.workingDir,_that.port,_that.env);case _:
+return $default(_that.id,_that.name,_that.description,_that.machineId,_that.command,_that.workingDir,_that.port,_that.env);case _:
   return null;
 
 }
@@ -219,16 +216,13 @@ return $default(_that.id,_that.name,_that.description,_that.machineId,_that.prog
 @JsonSerializable()
 
 class _LaunchConfig implements LaunchConfig {
-  const _LaunchConfig({required this.id, required this.name, this.description, required this.machineId, required this.program, required this.command, this.workingDir, required this.port, final  List<EnvVar> env = const <EnvVar>[]}): _env = env;
+  const _LaunchConfig({required this.id, required this.name, this.description, required this.machineId, required this.command, this.workingDir, required this.port, final  List<EnvVar> env = const <EnvVar>[]}): _env = env;
   factory _LaunchConfig.fromJson(Map<String, dynamic> json) => _$LaunchConfigFromJson(json);
 
 @override final  String id;
 @override final  String name;
 @override final  String? description;
 @override final  String machineId;
-/// Short program label shown as a badge (e.g. `vllm`, `llmd`), inferred
-/// from the command.
-@override final  String program;
 @override final  String command;
 @override final  String? workingDir;
 @override final  int port;
@@ -253,16 +247,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LaunchConfig&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.machineId, machineId) || other.machineId == machineId)&&(identical(other.program, program) || other.program == program)&&(identical(other.command, command) || other.command == command)&&(identical(other.workingDir, workingDir) || other.workingDir == workingDir)&&(identical(other.port, port) || other.port == port)&&const DeepCollectionEquality().equals(other._env, _env));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LaunchConfig&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.machineId, machineId) || other.machineId == machineId)&&(identical(other.command, command) || other.command == command)&&(identical(other.workingDir, workingDir) || other.workingDir == workingDir)&&(identical(other.port, port) || other.port == port)&&const DeepCollectionEquality().equals(other._env, _env));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,description,machineId,program,command,workingDir,port,const DeepCollectionEquality().hash(_env));
+int get hashCode => Object.hash(runtimeType,id,name,description,machineId,command,workingDir,port,const DeepCollectionEquality().hash(_env));
 
 @override
 String toString() {
-  return 'LaunchConfig(id: $id, name: $name, description: $description, machineId: $machineId, program: $program, command: $command, workingDir: $workingDir, port: $port, env: $env)';
+  return 'LaunchConfig(id: $id, name: $name, description: $description, machineId: $machineId, command: $command, workingDir: $workingDir, port: $port, env: $env)';
 }
 
 
@@ -273,7 +267,7 @@ abstract mixin class _$LaunchConfigCopyWith<$Res> implements $LaunchConfigCopyWi
   factory _$LaunchConfigCopyWith(_LaunchConfig value, $Res Function(_LaunchConfig) _then) = __$LaunchConfigCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String? description, String machineId, String program, String command, String? workingDir, int port, List<EnvVar> env
+ String id, String name, String? description, String machineId, String command, String? workingDir, int port, List<EnvVar> env
 });
 
 
@@ -290,13 +284,12 @@ class __$LaunchConfigCopyWithImpl<$Res>
 
 /// Create a copy of LaunchConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? machineId = null,Object? program = null,Object? command = null,Object? workingDir = freezed,Object? port = null,Object? env = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? machineId = null,Object? command = null,Object? workingDir = freezed,Object? port = null,Object? env = null,}) {
   return _then(_LaunchConfig(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String?,machineId: null == machineId ? _self.machineId : machineId // ignore: cast_nullable_to_non_nullable
-as String,program: null == program ? _self.program : program // ignore: cast_nullable_to_non_nullable
 as String,command: null == command ? _self.command : command // ignore: cast_nullable_to_non_nullable
 as String,workingDir: freezed == workingDir ? _self.workingDir : workingDir // ignore: cast_nullable_to_non_nullable
 as String?,port: null == port ? _self.port : port // ignore: cast_nullable_to_non_nullable

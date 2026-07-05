@@ -44,7 +44,6 @@ class DriftConfigRepository implements ConfigRepository {
           name: c.name,
           description: Value(c.description),
           machineId: c.machineId,
-          program: c.program,
           command: c.command,
           workingDir: Value(c.workingDir),
           port: c.port,

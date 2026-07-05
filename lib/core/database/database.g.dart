@@ -645,17 +645,6 @@ class $LaunchConfigsTable extends LaunchConfigs
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _programMeta = const VerificationMeta(
-    'program',
-  );
-  @override
-  late final GeneratedColumn<String> program = GeneratedColumn<String>(
-    'program',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
   static const VerificationMeta _commandMeta = const VerificationMeta(
     'command',
   );
@@ -705,7 +694,6 @@ class $LaunchConfigsTable extends LaunchConfigs
     name,
     description,
     machineId,
-    program,
     command,
     workingDir,
     port,
@@ -752,14 +740,6 @@ class $LaunchConfigsTable extends LaunchConfigs
       );
     } else if (isInserting) {
       context.missing(_machineIdMeta);
-    }
-    if (data.containsKey('program')) {
-      context.handle(
-        _programMeta,
-        program.isAcceptableOrUnknown(data['program']!, _programMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_programMeta);
     }
     if (data.containsKey('command')) {
       context.handle(
@@ -814,10 +794,6 @@ class $LaunchConfigsTable extends LaunchConfigs
         DriftSqlType.string,
         data['${effectivePrefix}machine_id'],
       )!,
-      program: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}program'],
-      )!,
       command: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}command'],
@@ -848,7 +824,6 @@ class LaunchConfigRow extends DataClass implements Insertable<LaunchConfigRow> {
   final String name;
   final String? description;
   final String machineId;
-  final String program;
   final String command;
   final String? workingDir;
   final int port;
@@ -860,7 +835,6 @@ class LaunchConfigRow extends DataClass implements Insertable<LaunchConfigRow> {
     required this.name,
     this.description,
     required this.machineId,
-    required this.program,
     required this.command,
     this.workingDir,
     required this.port,
@@ -875,7 +849,6 @@ class LaunchConfigRow extends DataClass implements Insertable<LaunchConfigRow> {
       map['description'] = Variable<String>(description);
     }
     map['machine_id'] = Variable<String>(machineId);
-    map['program'] = Variable<String>(program);
     map['command'] = Variable<String>(command);
     if (!nullToAbsent || workingDir != null) {
       map['working_dir'] = Variable<String>(workingDir);
@@ -893,7 +866,6 @@ class LaunchConfigRow extends DataClass implements Insertable<LaunchConfigRow> {
           ? const Value.absent()
           : Value(description),
       machineId: Value(machineId),
-      program: Value(program),
       command: Value(command),
       workingDir: workingDir == null && nullToAbsent
           ? const Value.absent()
@@ -913,7 +885,6 @@ class LaunchConfigRow extends DataClass implements Insertable<LaunchConfigRow> {
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
       machineId: serializer.fromJson<String>(json['machineId']),
-      program: serializer.fromJson<String>(json['program']),
       command: serializer.fromJson<String>(json['command']),
       workingDir: serializer.fromJson<String?>(json['workingDir']),
       port: serializer.fromJson<int>(json['port']),
@@ -928,7 +899,6 @@ class LaunchConfigRow extends DataClass implements Insertable<LaunchConfigRow> {
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String?>(description),
       'machineId': serializer.toJson<String>(machineId),
-      'program': serializer.toJson<String>(program),
       'command': serializer.toJson<String>(command),
       'workingDir': serializer.toJson<String?>(workingDir),
       'port': serializer.toJson<int>(port),
@@ -941,7 +911,6 @@ class LaunchConfigRow extends DataClass implements Insertable<LaunchConfigRow> {
     String? name,
     Value<String?> description = const Value.absent(),
     String? machineId,
-    String? program,
     String? command,
     Value<String?> workingDir = const Value.absent(),
     int? port,
@@ -951,7 +920,6 @@ class LaunchConfigRow extends DataClass implements Insertable<LaunchConfigRow> {
     name: name ?? this.name,
     description: description.present ? description.value : this.description,
     machineId: machineId ?? this.machineId,
-    program: program ?? this.program,
     command: command ?? this.command,
     workingDir: workingDir.present ? workingDir.value : this.workingDir,
     port: port ?? this.port,
@@ -965,7 +933,6 @@ class LaunchConfigRow extends DataClass implements Insertable<LaunchConfigRow> {
           ? data.description.value
           : this.description,
       machineId: data.machineId.present ? data.machineId.value : this.machineId,
-      program: data.program.present ? data.program.value : this.program,
       command: data.command.present ? data.command.value : this.command,
       workingDir: data.workingDir.present
           ? data.workingDir.value
@@ -982,7 +949,6 @@ class LaunchConfigRow extends DataClass implements Insertable<LaunchConfigRow> {
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('machineId: $machineId, ')
-          ..write('program: $program, ')
           ..write('command: $command, ')
           ..write('workingDir: $workingDir, ')
           ..write('port: $port, ')
@@ -997,7 +963,6 @@ class LaunchConfigRow extends DataClass implements Insertable<LaunchConfigRow> {
     name,
     description,
     machineId,
-    program,
     command,
     workingDir,
     port,
@@ -1011,7 +976,6 @@ class LaunchConfigRow extends DataClass implements Insertable<LaunchConfigRow> {
           other.name == this.name &&
           other.description == this.description &&
           other.machineId == this.machineId &&
-          other.program == this.program &&
           other.command == this.command &&
           other.workingDir == this.workingDir &&
           other.port == this.port &&
@@ -1023,7 +987,6 @@ class LaunchConfigsCompanion extends UpdateCompanion<LaunchConfigRow> {
   final Value<String> name;
   final Value<String?> description;
   final Value<String> machineId;
-  final Value<String> program;
   final Value<String> command;
   final Value<String?> workingDir;
   final Value<int> port;
@@ -1034,7 +997,6 @@ class LaunchConfigsCompanion extends UpdateCompanion<LaunchConfigRow> {
     this.name = const Value.absent(),
     this.description = const Value.absent(),
     this.machineId = const Value.absent(),
-    this.program = const Value.absent(),
     this.command = const Value.absent(),
     this.workingDir = const Value.absent(),
     this.port = const Value.absent(),
@@ -1046,7 +1008,6 @@ class LaunchConfigsCompanion extends UpdateCompanion<LaunchConfigRow> {
     required String name,
     this.description = const Value.absent(),
     required String machineId,
-    required String program,
     required String command,
     this.workingDir = const Value.absent(),
     required int port,
@@ -1055,7 +1016,6 @@ class LaunchConfigsCompanion extends UpdateCompanion<LaunchConfigRow> {
   }) : id = Value(id),
        name = Value(name),
        machineId = Value(machineId),
-       program = Value(program),
        command = Value(command),
        port = Value(port);
   static Insertable<LaunchConfigRow> custom({
@@ -1063,7 +1023,6 @@ class LaunchConfigsCompanion extends UpdateCompanion<LaunchConfigRow> {
     Expression<String>? name,
     Expression<String>? description,
     Expression<String>? machineId,
-    Expression<String>? program,
     Expression<String>? command,
     Expression<String>? workingDir,
     Expression<int>? port,
@@ -1075,7 +1034,6 @@ class LaunchConfigsCompanion extends UpdateCompanion<LaunchConfigRow> {
       if (name != null) 'name': name,
       if (description != null) 'description': description,
       if (machineId != null) 'machine_id': machineId,
-      if (program != null) 'program': program,
       if (command != null) 'command': command,
       if (workingDir != null) 'working_dir': workingDir,
       if (port != null) 'port': port,
@@ -1089,7 +1047,6 @@ class LaunchConfigsCompanion extends UpdateCompanion<LaunchConfigRow> {
     Value<String>? name,
     Value<String?>? description,
     Value<String>? machineId,
-    Value<String>? program,
     Value<String>? command,
     Value<String?>? workingDir,
     Value<int>? port,
@@ -1101,7 +1058,6 @@ class LaunchConfigsCompanion extends UpdateCompanion<LaunchConfigRow> {
       name: name ?? this.name,
       description: description ?? this.description,
       machineId: machineId ?? this.machineId,
-      program: program ?? this.program,
       command: command ?? this.command,
       workingDir: workingDir ?? this.workingDir,
       port: port ?? this.port,
@@ -1124,9 +1080,6 @@ class LaunchConfigsCompanion extends UpdateCompanion<LaunchConfigRow> {
     }
     if (machineId.present) {
       map['machine_id'] = Variable<String>(machineId.value);
-    }
-    if (program.present) {
-      map['program'] = Variable<String>(program.value);
     }
     if (command.present) {
       map['command'] = Variable<String>(command.value);
@@ -1153,7 +1106,6 @@ class LaunchConfigsCompanion extends UpdateCompanion<LaunchConfigRow> {
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('machineId: $machineId, ')
-          ..write('program: $program, ')
           ..write('command: $command, ')
           ..write('workingDir: $workingDir, ')
           ..write('port: $port, ')
@@ -1204,17 +1156,6 @@ class $JobsTable extends Jobs with TableInfo<$JobsTable, JobRow> {
   @override
   late final GeneratedColumn<String> machineId = GeneratedColumn<String>(
     'machine_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _programMeta = const VerificationMeta(
-    'program',
-  );
-  @override
-  late final GeneratedColumn<String> program = GeneratedColumn<String>(
-    'program',
     aliasedName,
     false,
     type: DriftSqlType.string,
@@ -1298,7 +1239,6 @@ class $JobsTable extends Jobs with TableInfo<$JobsTable, JobRow> {
     name,
     description,
     machineId,
-    program,
     command,
     workingDir,
     port,
@@ -1348,14 +1288,6 @@ class $JobsTable extends Jobs with TableInfo<$JobsTable, JobRow> {
       );
     } else if (isInserting) {
       context.missing(_machineIdMeta);
-    }
-    if (data.containsKey('program')) {
-      context.handle(
-        _programMeta,
-        program.isAcceptableOrUnknown(data['program']!, _programMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_programMeta);
     }
     if (data.containsKey('command')) {
       context.handle(
@@ -1430,10 +1362,6 @@ class $JobsTable extends Jobs with TableInfo<$JobsTable, JobRow> {
         DriftSqlType.string,
         data['${effectivePrefix}machine_id'],
       )!,
-      program: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}program'],
-      )!,
       command: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}command'],
@@ -1476,7 +1404,6 @@ class JobRow extends DataClass implements Insertable<JobRow> {
   final String name;
   final String? description;
   final String machineId;
-  final String program;
   final String command;
   final String? workingDir;
   final int port;
@@ -1491,7 +1418,6 @@ class JobRow extends DataClass implements Insertable<JobRow> {
     required this.name,
     this.description,
     required this.machineId,
-    required this.program,
     required this.command,
     this.workingDir,
     required this.port,
@@ -1509,7 +1435,6 @@ class JobRow extends DataClass implements Insertable<JobRow> {
       map['description'] = Variable<String>(description);
     }
     map['machine_id'] = Variable<String>(machineId);
-    map['program'] = Variable<String>(program);
     map['command'] = Variable<String>(command);
     if (!nullToAbsent || workingDir != null) {
       map['working_dir'] = Variable<String>(workingDir);
@@ -1534,7 +1459,6 @@ class JobRow extends DataClass implements Insertable<JobRow> {
           ? const Value.absent()
           : Value(description),
       machineId: Value(machineId),
-      program: Value(program),
       command: Value(command),
       workingDir: workingDir == null && nullToAbsent
           ? const Value.absent()
@@ -1559,7 +1483,6 @@ class JobRow extends DataClass implements Insertable<JobRow> {
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
       machineId: serializer.fromJson<String>(json['machineId']),
-      program: serializer.fromJson<String>(json['program']),
       command: serializer.fromJson<String>(json['command']),
       workingDir: serializer.fromJson<String?>(json['workingDir']),
       port: serializer.fromJson<int>(json['port']),
@@ -1577,7 +1500,6 @@ class JobRow extends DataClass implements Insertable<JobRow> {
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String?>(description),
       'machineId': serializer.toJson<String>(machineId),
-      'program': serializer.toJson<String>(program),
       'command': serializer.toJson<String>(command),
       'workingDir': serializer.toJson<String?>(workingDir),
       'port': serializer.toJson<int>(port),
@@ -1593,7 +1515,6 @@ class JobRow extends DataClass implements Insertable<JobRow> {
     String? name,
     Value<String?> description = const Value.absent(),
     String? machineId,
-    String? program,
     String? command,
     Value<String?> workingDir = const Value.absent(),
     int? port,
@@ -1606,7 +1527,6 @@ class JobRow extends DataClass implements Insertable<JobRow> {
     name: name ?? this.name,
     description: description.present ? description.value : this.description,
     machineId: machineId ?? this.machineId,
-    program: program ?? this.program,
     command: command ?? this.command,
     workingDir: workingDir.present ? workingDir.value : this.workingDir,
     port: port ?? this.port,
@@ -1623,7 +1543,6 @@ class JobRow extends DataClass implements Insertable<JobRow> {
           ? data.description.value
           : this.description,
       machineId: data.machineId.present ? data.machineId.value : this.machineId,
-      program: data.program.present ? data.program.value : this.program,
       command: data.command.present ? data.command.value : this.command,
       workingDir: data.workingDir.present
           ? data.workingDir.value
@@ -1643,7 +1562,6 @@ class JobRow extends DataClass implements Insertable<JobRow> {
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('machineId: $machineId, ')
-          ..write('program: $program, ')
           ..write('command: $command, ')
           ..write('workingDir: $workingDir, ')
           ..write('port: $port, ')
@@ -1661,7 +1579,6 @@ class JobRow extends DataClass implements Insertable<JobRow> {
     name,
     description,
     machineId,
-    program,
     command,
     workingDir,
     port,
@@ -1678,7 +1595,6 @@ class JobRow extends DataClass implements Insertable<JobRow> {
           other.name == this.name &&
           other.description == this.description &&
           other.machineId == this.machineId &&
-          other.program == this.program &&
           other.command == this.command &&
           other.workingDir == this.workingDir &&
           other.port == this.port &&
@@ -1693,7 +1609,6 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
   final Value<String> name;
   final Value<String?> description;
   final Value<String> machineId;
-  final Value<String> program;
   final Value<String> command;
   final Value<String?> workingDir;
   final Value<int> port;
@@ -1707,7 +1622,6 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
     this.name = const Value.absent(),
     this.description = const Value.absent(),
     this.machineId = const Value.absent(),
-    this.program = const Value.absent(),
     this.command = const Value.absent(),
     this.workingDir = const Value.absent(),
     this.port = const Value.absent(),
@@ -1722,7 +1636,6 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
     required String name,
     this.description = const Value.absent(),
     required String machineId,
-    required String program,
     required String command,
     this.workingDir = const Value.absent(),
     required int port,
@@ -1734,7 +1647,6 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
   }) : id = Value(id),
        name = Value(name),
        machineId = Value(machineId),
-       program = Value(program),
        command = Value(command),
        port = Value(port),
        status = Value(status);
@@ -1743,7 +1655,6 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
     Expression<String>? name,
     Expression<String>? description,
     Expression<String>? machineId,
-    Expression<String>? program,
     Expression<String>? command,
     Expression<String>? workingDir,
     Expression<int>? port,
@@ -1758,7 +1669,6 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
       if (name != null) 'name': name,
       if (description != null) 'description': description,
       if (machineId != null) 'machine_id': machineId,
-      if (program != null) 'program': program,
       if (command != null) 'command': command,
       if (workingDir != null) 'working_dir': workingDir,
       if (port != null) 'port': port,
@@ -1775,7 +1685,6 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
     Value<String>? name,
     Value<String?>? description,
     Value<String>? machineId,
-    Value<String>? program,
     Value<String>? command,
     Value<String?>? workingDir,
     Value<int>? port,
@@ -1790,7 +1699,6 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
       name: name ?? this.name,
       description: description ?? this.description,
       machineId: machineId ?? this.machineId,
-      program: program ?? this.program,
       command: command ?? this.command,
       workingDir: workingDir ?? this.workingDir,
       port: port ?? this.port,
@@ -1816,9 +1724,6 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
     }
     if (machineId.present) {
       map['machine_id'] = Variable<String>(machineId.value);
-    }
-    if (program.present) {
-      map['program'] = Variable<String>(program.value);
     }
     if (command.present) {
       map['command'] = Variable<String>(command.value);
@@ -1854,7 +1759,6 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('machineId: $machineId, ')
-          ..write('program: $program, ')
           ..write('command: $command, ')
           ..write('workingDir: $workingDir, ')
           ..write('port: $port, ')
@@ -3087,7 +2991,6 @@ typedef $$LaunchConfigsTableCreateCompanionBuilder =
       required String name,
       Value<String?> description,
       required String machineId,
-      required String program,
       required String command,
       Value<String?> workingDir,
       required int port,
@@ -3100,7 +3003,6 @@ typedef $$LaunchConfigsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String?> description,
       Value<String> machineId,
-      Value<String> program,
       Value<String> command,
       Value<String?> workingDir,
       Value<int> port,
@@ -3134,11 +3036,6 @@ class $$LaunchConfigsTableFilterComposer
 
   ColumnFilters<String> get machineId => $composableBuilder(
     column: $table.machineId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get program => $composableBuilder(
-    column: $table.program,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3192,11 +3089,6 @@ class $$LaunchConfigsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get program => $composableBuilder(
-    column: $table.program,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get command => $composableBuilder(
     column: $table.command,
     builder: (column) => ColumnOrderings(column),
@@ -3240,9 +3132,6 @@ class $$LaunchConfigsTableAnnotationComposer
 
   GeneratedColumn<String> get machineId =>
       $composableBuilder(column: $table.machineId, builder: (column) => column);
-
-  GeneratedColumn<String> get program =>
-      $composableBuilder(column: $table.program, builder: (column) => column);
 
   GeneratedColumn<String> get command =>
       $composableBuilder(column: $table.command, builder: (column) => column);
@@ -3294,7 +3183,6 @@ class $$LaunchConfigsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String> machineId = const Value.absent(),
-                Value<String> program = const Value.absent(),
                 Value<String> command = const Value.absent(),
                 Value<String?> workingDir = const Value.absent(),
                 Value<int> port = const Value.absent(),
@@ -3305,7 +3193,6 @@ class $$LaunchConfigsTableTableManager
                 name: name,
                 description: description,
                 machineId: machineId,
-                program: program,
                 command: command,
                 workingDir: workingDir,
                 port: port,
@@ -3318,7 +3205,6 @@ class $$LaunchConfigsTableTableManager
                 required String name,
                 Value<String?> description = const Value.absent(),
                 required String machineId,
-                required String program,
                 required String command,
                 Value<String?> workingDir = const Value.absent(),
                 required int port,
@@ -3329,7 +3215,6 @@ class $$LaunchConfigsTableTableManager
                 name: name,
                 description: description,
                 machineId: machineId,
-                program: program,
                 command: command,
                 workingDir: workingDir,
                 port: port,
@@ -3367,7 +3252,6 @@ typedef $$JobsTableCreateCompanionBuilder =
       required String name,
       Value<String?> description,
       required String machineId,
-      required String program,
       required String command,
       Value<String?> workingDir,
       required int port,
@@ -3383,7 +3267,6 @@ typedef $$JobsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String?> description,
       Value<String> machineId,
-      Value<String> program,
       Value<String> command,
       Value<String?> workingDir,
       Value<int> port,
@@ -3419,11 +3302,6 @@ class $$JobsTableFilterComposer extends Composer<_$AppDatabase, $JobsTable> {
 
   ColumnFilters<String> get machineId => $composableBuilder(
     column: $table.machineId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get program => $composableBuilder(
-    column: $table.program,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3491,11 +3369,6 @@ class $$JobsTableOrderingComposer extends Composer<_$AppDatabase, $JobsTable> {
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get program => $composableBuilder(
-    column: $table.program,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get command => $composableBuilder(
     column: $table.command,
     builder: (column) => ColumnOrderings(column),
@@ -3555,9 +3428,6 @@ class $$JobsTableAnnotationComposer
   GeneratedColumn<String> get machineId =>
       $composableBuilder(column: $table.machineId, builder: (column) => column);
 
-  GeneratedColumn<String> get program =>
-      $composableBuilder(column: $table.program, builder: (column) => column);
-
   GeneratedColumn<String> get command =>
       $composableBuilder(column: $table.command, builder: (column) => column);
 
@@ -3614,7 +3484,6 @@ class $$JobsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String> machineId = const Value.absent(),
-                Value<String> program = const Value.absent(),
                 Value<String> command = const Value.absent(),
                 Value<String?> workingDir = const Value.absent(),
                 Value<int> port = const Value.absent(),
@@ -3628,7 +3497,6 @@ class $$JobsTableTableManager
                 name: name,
                 description: description,
                 machineId: machineId,
-                program: program,
                 command: command,
                 workingDir: workingDir,
                 port: port,
@@ -3644,7 +3512,6 @@ class $$JobsTableTableManager
                 required String name,
                 Value<String?> description = const Value.absent(),
                 required String machineId,
-                required String program,
                 required String command,
                 Value<String?> workingDir = const Value.absent(),
                 required int port,
@@ -3658,7 +3525,6 @@ class $$JobsTableTableManager
                 name: name,
                 description: description,
                 machineId: machineId,
-                program: program,
                 command: command,
                 workingDir: workingDir,
                 port: port,

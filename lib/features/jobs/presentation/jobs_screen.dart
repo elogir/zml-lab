@@ -14,7 +14,6 @@ import '../application/jobs_providers.dart';
 
 // Shared column geometry so header and rows line up exactly.
 const double _machineW = 150;
-const double _programW = 96;
 const double _portW = 76;
 const double _uptimeW = 92;
 
@@ -33,7 +32,6 @@ class _JobsScreenState extends ConsumerState<JobsScreen> {
     final machineName = e.machine?.name ?? job.machineId;
     return job.name.toLowerCase().contains(q) ||
         machineName.toLowerCase().contains(q) ||
-        job.program.toLowerCase().contains(q) ||
         job.command.toLowerCase().contains(q) ||
         '${job.port}'.contains(q);
   }
@@ -152,7 +150,6 @@ class _HeaderRow extends StatelessWidget {
         children: [
           Expanded(child: Text('JOB', style: style)),
           SizedBox(width: _machineW, child: Text('MACHINE', style: style)),
-          SizedBox(width: _programW, child: Text('PROGRAM', style: style)),
           SizedBox(width: _portW, child: Text('PORT', style: style)),
           SizedBox(width: _uptimeW, child: Text('UPTIME', style: style)),
           const SizedBox(width: 20),
@@ -206,13 +203,6 @@ class _JobRow extends ConsumerWidget {
               child: Text(
                 entry.machine?.name ?? job.machineId,
                 style: context.text.monoSecondary,
-              ),
-            ),
-            SizedBox(
-              width: _programW,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: ProgramBadge(job.program),
               ),
             ),
             SizedBox(

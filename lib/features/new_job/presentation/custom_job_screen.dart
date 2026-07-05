@@ -133,12 +133,12 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
     final description = _description.text.trim();
     final workingDir = _workingDir.text.trim();
 
+    final autoName = command.trim().split(RegExp(r'\s+')).first.split('/').last;
     final job = Job(
       id: 'job-${DateTime.now().microsecondsSinceEpoch}',
-      name: typedName.isEmpty ? deriveProgram(command) : typedName,
+      name: typedName.isEmpty ? (autoName.isEmpty ? 'job' : autoName) : typedName,
       description: description.isEmpty ? null : description,
       machineId: machineId,
-      program: deriveProgram(command),
       command: command,
       workingDir: workingDir.isEmpty ? null : workingDir,
       port: port,
@@ -156,7 +156,6 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
           name: job.name,
           description: job.description,
           machineId: job.machineId,
-          program: job.program,
           command: job.command,
           workingDir: job.workingDir,
           port: job.port,

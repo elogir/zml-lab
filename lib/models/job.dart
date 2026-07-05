@@ -16,7 +16,6 @@ abstract class Job with _$Job {
     required String name,
     String? description,
     required String machineId,
-    required String program,
     required String command,
     String? workingDir,
     required int port,
