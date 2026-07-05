@@ -32,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -63,6 +63,11 @@ class AppDatabase extends _$AppDatabase {
         );
       }
       if (from < 5) await m.createTable(settings);
+      if (from < 6) {
+        await m.database.customStatement(
+          'ALTER TABLE saved_benchmarks ADD COLUMN machine_name TEXT',
+        );
+      }
     },
   );
 }

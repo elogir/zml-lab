@@ -17,6 +17,7 @@ class BenchmarkView extends ConsumerStatefulWidget {
     super.key,
     required this.jobId,
     required this.jobName,
+    required this.machineName,
     required this.endpoint,
     required this.host,
     required this.port,
@@ -26,6 +27,10 @@ class BenchmarkView extends ConsumerStatefulWidget {
 
   /// The job's display name — the default name when saving a run.
   final String jobName;
+
+  /// The machine the job runs on — stored with a saved run so its origin
+  /// shows in the Saved benchmarks view.
+  final String machineName;
 
   /// Display label for the endpoint (e.g. `local:8001`).
   final String endpoint;
@@ -78,6 +83,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
       context,
       run: run,
       endpoint: widget.endpoint,
+      machineName: widget.machineName,
       defaultName: widget.jobName,
     );
   }

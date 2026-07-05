@@ -44,6 +44,10 @@ class SavedBenchmarks extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
   TextColumn get endpoint => text()();
+
+  /// The machine it ran on, for display. Nullable: rows saved before this
+  /// column existed fall back to the endpoint's host part.
+  TextColumn get machineName => text().nullable()();
   TextColumn get prompt => text()();
   IntColumn get batchSize => integer()();
   RealColumn get aggregateTokensPerSecond => real()();
