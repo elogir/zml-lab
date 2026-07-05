@@ -116,6 +116,8 @@ class _ConfigCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final machine = ref.watch(machineMapProvider)[config.machineId];
     final machineName = machine?.name ?? config.machineId;
+    final description = config.description?.trim();
+    final hasDescription = description != null && description.isNotEmpty;
 
     return AppCard(
       onTap: () => openConfigInForm(context, config.id),
@@ -128,11 +130,21 @@ class _ConfigCard extends ConsumerWidget {
           Text(
             config.name,
             style: context.text.body.copyWith(fontWeight: FontWeight.w600),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          if (config.description != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(config.description!, style: context.text.smallMuted),
-          ],
+          const SizedBox(height: AppSpacing.sm),
+          // Always exactly one middle line so every card is the same height —
+          // without a description, the command is a more useful filler than a
+          // blank gap.
+          Text(
+            hasDescription ? description : config.command,
+            style: hasDescription
+                ? context.text.smallMuted
+                : context.text.monoSmall,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           const SizedBox(height: AppSpacing.lg),
           Row(
             children: [
