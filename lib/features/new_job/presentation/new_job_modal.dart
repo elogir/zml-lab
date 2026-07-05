@@ -2,9 +2,12 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/execution/job_executor.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../../models/enums.dart';
+import '../../../models/job.dart';
 import '../../../models/launch_config.dart';
 import '../../configs/application/configs_providers.dart';
 import '../../machines/application/machines_providers.dart';
@@ -15,7 +18,7 @@ void openConfigInForm(BuildContext context, String configId) =>
     NewCustomJobRoute(configId: configId).go(context);
 
 /// Presents the "New job" chooser as a centered modal over the current
-/// screen: pick a saved config, or build a custom job.
+/// screen: pick a saved config to launch it right away, or build a custom job.
 Future<void> showNewJobModal(BuildContext context) {
   return Navigator.of(context, rootNavigator: true).push(
     PageRouteBuilder<void>(
@@ -90,7 +93,8 @@ class _ModalHeader extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'Start from a saved config, or build a custom one from scratch.',
+          'Pick a config to launch it right away, or build a custom job. '
+          'To tweak one first, edit it under Saved configs.',
           style: context.text.subtitle,
         ),
       ],
@@ -98,19 +102,69 @@ class _ModalHeader extends StatelessWidget {
   }
 }
 
-class _ModalBody extends ConsumerWidget {
+class _ModalBody extends ConsumerStatefulWidget {
   const _ModalBody();
 
-  void _openCustom(BuildContext context, {String? configId}) {
+  @override
+  ConsumerState<_ModalBody> createState() => _ModalBodyState();
+}
+
+class _ModalBodyState extends ConsumerState<_ModalBody> {
+  String _query = '';
+
+  /// Tallest the config list gets before it scrolls (~5 rows).
+  static const double _listMaxHeight = 300;
+
+  void _openCustom(BuildContext context) {
     final router = GoRouter.of(context);
     Navigator.of(context).pop();
-    router.go(NewCustomJobRoute(configId: configId).location);
+    router.go(const NewCustomJobRoute().location);
   }
 
+  /// Launches [config] as-is: builds a job from it and starts it immediately,
+  /// landing on the job's detail view.
+  Future<void> _launchConfig(LaunchConfig config) async {
+    final machine = ref.read(machineMapProvider)[config.machineId];
+    if (machine == null) return;
+    // Grab everything up front: popping the modal unmounts this widget, so
+    // neither `context` nor `ref` can be touched after the await.
+    final router = GoRouter.of(context);
+    final executor = ref.read(jobExecutorProvider);
+    Navigator.of(context).pop();
+
+    final job = Job(
+      id: 'job-${DateTime.now().microsecondsSinceEpoch}',
+      name: config.name,
+      description: config.description,
+      machineId: config.machineId,
+      command: config.command,
+      workingDir: config.workingDir,
+      port: config.port,
+      status: JobStatus.starting,
+      env: config.env,
+    );
+    await executor.launch(job, machine);
+    router.go('/jobs/${job.id}');
+  }
+
+  bool _matches(LaunchConfig c, String q, String machineName) =>
+      c.name.toLowerCase().contains(q) ||
+      (c.description?.toLowerCase().contains(q) ?? false) ||
+      c.command.toLowerCase().contains(q) ||
+      machineName.toLowerCase().contains(q) ||
+      '${c.port}'.contains(q);
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final configs = ref.watch(configsStreamProvider).value ?? const [];
+  Widget build(BuildContext context) {
+    final all = ref.watch(configsStreamProvider).value ?? const [];
     final machines = ref.watch(machineMapProvider);
+    final q = _query.trim().toLowerCase();
+    final configs = q.isEmpty
+        ? all
+        : [
+            for (final c in all)
+              if (_matches(c, q, machines[c.machineId]?.name ?? c.machineId)) c,
+          ];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -125,15 +179,51 @@ class _ModalBody extends ConsumerWidget {
         children: [
           const SectionLabel('Saved configs'),
           const SizedBox(height: AppSpacing.sm),
-          for (final config in configs) ...[
-            _ConfigRow(
-              config: config,
-              machineName: machines[config.machineId]?.name ?? config.machineId,
-              onTap: () => _openCustom(context, configId: config.id),
+          if (all.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Text('No saved configs yet', style: context.text.smallMuted),
+            )
+          else ...[
+            AppSearchField(
+              hintText: 'Search configs',
+              onChanged: (v) => setState(() => _query = v),
             ),
             const SizedBox(height: AppSpacing.sm),
+            // Capped and scrollable so a long config library doesn't grow the
+            // modal off screen.
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: _listMaxHeight),
+              child: configs.isEmpty
+                  ? Padding(
+                      padding:
+                          const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                      child: Text(
+                        'No matching configs',
+                        style: context.text.smallMuted,
+                      ),
+                    )
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.zero,
+                      itemCount: configs.length,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: AppSpacing.sm),
+                      itemBuilder: (context, i) {
+                        final config = configs[i];
+                        final machine = machines[config.machineId];
+                        return _ConfigRow(
+                          config: config,
+                          machineName: machine?.name ?? config.machineId,
+                          onLaunch: machine == null
+                              ? null
+                              : () => _launchConfig(config),
+                        );
+                      },
+                    ),
+            ),
           ],
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.md),
           _CustomRow(onTap: () => _openCustom(context)),
         ],
       ),
@@ -145,18 +235,21 @@ class _ConfigRow extends StatelessWidget {
   const _ConfigRow({
     required this.config,
     required this.machineName,
-    required this.onTap,
+    required this.onLaunch,
   });
 
   final LaunchConfig config;
   final String machineName;
-  final VoidCallback onTap;
+
+  /// Starts the config immediately. Null when its machine no longer exists.
+  final VoidCallback? onLaunch;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final description = config.description;
     return AppCard(
-      onTap: onTap,
+      onTap: onLaunch,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
@@ -172,16 +265,32 @@ class _ConfigRow extends StatelessWidget {
                   style: context.text.body.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '$machineName · :${config.port}',
-                  style: context.text.monoSmall,
-                ),
+                if (description != null && description.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    description,
+                    style: context.text.smallMuted,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
           ),
-          Icon(AppIcons.chevronRight, size: 16, color: c.textFaint),
+          const SizedBox(width: AppSpacing.md),
+          Text(
+            '$machineName · :${config.port}',
+            style: context.text.monoSmall,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Icon(
+            AppIcons.play,
+            size: 14,
+            color: onLaunch == null ? c.textFaint : c.textSecondary,
+          ),
         ],
       ),
     );
@@ -228,7 +337,7 @@ class _CustomRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Configure machine, program, args and env from scratch',
+                  'Configure machine, command, port and env from scratch',
                   style: context.text.smallMuted,
                 ),
               ],

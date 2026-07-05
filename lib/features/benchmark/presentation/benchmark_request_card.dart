@@ -18,12 +18,10 @@ class BenchmarkRequestCard extends StatelessWidget {
     super.key,
     required this.request,
     this.onExpand,
-    this.expanded = false,
   });
 
   final BenchmarkRequest request;
   final VoidCallback? onExpand;
-  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +53,13 @@ class BenchmarkRequestCard extends StatelessWidget {
                 request.status.label,
                 style: context.text.small.copyWith(color: dot),
               ),
+              if (request.truncated) ...[
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  '· truncated',
+                  style: context.text.small.copyWith(color: c.statusStarting),
+                ),
+              ],
               const Spacer(),
               Text(
                 request.tokensPerSecond > 0
@@ -72,15 +77,27 @@ class BenchmarkRequestCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: ClipRect(
-              child: Text(
-                request.text.isEmpty ? '…' : request.text,
-                style: context.text.monoSmall.copyWith(
-                  color: c.textSecondary,
-                  height: 1.5,
-                ),
-                maxLines: expanded ? null : 5,
-                overflow: TextOverflow.fade,
-              ),
+              child: request.text.isEmpty
+                  ? Text(
+                      '…',
+                      style: context.text.monoSmall.copyWith(
+                        color: c.textSecondary,
+                        height: 1.5,
+                      ),
+                    )
+                  // Rendered markdown, cropped to the card: the non-scrollable
+                  // scroll view lets the content overflow cleanly into the
+                  // ClipRect instead of erroring.
+                  : SingleChildScrollView(
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: AppMarkdown(
+                        request.text,
+                        style: context.text.small.copyWith(
+                          color: c.textSecondary,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),

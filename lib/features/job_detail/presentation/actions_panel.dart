@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter/widgets.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -120,13 +119,6 @@ class ActionsPanel extends StatelessWidget {
                 title: 'Restart',
                 subtitle: 'relaunch process',
                 onTap: onRestart,
-              ),
-              _ActionTile(
-                t: t,
-                icon: AppIcons.copy,
-                title: 'Copy command',
-                subtitle: 'full launch command',
-                onTap: () => Clipboard.setData(ClipboardData(text: job.command)),
               ),
               _ActionTile(
                 t: t,

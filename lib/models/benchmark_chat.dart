@@ -6,6 +6,8 @@ part 'benchmark_chat.freezed.dart';
 /// (streamed) reply.
 @freezed
 abstract class ChatTurn with _$ChatTurn {
+  const ChatTurn._();
+
   const factory ChatTurn({
     required bool fromUser,
     @Default('') String text,
@@ -14,7 +16,14 @@ abstract class ChatTurn with _$ChatTurn {
     @Default(0.0) double tokensPerSecond,
     int? ttftMs,
     int? latencyMs,
+
+    /// The server's `finish_reason` for the reply, once one arrived.
+    String? finishReason,
   }) = _ChatTurn;
+
+  /// Whether the reply was cut off by a token limit (see
+  /// `BenchmarkRequest.truncated`).
+  bool get truncated => finishReason == 'length';
 }
 
 /// A running conversation with a job's endpoint, seeded from the benchmark

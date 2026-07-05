@@ -24,6 +24,8 @@ enum BenchmarkRequestStatus {
 /// One request in a benchmark batch, streaming its response.
 @freezed
 abstract class BenchmarkRequest with _$BenchmarkRequest {
+  const BenchmarkRequest._();
+
   const factory BenchmarkRequest({
     required int index,
     @Default(BenchmarkRequestStatus.queued) BenchmarkRequestStatus status,
@@ -32,7 +34,16 @@ abstract class BenchmarkRequest with _$BenchmarkRequest {
     @Default(0) double tokensPerSecond,
     int? ttftMs,
     int? latencyMs,
+
+    /// The server's `finish_reason` for the reply, once one arrived
+    /// (`stop`, `length`, `tool_calls`, …).
+    String? finishReason,
   }) = _BenchmarkRequest;
+
+  /// Whether the reply was cut off by a token limit rather than finishing
+  /// naturally — the server reports `length` both for a request-level
+  /// max-tokens cap and for its own max sequence length.
+  bool get truncated => finishReason == 'length';
 }
 
 /// Aggregate state of a benchmark run over a batch of requests.
@@ -43,6 +54,13 @@ abstract class BenchmarkRun with _$BenchmarkRun {
   const factory BenchmarkRun({
     required String prompt,
     required int batchSize,
+
+    /// Per-request output-token cap. Null means unlimited — the server decides
+    /// (it stops at its max sequence length).
+    int? maxTokens,
+
+    /// Sampling temperature. Null means the server's default.
+    double? temperature,
     @Default(<BenchmarkRequest>[]) List<BenchmarkRequest> requests,
     @Default(false) bool isRunning,
     @Default(Duration.zero) Duration elapsed,
@@ -54,6 +72,10 @@ abstract class BenchmarkRun with _$BenchmarkRun {
 
   int get completed =>
       requests.where((r) => r.status.isTerminal).length;
+
+  /// Requests whose reply was cut off by a token limit (max seqlen or the
+  /// configured cap).
+  int get truncatedCount => requests.where((r) => r.truncated).length;
 
   /// Whether the aggregate reading has been locked in — true once at least one
   /// request in the batch has finished.

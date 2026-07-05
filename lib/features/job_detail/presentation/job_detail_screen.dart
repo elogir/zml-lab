@@ -72,9 +72,15 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
               AppSpacing.lg,
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                BackLink(label: 'Back to jobs', onTap: () => context.go('/')),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: BackLink(
+                    label: 'Back to jobs',
+                    onTap: () => context.go('/'),
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.md),
                 _Header(
                   job: job,
@@ -82,6 +88,18 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                   mode: _mode,
                   onModeChanged: (m) => setState(() => _mode = m),
                 ),
+                if (job.description != null &&
+                    job.description!.trim().isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    job.description!,
+                    style: context.text.smallMuted,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.md),
+                _CommandStrip(job: job),
               ],
             ),
           ),
@@ -232,6 +250,169 @@ class _Header extends StatelessWidget {
         _Meta(label: 'host', value: machine?.name ?? job.machineId),
         _Meta(label: 'port', value: '${job.port}'),
       ],
+    );
+  }
+}
+
+/// The job's launch command as a one-line, horizontally scrollable strip.
+/// Clicking it opens a popup where the full command wraps and can be copied.
+class _CommandStrip extends StatelessWidget {
+  const _CommandStrip({required this.job});
+
+  final Job job;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return HoverRegion(
+      onTap: () => _showCommandPopup(context, job),
+      builder: (context, hovered) => Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 6,
+        ),
+        decoration: BoxDecoration(
+          color: hovered ? c.surfaceHover : c.surfaceMuted,
+          borderRadius: AppRadius.smAll,
+          border: Border.all(color: hovered ? c.borderStrong : c.borderMuted),
+        ),
+        child: Row(
+          children: [
+            Text(
+              r'$',
+              style: context.text.monoSmall.copyWith(color: c.textFaint),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Text(
+                  job.command,
+                  style: context.text.monoSmall.copyWith(
+                    color: c.textSecondary,
+                  ),
+                  maxLines: 1,
+                  softWrap: false,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _showCommandPopup(BuildContext context, Job job) {
+  Navigator.of(context, rootNavigator: true).push(
+    PageRouteBuilder<void>(
+      opaque: false,
+      barrierDismissible: true,
+      barrierColor: const Color(0x99000000),
+      barrierLabel: 'Dismiss',
+      transitionDuration: AppDurations.normal,
+      pageBuilder: (context, _, _) => _CommandPopup(job: job),
+      transitionsBuilder: (context, anim, _, child) {
+        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween(begin: 0.97, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class _CommandPopup extends StatelessWidget {
+  const _CommandPopup({required this.job});
+
+  final Job job;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: AppPanel(
+            color: c.surface,
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Icon(AppIcons.terminal, size: 15, color: c.textSecondary),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text('Launch command', style: context.text.bodyStrong),
+                    const Spacer(),
+                    CopyButton(text: job.command),
+                    const SizedBox(width: AppSpacing.sm),
+                    AppIconButton(
+                      icon: AppIcons.close,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppSelectionArea(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        decoration: BoxDecoration(
+                          color: c.surfaceMuted,
+                          borderRadius: AppRadius.mdAll,
+                          border: Border.all(color: c.borderMuted),
+                        ),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+                          ),
+                          child: SingleChildScrollView(
+                            child: Text(
+                              job.command,
+                              style: context.text.mono.copyWith(height: 1.6),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (job.workingDir != null &&
+                          job.workingDir!.trim().isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Row(
+                          children: [
+                            Text('cd', style: context.text.monoSmall.copyWith(
+                              color: c.textFaint,
+                            )),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                job.workingDir!,
+                                style: context.text.monoSmall,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

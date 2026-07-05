@@ -41,6 +41,7 @@ dependencies:
   # Utilities
   collection:
   flutter_inappwebview: ^6.1.5
+  gpt_markdown: ^1.1.7
 dev_dependencies:
   flutter_test:
     sdk: flutter
