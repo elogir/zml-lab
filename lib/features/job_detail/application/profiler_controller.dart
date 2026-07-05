@@ -85,6 +85,8 @@ class ProfilerController extends _$ProfilerController {
   static const _logdir = '/tmp/xprof';
 
   TerminalSession? _xprof;
+  int? _xprofPort;
+  Machine? _xprofMachine;
   String? _lastUrl;
   int _openToken = 0;
 
@@ -112,9 +114,34 @@ class ProfilerController extends _$ProfilerController {
     executor.addListener(onExecutorChanged);
     ref.onDispose(() {
       executor.removeListener(onExecutorChanged);
-      _xprof?.dispose();
+      _killXprof();
     });
     return const ProfilerRun();
+  }
+
+  /// Kills the current xprof for real. Disposing the PTY only reaches its
+  /// session-leader shell/ssh — the uv-spawned python is a grandchild in its
+  /// own process group that survives and keeps the port (same reason llmd
+  /// under `bazel run` needs a port-kill) — so also SIGINT whatever LISTENs
+  /// on the xprof port, locally or on the remote.
+  void _killXprof() {
+    _xprof?.dispose();
+    _xprof = null;
+    final port = _xprofPort;
+    final machine = _xprofMachine;
+    _xprofPort = null;
+    _xprofMachine = null;
+    if (port == null || machine == null) return;
+    if (machine.isLocal) {
+      killPortListeners(port);
+    } else {
+      killRemotePortListeners(
+        target: machine.sshTarget,
+        port: port,
+        sshPort: machine.sshPort,
+        identityFile: machine.sshKey,
+      );
+    }
   }
 
   /// Send one profiled request (llmd writes the trace to [_logdir]).
@@ -141,14 +168,20 @@ class ProfilerController extends _$ProfilerController {
     try {
       final xprofPort =
           await findFreePort(start: 8791, end: 8891, avoid: {jobPort});
-      _xprof?.dispose();
+      _killXprof();
       _xprof = TerminalSession(runCommand: _xprofCommand(machine, xprofPort));
+      _xprofPort = xprofPort;
+      _xprofMachine = machine;
 
       final serving = await _waitForXprof(xprofPort);
       if (!serving) {
+        // Distinguish a dead process from a slow one, then reap it — a
+        // slow-starting xprof would otherwise bind the port later and linger.
+        final exited = _xprof?.hasExited ?? true;
+        _killXprof();
         state = state.copyWith(
           phase: ProfilerPhase.failed,
-          message: 'xprof did not start',
+          message: exited ? 'xprof exited' : 'xprof not serving after 60s',
         );
         return;
       }
@@ -177,8 +210,7 @@ class ProfilerController extends _$ProfilerController {
 
   /// Stop the xprof server and reset its half to idle.
   void stop() {
-    _xprof?.dispose();
-    _xprof = null;
+    _killXprof();
     _lastUrl = null;
     state = state.copyWith(
       phase: ProfilerPhase.idle,
@@ -205,9 +237,11 @@ class ProfilerController extends _$ProfilerController {
     return ssh.toString();
   }
 
-  /// Polls the forwarded xprof port until its HTTP server answers.
+  /// Polls the forwarded xprof port until its HTTP server answers. Generous
+  /// deadline (60s): a cold `uvx xprof` (fresh uv env / cold FS cache) can
+  /// take well over 30s before it starts serving.
   Future<bool> _waitForXprof(int port) async {
-    for (var i = 0; i < 60; i++) {
+    for (var i = 0; i < 120; i++) {
       if (_xprof?.hasExited ?? true) return false; // process died
       final probe = await probeEndpoint('127.0.0.1', port, path: '/');
       if (probe.error == null) return true;

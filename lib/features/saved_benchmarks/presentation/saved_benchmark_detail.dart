@@ -127,16 +127,15 @@ class _DetailView extends StatelessWidget {
                             style: context.text.smallMuted,
                           ),
                         )
-                      // Selectable per response (not across the lazy list —
-                      // see the benchmark chat transcript for why).
+                      // Previews aren't selectable — click one to expand it;
+                      // selection lives in the popup with the full text.
                       : ListView.separated(
                           padding: EdgeInsets.zero,
                           itemCount: b.requests.length,
                           separatorBuilder: (_, _) =>
                               const SizedBox(height: AppSpacing.md),
-                          itemBuilder: (context, i) => AppSelectionArea(
-                            child: _Response(request: b.requests[i]),
-                          ),
+                          itemBuilder: (context, i) =>
+                              _Response(request: b.requests[i]),
                         ),
                 ),
               ],
@@ -233,43 +232,17 @@ class _Response extends StatelessWidget {
 
   final BenchmarkRequest request;
 
-  String _ms(int? v) => v == null ? '—' : '${v}ms';
-
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final r = request;
-    final dot = benchmarkStatusColor(r.status, c);
-    return AppPanel(
-      color: c.surfaceMuted,
+    return AppCard(
+      onTap: () => _showResponsePopup(context, r),
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                r.index.toString().padLeft(2, '0'),
-                style: context.text.monoSmall.copyWith(color: c.textSecondary),
-              ),
-              const Spacer(),
-              Text(
-                r.tokensPerSecond.toStringAsFixed(1),
-                style: context.text.mono.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: c.statusRunning,
-                ),
-              ),
-              const SizedBox(width: 3),
-              Text('t/s', style: context.text.monoSmall),
-            ],
-          ),
+          _ResponseHeader(request: r),
           const SizedBox(height: AppSpacing.sm),
           if (r.text.isEmpty)
             Text(
@@ -280,25 +253,94 @@ class _Response extends StatelessWidget {
               ),
             )
           else
-            AppMarkdown(
-              r.text,
-              style: context.text.small.copyWith(
-                color: c.textSecondary,
-                height: 1.5,
+            // Capped preview — a long response crops here; clicking the card
+            // opens the full text in a popup stacked over this one.
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 180),
+              child: ClipRect(
+                child: SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: AppMarkdown(
+                    r.text,
+                    style: context.text.small.copyWith(
+                      color: c.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
               ),
             ),
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              _metric(context, 'ttft', _ms(r.ttftMs)),
-              const SizedBox(width: AppSpacing.lg),
-              _metric(context, 'tok', '${r.tokens}'),
-              const SizedBox(width: AppSpacing.lg),
-              _metric(context, 'lat', _ms(r.latencyMs)),
-            ],
-          ),
+          _ResponseMetrics(request: r),
         ],
       ),
+    );
+  }
+}
+
+/// Status dot + index on the left, tok/s reading on the right.
+class _ResponseHeader extends StatelessWidget {
+  const _ResponseHeader({required this.request});
+
+  final BenchmarkRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final r = request;
+    final dot = benchmarkStatusColor(r.status, c);
+    return Row(
+      children: [
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          r.index.toString().padLeft(2, '0'),
+          style: context.text.monoSmall.copyWith(color: c.textSecondary),
+        ),
+        if (r.truncated) ...[
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            '· truncated',
+            style: context.text.small.copyWith(color: c.statusStarting),
+          ),
+        ],
+        const Spacer(),
+        Text(
+          r.tokensPerSecond.toStringAsFixed(1),
+          style: context.text.mono.copyWith(
+            fontWeight: FontWeight.w600,
+            color: c.statusRunning,
+          ),
+        ),
+        const SizedBox(width: 3),
+        Text('t/s', style: context.text.monoSmall),
+      ],
+    );
+  }
+}
+
+class _ResponseMetrics extends StatelessWidget {
+  const _ResponseMetrics({required this.request});
+
+  final BenchmarkRequest request;
+
+  String _ms(int? v) => v == null ? '—' : '${v}ms';
+
+  @override
+  Widget build(BuildContext context) {
+    final r = request;
+    return Row(
+      children: [
+        _metric(context, 'ttft', _ms(r.ttftMs)),
+        const SizedBox(width: AppSpacing.lg),
+        _metric(context, 'tok', '${r.tokens}'),
+        const SizedBox(width: AppSpacing.lg),
+        _metric(context, 'lat', _ms(r.latencyMs)),
+      ],
     );
   }
 
@@ -310,6 +352,95 @@ class _Response extends StatelessWidget {
         const SizedBox(width: 5),
         Text(value, style: context.text.monoSmall),
       ],
+    );
+  }
+}
+
+/// The full response, stacked in its own popup over the detail view.
+void _showResponsePopup(BuildContext context, BenchmarkRequest request) {
+  Navigator.of(context, rootNavigator: true).push(
+    PageRouteBuilder<void>(
+      opaque: false,
+      barrierDismissible: true,
+      barrierColor: const Color(0x99000000),
+      barrierLabel: 'Close',
+      transitionDuration: AppDurations.normal,
+      pageBuilder: (context, _, _) => _ResponsePopup(request: request),
+      transitionsBuilder: (context, anim, _, child) {
+        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween(begin: 0.97, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class _ResponsePopup extends StatelessWidget {
+  const _ResponsePopup({required this.request});
+
+  final BenchmarkRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final r = request;
+    final size = MediaQuery.sizeOf(context);
+    final height = (size.height * 0.7).clamp(360.0, 860.0);
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 720, maxHeight: height),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: AppPanel(
+            color: c.surface,
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _ResponseHeader(request: r)),
+                    const SizedBox(width: AppSpacing.md),
+                    CopyButton(text: r.text),
+                    const SizedBox(width: AppSpacing.sm),
+                    AppIconButton(
+                      icon: AppIcons.close,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Flexible(
+                  child: AppPanel(
+                    color: c.surfaceMuted,
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: AppSelectionArea(
+                      child: SingleChildScrollView(
+                        child: AppMarkdown(
+                          r.text.isEmpty ? '—' : r.text,
+                          style: context.text.small.copyWith(
+                            color: c.textSecondary,
+                            height: 1.55,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                _ResponseMetrics(request: r),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
