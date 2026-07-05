@@ -31,6 +31,7 @@ class _JobsScreenState extends ConsumerState<JobsScreen> {
     final job = e.job;
     final machineName = e.machine?.name ?? job.machineId;
     return job.name.toLowerCase().contains(q) ||
+        (job.description?.toLowerCase().contains(q) ?? false) ||
         machineName.toLowerCase().contains(q) ||
         job.command.toLowerCase().contains(q) ||
         '${job.port}'.contains(q);
@@ -164,6 +165,12 @@ class _JobRow extends ConsumerWidget {
 
   final JobListEntry entry;
 
+  /// The job's description, trimmed, or null when there's nothing to show.
+  static String? _description(Job job) {
+    final d = job.description?.trim();
+    return (d == null || d.isEmpty) ? null : d;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
@@ -192,9 +199,31 @@ class _JobRow extends ConsumerWidget {
                     style: context.text.body.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  StatusLabel(job.status),
+                  Row(
+                    children: [
+                      StatusLabel(job.status),
+                      if (_description(job) != null) ...[
+                        Text(
+                          '  ·  ',
+                          style: context.text.smallMuted.copyWith(
+                            color: c.textFaint,
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            _description(job)!,
+                            style: context.text.smallMuted,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ),
