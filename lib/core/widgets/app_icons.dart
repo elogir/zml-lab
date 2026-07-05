@@ -29,6 +29,7 @@ abstract final class AppIcons {
   static const IconData captureTrace = LucideIcons.circleDot;
   static const IconData restart = LucideIcons.rotateCw;
   static const IconData copy = LucideIcons.copy;
+  static const IconData edit = LucideIcons.pencil;
   static const IconData check = LucideIcons.check;
   static const IconData testEndpoint = LucideIcons.externalLink;
   static const IconData save = LucideIcons.bookmark;

@@ -1,10 +1,12 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/format.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/benchmark.dart';
 import '../../../models/saved_benchmark.dart';
+import '../../../repositories/saved_benchmark_repository.dart';
 import '../../benchmark/presentation/benchmark_request_card.dart';
 
 /// Opens a saved benchmark: its headline stats, the prompt, and every saved
@@ -29,15 +31,44 @@ Future<void> showSavedBenchmarkDetail(
   );
 }
 
-class _DetailView extends StatelessWidget {
+class _DetailView extends ConsumerStatefulWidget {
   const _DetailView({required this.benchmark});
 
   final SavedBenchmark benchmark;
 
   @override
+  ConsumerState<_DetailView> createState() => _DetailViewState();
+}
+
+class _DetailViewState extends ConsumerState<_DetailView> {
+  late SavedBenchmark _b = widget.benchmark;
+  bool _editingName = false;
+  late final TextEditingController _name = TextEditingController(
+    text: widget.benchmark.name,
+  );
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _commitName() {
+    final name = _name.text.trim();
+    setState(() => _editingName = false);
+    if (name.isEmpty || name == _b.name) {
+      _name.text = _b.name; // revert an empty/unchanged edit
+      return;
+    }
+    final updated = _b.copyWith(name: name);
+    setState(() => _b = updated);
+    ref.read(savedBenchmarkRepositoryProvider).save(updated);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final b = benchmark;
+    final b = _b;
 
     final size = MediaQuery.sizeOf(context);
     final width = (size.width * 0.62).clamp(480.0, 1100.0);
@@ -59,7 +90,44 @@ class _DetailView extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(b.name, style: context.text.bodyStrong),
+                          if (_editingName)
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: AppTextField(
+                                    controller: _name,
+                                    autofocus: true,
+                                    onSubmitted: (_) => _commitName(),
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                AppIconButton(
+                                  icon: AppIcons.check,
+                                  size: 14,
+                                  onPressed: _commitName,
+                                ),
+                              ],
+                            )
+                          else
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    b.name,
+                                    style: context.text.bodyStrong,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.xs),
+                                AppIconButton(
+                                  icon: AppIcons.edit,
+                                  size: 13,
+                                  onPressed: () =>
+                                      setState(() => _editingName = true),
+                                ),
+                              ],
+                            ),
                           const SizedBox(height: 4),
                           Row(
                             children: [
