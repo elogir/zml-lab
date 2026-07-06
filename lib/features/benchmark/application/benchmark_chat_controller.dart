@@ -143,7 +143,11 @@ class BenchmarkChatController extends _$BenchmarkChatController {
       final decodeMs = firstTokenAt == null
           ? 0
           : now.difference(firstTokenAt!).inMilliseconds;
-      final tps = decodeMs > 0 ? tokens / (decodeMs / 1000.0) : 0.0;
+      // Rate of tokens after the first (see the batch controller) — avoids the
+      // early spike from one token over a near-zero window.
+      final tps = (tokens > 1 && decodeMs > 0 && (!streaming || decodeMs >= 50))
+          ? (tokens - 1) / (decodeMs / 1000.0)
+          : 0.0;
       final text = buffer.toString();
       _setTurn(
         replyIndex,

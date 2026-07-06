@@ -4,6 +4,17 @@ import 'package:syncfusion_flutter_charts/charts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/benchmark.dart';
 
+/// A whole-number-ish axis step giving ~5 ticks over a [maxSec]-long run, so
+/// the time axis lands on clean values (…, 1s, 2s, 5s, 10s, 30s, …).
+double _niceStep(double maxSec) {
+  final target = maxSec <= 0 ? 1.0 : maxSec / 5.0;
+  const steps = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1200];
+  for (final s in steps) {
+    if (target <= s) return s.toDouble();
+  }
+  return 3600;
+}
+
 /// The benchmark charts, shared by the live view and the saved-run detail: two
 /// throughput time-series, so the slope is the story — the batch's aggregate
 /// tok/s, and the average tok/s across only the still-running requests.
@@ -112,12 +123,17 @@ class _ThroughputChart extends StatelessWidget {
       );
     }
     final label = context.text.monoSmall.copyWith(color: c.textFaint);
+    final maxSec = samples.last.elapsedMs / 1000.0;
     return SfCartesianChart(
       backgroundColor: const Color(0x00000000),
       plotAreaBorderWidth: 0,
       margin: EdgeInsets.zero,
       primaryXAxis: NumericAxis(
-        title: AxisTitle(text: 'seconds', textStyle: label),
+        // Start at 0 with a whole-number interval so labels read 0s, 1s, 2s…
+        // rather than the axis's data-driven 0.11s / 0.61s.
+        minimum: 0,
+        interval: _niceStep(maxSec),
+        labelFormat: '{value}s',
         labelStyle: label,
         axisLine: AxisLine(width: 0.5, color: c.borderMuted),
         majorTickLines: const MajorTickLines(size: 0),
