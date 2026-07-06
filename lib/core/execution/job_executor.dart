@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../features/job_detail/presentation/terminal_session.dart';
 import '../../features/settings/application/settings_controller.dart';
 import '../../models/enums.dart';
+import '../../models/env_var.dart';
 import '../../models/job.dart';
 import '../../models/machine.dart';
 import '../../repositories/job_repository.dart';
@@ -50,6 +51,10 @@ class JobExecutor extends ChangeNotifier {
 
   final JobRepository _jobs;
   final MachineRepository _machines;
+
+  /// Env vars injected into every launch, from settings — kept up to date by
+  /// the provider. Applied before a job's own env (which overrides on a clash).
+  List<EnvVar> globalEnv = const [];
 
   /// Periodically re-checks running jobs' endpoints so a job whose server dies
   /// or hangs stops showing as running.
@@ -322,7 +327,12 @@ class JobExecutor extends ChangeNotifier {
 
   _Invocation _buildInvocation(Job job, Machine machine) {
     final command = applyPortTemplate(job.command, job.port);
-    final env = {for (final e in job.env) e.key: e.value};
+    // Global env (from settings) first, then the job's own — so a job can
+    // override a global on a key clash.
+    final env = {
+      for (final e in globalEnv) e.key: e.value,
+      for (final e in job.env) e.key: e.value,
+    };
     final workingDir = (job.workingDir == null || job.workingDir!.trim().isEmpty)
         ? null
         : job.workingDir!.trim();
@@ -400,15 +410,16 @@ JobExecutor jobExecutor(Ref ref) {
     ref.watch(jobRepositoryProvider),
     ref.watch(machineRepositoryProvider),
   );
-  // Health-check cadence follows the setting — listen (not watch), so a
-  // change reschedules the timer without recreating the executor (which owns
-  // the live process sessions).
+  // Global env + health-check cadence follow settings — listen (not watch), so
+  // a change updates the executor without recreating it (it owns the live
+  // process sessions).
+  final settings = ref.read(settingsControllerProvider);
+  executor.globalEnv = settings.globalEnv;
   executor.startMonitoring(
-    Duration(
-      seconds: ref.read(settingsControllerProvider).healthIntervalSeconds,
-    ),
+    Duration(seconds: settings.healthIntervalSeconds),
   );
   ref.listen(settingsControllerProvider, (prev, next) {
+    executor.globalEnv = next.globalEnv;
     if (prev?.healthIntervalSeconds != next.healthIntervalSeconds) {
       executor.startMonitoring(Duration(seconds: next.healthIntervalSeconds));
     }

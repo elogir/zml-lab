@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'env_var.dart';
+
 part 'settings.freezed.dart';
 
 /// The prompt a fresh benchmark run starts with when none is configured.
@@ -46,6 +48,10 @@ abstract class AppSettings with _$AppSettings {
 
     /// Null = the server's default temperature.
     double? benchTemperature,
+
+    /// Environment variables injected into every job launch (local and remote).
+    /// A job's own env vars override these on a key clash.
+    @Default(<EnvVar>[]) List<EnvVar> globalEnv,
   }) = _AppSettings;
 }
 
