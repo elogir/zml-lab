@@ -21,6 +21,10 @@ abstract class Job with _$Job {
     required int port,
     required JobStatus status,
     @Default(<EnvVar>[]) List<EnvVar> env,
+
+    /// The saved config this job was launched from, if any — so editing the
+    /// job can offer to push the change back to that config.
+    String? configId,
     int? pid,
     DateTime? startedAt,
   }) = _Job;

@@ -166,15 +166,28 @@ mixin $EditMachineRoute on GoRouteData {
 }
 
 mixin $NewCustomJobRoute on GoRouteData {
-  static NewCustomJobRoute _fromState(GoRouterState state) =>
-      NewCustomJobRoute(configId: state.uri.queryParameters['config-id']);
+  static NewCustomJobRoute _fromState(GoRouterState state) => NewCustomJobRoute(
+    configId: state.uri.queryParameters['config-id'],
+    jobId: state.uri.queryParameters['job-id'],
+    newConfig:
+        _$convertMapValue(
+          'new-config',
+          state.uri.queryParameters,
+          _$boolConverter,
+        ) ??
+        false,
+  );
 
   NewCustomJobRoute get _self => this as NewCustomJobRoute;
 
   @override
   String get location => GoRouteData.$location(
     '/jobs/new/custom',
-    queryParams: {if (_self.configId != null) 'config-id': _self.configId},
+    queryParams: {
+      if (_self.configId != null) 'config-id': _self.configId,
+      if (_self.jobId != null) 'job-id': _self.jobId,
+      if (_self.newConfig != false) 'new-config': _self.newConfig.toString(),
+    },
   );
 
   @override
@@ -233,4 +246,24 @@ mixin $SettingsRoute on GoRouteData {
 
   @override
   void replace(BuildContext context) => context.replace(location);
+}
+
+T? _$convertMapValue<T>(
+  String key,
+  Map<String, String> map,
+  T? Function(String) converter,
+) {
+  final value = map[key];
+  return value == null ? null : converter(value);
+}
+
+bool _$boolConverter(String value) {
+  switch (value) {
+    case 'true':
+      return true;
+    case 'false':
+      return false;
+    default:
+      throw UnsupportedError('Cannot convert "$value" into a bool.');
+  }
 }

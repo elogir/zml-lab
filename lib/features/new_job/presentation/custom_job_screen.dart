@@ -22,9 +22,24 @@ import '../application/free_port.dart';
 /// The custom job builder. Optionally pre-filled from a saved config.
 /// Fields are wired to controllers; the launch/save actions are deferred.
 class CustomJobScreen extends ConsumerStatefulWidget {
-  const CustomJobScreen({super.key, this.configId});
+  const CustomJobScreen({
+    super.key,
+    this.configId,
+    this.jobId,
+    this.newConfig = false,
+  });
 
+  /// Editing an existing config (saves back to it).
   final String? configId;
+
+  /// Editing an existing job (pre-filled from it; saves/relaunches the job,
+  /// optionally updating the config it came from).
+  final String? jobId;
+
+  /// Opened from the configs tab — frames the page as authoring a config.
+  final bool newConfig;
+
+  bool get isEditingJob => jobId != null;
 
   @override
   ConsumerState<CustomJobScreen> createState() => _CustomJobScreenState();
@@ -54,6 +69,13 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
   String _machineQuery = '';
   bool _portEdited = false;
 
+  // Edit-job mode: the loaded job, its source config (if any) and name, and
+  // whether to also push edits back to that config.
+  Job? _job;
+  String? _sourceConfigId;
+  String? _sourceConfigName;
+  bool _alsoUpdateConfig = false;
+
   @override
   void initState() {
     super.initState();
@@ -62,6 +84,10 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
   }
 
   Future<void> _prefill() async {
+    if (widget.jobId != null) {
+      await _prefillFromJob(widget.jobId!);
+      return;
+    }
     final id = widget.configId;
     if (id == null) {
       _prefillFreePort();
@@ -80,6 +106,33 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
       _env
         ..clear()
         ..addAll(config.env.map((e) => _EnvEntry(key: e.key, value: e.value)));
+    });
+  }
+
+  /// Edit-job mode: pre-fill from the job and remember its source config (so we
+  /// can offer to push the edit back to it).
+  Future<void> _prefillFromJob(String jobId) async {
+    final job = await ref.read(jobRepositoryProvider).jobById(jobId);
+    if (job == null || !mounted) return;
+    final configName = job.configId == null
+        ? null
+        : (await ref.read(configRepositoryProvider).configById(job.configId!))
+              ?.name;
+    if (!mounted) return;
+    setState(() {
+      _job = job;
+      _sourceConfigId = job.configId;
+      _sourceConfigName = configName;
+      _command.text = job.command;
+      _workingDir.text = job.workingDir ?? '';
+      _port.text = '${job.port}';
+      _portEdited = true;
+      _name.text = job.name;
+      _description.text = job.description ?? '';
+      _selectedMachineId = job.machineId;
+      _env
+        ..clear()
+        ..addAll(job.env.map((e) => _EnvEntry(key: e.key, value: e.value)));
     });
   }
 
@@ -168,7 +221,9 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
 
     final autoName = command.trim().split(RegExp(r'\s+')).first.split('/').last;
     final job = Job(
-      id: 'job-${DateTime.now().microsecondsSinceEpoch}',
+      // Editing a job keeps its id (and its source-config link); otherwise a
+      // fresh job. A job launched from an edited config links to that config.
+      id: widget.jobId ?? 'job-${DateTime.now().microsecondsSinceEpoch}',
       name: typedName.isEmpty ? (autoName.isEmpty ? 'job' : autoName) : typedName,
       description: description.isEmpty ? null : description,
       machineId: machineId,
@@ -177,18 +232,20 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
       port: port,
       status: JobStatus.starting,
       env: env,
+      configId: widget.isEditingJob ? _sourceConfigId : widget.configId,
     );
     return (job, machine);
   }
 
-  /// Saves the form as a config — updating in place when the form was opened
-  /// from an existing config (editing must not spawn a copy; duplicating is
-  /// its own action on the configs screen).
-  Future<void> _saveConfigFrom(Job job) => ref
+  /// Saves the form as a config — updating in place when [configId] (or the
+  /// form's own `configId`) is given; editing must not spawn a copy.
+  Future<void> _saveConfigFrom(Job job, {String? configId}) => ref
       .read(configRepositoryProvider)
       .upsertConfig(
         LaunchConfig(
-          id: widget.configId ?? 'cfg-${DateTime.now().microsecondsSinceEpoch}',
+          id: configId ??
+              widget.configId ??
+              'cfg-${DateTime.now().microsecondsSinceEpoch}',
           name: job.name,
           description: job.description,
           machineId: job.machineId,
@@ -217,6 +274,91 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
     _back();
   }
 
+  /// Edit-job mode. Writes the edited fields to the job (and, when
+  /// [_alsoUpdateConfig], back to its source config), then optionally
+  /// relaunches so the change takes effect.
+  Future<void> _saveJob({required bool relaunch}) async {
+    final resolved = _resolve();
+    if (resolved == null) return;
+    final (job, machine) = resolved;
+    if (_alsoUpdateConfig && _sourceConfigId != null) {
+      await _saveConfigFrom(job, configId: _sourceConfigId);
+    }
+    final executor = ref.read(jobExecutorProvider);
+    if (relaunch) {
+      // restart handles both a live job (SIGINT then respawn) and a stopped
+      // one (just spawn); either way it persists the edited job.
+      await executor.restart(job, machine);
+    } else {
+      // Keep the current status/pid — just update the stored spec so the next
+      // manual restart uses it.
+      await ref.read(jobRepositoryProvider).upsertJob(
+        job.copyWith(
+          status: _job?.status ?? job.status,
+          pid: _job?.pid,
+          startedAt: _job?.startedAt,
+        ),
+      );
+    }
+    if (!mounted) return;
+    context.go('/jobs/${job.id}');
+  }
+
+  List<Widget> _editJobActions() {
+    final configName = _sourceConfigName == null
+        ? 'the saved config'
+        : 'config “$_sourceConfigName”';
+    return [
+      if (_sourceConfigId != null) ...[
+        _CheckRow(
+          checked: _alsoUpdateConfig,
+          label: 'Also update $configName',
+          onChanged: (v) => setState(() => _alsoUpdateConfig = v),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+      ],
+      Row(
+        children: [
+          AppButton(
+            label: 'Save & relaunch',
+            icon: LucideIcons.play,
+            variant: AppButtonVariant.primary,
+            onPressed: () => _saveJob(relaunch: true),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          AppButton(
+            label: 'Save without relaunching',
+            onPressed: () => _saveJob(relaunch: false),
+          ),
+        ],
+      ),
+    ];
+  }
+
+  String get _headerTitle {
+    if (widget.isEditingJob) return 'Edit job';
+    if (widget.configId != null) return 'Edit config';
+    if (widget.newConfig) return 'New config';
+    return 'New custom job';
+  }
+
+  String get _headerSubtitle {
+    if (widget.isEditingJob) {
+      return 'Update this job and relaunch — handy after a launch fails on a '
+          'typo. Optionally push the fix back to its saved config.';
+    }
+    if (widget.configId != null) {
+      return 'Changes save back to this config; launching uses the edited '
+          'values.';
+    }
+    if (widget.newConfig) {
+      return 'Configure the process and save it as a reusable config; you can '
+          'launch it too.';
+    }
+    return 'Configure the process, then launch or save it as a reusable '
+        'config.';
+  }
+
   @override
   Widget build(BuildContext context) {
     final machines = ref.watch(machinesStreamProvider).value ?? const [];
@@ -234,19 +376,9 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
             children: [
               BackLink(label: 'Back', onTap: _back),
               const SizedBox(height: AppSpacing.md),
-              Text(
-                widget.configId == null ? 'New custom job' : 'Edit config',
-                style: context.text.title,
-              ),
+              Text(_headerTitle, style: context.text.title),
               const SizedBox(height: 4),
-              Text(
-                widget.configId == null
-                    ? 'Configure the process, then launch or save it as a '
-                          'reusable config.'
-                    : 'Changes save back to this config; launching uses the '
-                          'edited values.',
-                style: context.text.subtitle,
-              ),
+              Text(_headerSubtitle, style: context.text.subtitle),
               const SizedBox(height: AppSpacing.xl),
 
               const _SectionTitle(1, 'Machine'),
@@ -320,23 +452,29 @@ class _CustomJobScreenState extends ConsumerState<CustomJobScreen> {
 
               Container(height: 1, color: context.colors.borderMuted),
               const SizedBox(height: AppSpacing.lg),
-              Row(
-                children: [
-                  AppButton(
-                    label: 'Save & launch',
-                    icon: LucideIcons.play,
-                    variant: AppButtonVariant.primary,
-                    onPressed: () => _launch(save: true),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  AppButton(
-                    label: 'Launch without saving',
-                    onPressed: () => _launch(save: false),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  AppButton(label: 'Save config only', onPressed: _saveConfigOnly),
-                ],
-              ),
+              if (widget.isEditingJob)
+                ..._editJobActions()
+              else
+                Row(
+                  children: [
+                    AppButton(
+                      label: 'Save & launch',
+                      icon: LucideIcons.play,
+                      variant: AppButtonVariant.primary,
+                      onPressed: () => _launch(save: true),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    AppButton(
+                      label: 'Launch without saving',
+                      onPressed: () => _launch(save: false),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    AppButton(
+                      label: 'Save config only',
+                      onPressed: _saveConfigOnly,
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
@@ -540,6 +678,50 @@ class _PortSection extends StatelessWidget {
           style: context.text.smallMuted,
         ),
       ],
+    );
+  }
+}
+
+/// A simple tappable checkbox + label (the app has no Material Checkbox).
+class _CheckRow extends StatelessWidget {
+  const _CheckRow({
+    required this.checked,
+    required this.label,
+    required this.onChanged,
+  });
+
+  final bool checked;
+  final String label;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return HoverRegion(
+      onTap: () => onChanged(!checked),
+      builder: (context, hovered) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+              color: checked ? c.accent : c.surfaceMuted,
+              borderRadius: AppRadius.smAll,
+              border: Border.all(
+                color: checked
+                    ? c.accent
+                    : (hovered ? c.borderStrong : c.border),
+              ),
+            ),
+            child: checked
+                ? const Icon(AppIcons.check, size: 13, color: Color(0xFFFFFFFF))
+                : null,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(label, style: context.text.body),
+        ],
+      ),
     );
   }
 }

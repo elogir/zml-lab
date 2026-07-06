@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/router/routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/search.dart';
 import '../../../core/widgets/widgets.dart';
@@ -49,10 +50,11 @@ class _ConfigsScreenState extends ConsumerState<ConfigsScreen> {
             title: 'Saved configs',
             subtitle: 'Reusable launch presets. Pick one to pre-fill the job form.',
             trailing: AppButton(
-              label: 'New job',
+              label: 'New config',
               icon: AppIcons.add,
               variant: AppButtonVariant.primary,
-              onPressed: () => showNewJobModal(context),
+              onPressed: () =>
+                  const NewCustomJobRoute(newConfig: true).push<void>(context),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),

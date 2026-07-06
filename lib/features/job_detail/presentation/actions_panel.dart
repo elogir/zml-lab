@@ -32,6 +32,7 @@ class ActionsPanel extends StatelessWidget {
     this.onKill,
     this.killArmed = false,
     this.onRestart,
+    this.onEdit,
     this.onCapture,
     this.captureSubtitle = 'send profiled request',
     this.onXprof,
@@ -55,6 +56,9 @@ class ActionsPanel extends StatelessWidget {
 
   /// Stops (if needed) and relaunches the job's process.
   final VoidCallback? onRestart;
+
+  /// Opens the job's config in the editor (fix a typo, tweak, relaunch).
+  final VoidCallback? onEdit;
 
   /// Sends one profiled request so the server writes a trace — independent of
   /// xprof. Null while a capture is in flight.
@@ -117,6 +121,13 @@ class ActionsPanel extends StatelessWidget {
                 title: 'Restart',
                 subtitle: 'relaunch process',
                 onTap: onRestart,
+              ),
+              _ActionTile(
+                t: t,
+                icon: AppIcons.edit,
+                title: 'Edit job',
+                subtitle: 'command, env, port…',
+                onTap: onEdit,
               ),
               _ActionTile(
                 t: t,

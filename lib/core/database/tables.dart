@@ -101,6 +101,9 @@ class Jobs extends Table {
   TextColumn get workingDir => text().nullable()();
   IntColumn get port => integer()();
 
+  /// The saved config this job launched from, if any.
+  TextColumn get configId => text().nullable()();
+
   /// [JobStatus.name].
   TextColumn get status => text()();
   TextColumn get envJson => text().withDefault(const Constant('[]'))();

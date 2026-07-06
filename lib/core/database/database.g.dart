@@ -1192,6 +1192,17 @@ class $JobsTable extends Jobs with TableInfo<$JobsTable, JobRow> {
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _configIdMeta = const VerificationMeta(
+    'configId',
+  );
+  @override
+  late final GeneratedColumn<String> configId = GeneratedColumn<String>(
+    'config_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -1242,6 +1253,7 @@ class $JobsTable extends Jobs with TableInfo<$JobsTable, JobRow> {
     command,
     workingDir,
     port,
+    configId,
     status,
     envJson,
     pid,
@@ -1311,6 +1323,12 @@ class $JobsTable extends Jobs with TableInfo<$JobsTable, JobRow> {
     } else if (isInserting) {
       context.missing(_portMeta);
     }
+    if (data.containsKey('config_id')) {
+      context.handle(
+        _configIdMeta,
+        configId.isAcceptableOrUnknown(data['config_id']!, _configIdMeta),
+      );
+    }
     if (data.containsKey('status')) {
       context.handle(
         _statusMeta,
@@ -1374,6 +1392,10 @@ class $JobsTable extends Jobs with TableInfo<$JobsTable, JobRow> {
         DriftSqlType.int,
         data['${effectivePrefix}port'],
       )!,
+      configId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}config_id'],
+      ),
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -1408,6 +1430,9 @@ class JobRow extends DataClass implements Insertable<JobRow> {
   final String? workingDir;
   final int port;
 
+  /// The saved config this job launched from, if any.
+  final String? configId;
+
   /// [JobStatus.name].
   final String status;
   final String envJson;
@@ -1421,6 +1446,7 @@ class JobRow extends DataClass implements Insertable<JobRow> {
     required this.command,
     this.workingDir,
     required this.port,
+    this.configId,
     required this.status,
     required this.envJson,
     this.pid,
@@ -1440,6 +1466,9 @@ class JobRow extends DataClass implements Insertable<JobRow> {
       map['working_dir'] = Variable<String>(workingDir);
     }
     map['port'] = Variable<int>(port);
+    if (!nullToAbsent || configId != null) {
+      map['config_id'] = Variable<String>(configId);
+    }
     map['status'] = Variable<String>(status);
     map['env_json'] = Variable<String>(envJson);
     if (!nullToAbsent || pid != null) {
@@ -1464,6 +1493,9 @@ class JobRow extends DataClass implements Insertable<JobRow> {
           ? const Value.absent()
           : Value(workingDir),
       port: Value(port),
+      configId: configId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(configId),
       status: Value(status),
       envJson: Value(envJson),
       pid: pid == null && nullToAbsent ? const Value.absent() : Value(pid),
@@ -1486,6 +1518,7 @@ class JobRow extends DataClass implements Insertable<JobRow> {
       command: serializer.fromJson<String>(json['command']),
       workingDir: serializer.fromJson<String?>(json['workingDir']),
       port: serializer.fromJson<int>(json['port']),
+      configId: serializer.fromJson<String?>(json['configId']),
       status: serializer.fromJson<String>(json['status']),
       envJson: serializer.fromJson<String>(json['envJson']),
       pid: serializer.fromJson<int?>(json['pid']),
@@ -1503,6 +1536,7 @@ class JobRow extends DataClass implements Insertable<JobRow> {
       'command': serializer.toJson<String>(command),
       'workingDir': serializer.toJson<String?>(workingDir),
       'port': serializer.toJson<int>(port),
+      'configId': serializer.toJson<String?>(configId),
       'status': serializer.toJson<String>(status),
       'envJson': serializer.toJson<String>(envJson),
       'pid': serializer.toJson<int?>(pid),
@@ -1518,6 +1552,7 @@ class JobRow extends DataClass implements Insertable<JobRow> {
     String? command,
     Value<String?> workingDir = const Value.absent(),
     int? port,
+    Value<String?> configId = const Value.absent(),
     String? status,
     String? envJson,
     Value<int?> pid = const Value.absent(),
@@ -1530,6 +1565,7 @@ class JobRow extends DataClass implements Insertable<JobRow> {
     command: command ?? this.command,
     workingDir: workingDir.present ? workingDir.value : this.workingDir,
     port: port ?? this.port,
+    configId: configId.present ? configId.value : this.configId,
     status: status ?? this.status,
     envJson: envJson ?? this.envJson,
     pid: pid.present ? pid.value : this.pid,
@@ -1548,6 +1584,7 @@ class JobRow extends DataClass implements Insertable<JobRow> {
           ? data.workingDir.value
           : this.workingDir,
       port: data.port.present ? data.port.value : this.port,
+      configId: data.configId.present ? data.configId.value : this.configId,
       status: data.status.present ? data.status.value : this.status,
       envJson: data.envJson.present ? data.envJson.value : this.envJson,
       pid: data.pid.present ? data.pid.value : this.pid,
@@ -1565,6 +1602,7 @@ class JobRow extends DataClass implements Insertable<JobRow> {
           ..write('command: $command, ')
           ..write('workingDir: $workingDir, ')
           ..write('port: $port, ')
+          ..write('configId: $configId, ')
           ..write('status: $status, ')
           ..write('envJson: $envJson, ')
           ..write('pid: $pid, ')
@@ -1582,6 +1620,7 @@ class JobRow extends DataClass implements Insertable<JobRow> {
     command,
     workingDir,
     port,
+    configId,
     status,
     envJson,
     pid,
@@ -1598,6 +1637,7 @@ class JobRow extends DataClass implements Insertable<JobRow> {
           other.command == this.command &&
           other.workingDir == this.workingDir &&
           other.port == this.port &&
+          other.configId == this.configId &&
           other.status == this.status &&
           other.envJson == this.envJson &&
           other.pid == this.pid &&
@@ -1612,6 +1652,7 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
   final Value<String> command;
   final Value<String?> workingDir;
   final Value<int> port;
+  final Value<String?> configId;
   final Value<String> status;
   final Value<String> envJson;
   final Value<int?> pid;
@@ -1625,6 +1666,7 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
     this.command = const Value.absent(),
     this.workingDir = const Value.absent(),
     this.port = const Value.absent(),
+    this.configId = const Value.absent(),
     this.status = const Value.absent(),
     this.envJson = const Value.absent(),
     this.pid = const Value.absent(),
@@ -1639,6 +1681,7 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
     required String command,
     this.workingDir = const Value.absent(),
     required int port,
+    this.configId = const Value.absent(),
     required String status,
     this.envJson = const Value.absent(),
     this.pid = const Value.absent(),
@@ -1658,6 +1701,7 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
     Expression<String>? command,
     Expression<String>? workingDir,
     Expression<int>? port,
+    Expression<String>? configId,
     Expression<String>? status,
     Expression<String>? envJson,
     Expression<int>? pid,
@@ -1672,6 +1716,7 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
       if (command != null) 'command': command,
       if (workingDir != null) 'working_dir': workingDir,
       if (port != null) 'port': port,
+      if (configId != null) 'config_id': configId,
       if (status != null) 'status': status,
       if (envJson != null) 'env_json': envJson,
       if (pid != null) 'pid': pid,
@@ -1688,6 +1733,7 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
     Value<String>? command,
     Value<String?>? workingDir,
     Value<int>? port,
+    Value<String?>? configId,
     Value<String>? status,
     Value<String>? envJson,
     Value<int?>? pid,
@@ -1702,6 +1748,7 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
       command: command ?? this.command,
       workingDir: workingDir ?? this.workingDir,
       port: port ?? this.port,
+      configId: configId ?? this.configId,
       status: status ?? this.status,
       envJson: envJson ?? this.envJson,
       pid: pid ?? this.pid,
@@ -1734,6 +1781,9 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
     if (port.present) {
       map['port'] = Variable<int>(port.value);
     }
+    if (configId.present) {
+      map['config_id'] = Variable<String>(configId.value);
+    }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
@@ -1762,6 +1812,7 @@ class JobsCompanion extends UpdateCompanion<JobRow> {
           ..write('command: $command, ')
           ..write('workingDir: $workingDir, ')
           ..write('port: $port, ')
+          ..write('configId: $configId, ')
           ..write('status: $status, ')
           ..write('envJson: $envJson, ')
           ..write('pid: $pid, ')
@@ -3623,6 +3674,7 @@ typedef $$JobsTableCreateCompanionBuilder =
       required String command,
       Value<String?> workingDir,
       required int port,
+      Value<String?> configId,
       required String status,
       Value<String> envJson,
       Value<int?> pid,
@@ -3638,6 +3690,7 @@ typedef $$JobsTableUpdateCompanionBuilder =
       Value<String> command,
       Value<String?> workingDir,
       Value<int> port,
+      Value<String?> configId,
       Value<String> status,
       Value<String> envJson,
       Value<int?> pid,
@@ -3685,6 +3738,11 @@ class $$JobsTableFilterComposer extends Composer<_$AppDatabase, $JobsTable> {
 
   ColumnFilters<int> get port => $composableBuilder(
     column: $table.port,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get configId => $composableBuilder(
+    column: $table.configId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3752,6 +3810,11 @@ class $$JobsTableOrderingComposer extends Composer<_$AppDatabase, $JobsTable> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get configId => $composableBuilder(
+    column: $table.configId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get status => $composableBuilder(
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
@@ -3807,6 +3870,9 @@ class $$JobsTableAnnotationComposer
   GeneratedColumn<int> get port =>
       $composableBuilder(column: $table.port, builder: (column) => column);
 
+  GeneratedColumn<String> get configId =>
+      $composableBuilder(column: $table.configId, builder: (column) => column);
+
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
@@ -3855,6 +3921,7 @@ class $$JobsTableTableManager
                 Value<String> command = const Value.absent(),
                 Value<String?> workingDir = const Value.absent(),
                 Value<int> port = const Value.absent(),
+                Value<String?> configId = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String> envJson = const Value.absent(),
                 Value<int?> pid = const Value.absent(),
@@ -3868,6 +3935,7 @@ class $$JobsTableTableManager
                 command: command,
                 workingDir: workingDir,
                 port: port,
+                configId: configId,
                 status: status,
                 envJson: envJson,
                 pid: pid,
@@ -3883,6 +3951,7 @@ class $$JobsTableTableManager
                 required String command,
                 Value<String?> workingDir = const Value.absent(),
                 required int port,
+                Value<String?> configId = const Value.absent(),
                 required String status,
                 Value<String> envJson = const Value.absent(),
                 Value<int?> pid = const Value.absent(),
@@ -3896,6 +3965,7 @@ class $$JobsTableTableManager
                 command: command,
                 workingDir: workingDir,
                 port: port,
+                configId: configId,
                 status: status,
                 envJson: envJson,
                 pid: pid,

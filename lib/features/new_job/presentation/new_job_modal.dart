@@ -146,6 +146,7 @@ class _ModalBodyState extends ConsumerState<_ModalBody> {
       port: config.port,
       status: JobStatus.starting,
       env: config.env,
+      configId: config.id,
     );
     await executor.launch(job, machine);
     router.go('/jobs/${job.id}');
