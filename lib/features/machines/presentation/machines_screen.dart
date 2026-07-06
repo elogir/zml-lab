@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/util/search.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/machine.dart';
 import '../../../repositories/machine_repository.dart';
@@ -19,17 +20,18 @@ class MachinesScreen extends ConsumerStatefulWidget {
 class _MachinesScreenState extends ConsumerState<MachinesScreen> {
   String _query = '';
 
-  bool _matches(Machine m, String q) =>
-      m.name.toLowerCase().contains(q) ||
-      m.address.toLowerCase().contains(q) ||
-      (m.vendor?.name.toLowerCase().contains(q) ?? false) ||
-      (m.gpus?.toLowerCase().contains(q) ?? false) ||
-      (m.memory?.toLowerCase().contains(q) ?? false);
+  bool _matches(Machine m, String q) => matchesSearch(q, [
+    m.name,
+    m.address,
+    m.vendor?.name,
+    m.gpus,
+    m.memory,
+  ]);
 
   @override
   Widget build(BuildContext context) {
     final all = ref.watch(machinesStreamProvider).value ?? const [];
-    final q = _query.trim().toLowerCase();
+    final q = _query.trim();
     final machines = q.isEmpty ? all : all.where((m) => _matches(m, q)).toList();
 
     return Padding(

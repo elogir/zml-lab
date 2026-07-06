@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/execution/job_executor.dart';
 import '../../../core/execution/native_io.dart';
+import '../../../core/util/search.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/enums.dart';
@@ -382,13 +383,11 @@ class _MachineGrid extends StatelessWidget {
   static const double _gap = AppSpacing.md;
 
   bool _matches(Machine m, String q) =>
-      m.name.toLowerCase().contains(q) ||
-      m.address.toLowerCase().contains(q) ||
-      (m.gpus?.toLowerCase().contains(q) ?? false);
+      matchesSearch(q, [m.name, m.address, m.gpus]);
 
   @override
   Widget build(BuildContext context) {
-    final q = query.trim().toLowerCase();
+    final q = query.trim();
     final visible = q.isEmpty
         ? machines
         : [

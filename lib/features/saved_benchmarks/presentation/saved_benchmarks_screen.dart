@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/format.dart';
+import '../../../core/util/search.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/saved_benchmark.dart';
 import '../../../repositories/saved_benchmark_repository.dart';
@@ -20,15 +21,18 @@ class SavedBenchmarksScreen extends ConsumerStatefulWidget {
 class _SavedBenchmarksScreenState extends ConsumerState<SavedBenchmarksScreen> {
   String _query = '';
 
-  bool _matches(SavedBenchmark b, String q) =>
-      b.name.toLowerCase().contains(q) ||
-      b.endpoint.toLowerCase().contains(q) ||
-      b.prompt.toLowerCase().contains(q);
+  bool _matches(SavedBenchmark b, String q) => matchesSearch(q, [
+    b.name,
+    b.endpoint,
+    b.machineName,
+    b.command,
+    b.prompt,
+  ]);
 
   @override
   Widget build(BuildContext context) {
     final all = ref.watch(savedBenchmarksStreamProvider).value ?? const [];
-    final q = _query.trim().toLowerCase();
+    final q = _query.trim();
     final benchmarks = q.isEmpty
         ? all
         : all.where((b) => _matches(b, q)).toList();

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/execution/job_executor.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/util/search.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/enums.dart';
 import '../../../models/job.dart';
@@ -151,17 +152,19 @@ class _ModalBodyState extends ConsumerState<_ModalBody> {
   }
 
   bool _matches(LaunchConfig c, String q, String machineName) =>
-      c.name.toLowerCase().contains(q) ||
-      (c.description?.toLowerCase().contains(q) ?? false) ||
-      c.command.toLowerCase().contains(q) ||
-      machineName.toLowerCase().contains(q) ||
-      '${c.port}'.contains(q);
+      matchesSearch(q, [
+        c.name,
+        c.description,
+        c.command,
+        machineName,
+        '${c.port}',
+      ]);
 
   @override
   Widget build(BuildContext context) {
     final all = ref.watch(configsStreamProvider).value ?? const [];
     final machines = ref.watch(machineMapProvider);
-    final q = _query.trim().toLowerCase();
+    final q = _query.trim();
     final configs = q.isEmpty
         ? all
         : [

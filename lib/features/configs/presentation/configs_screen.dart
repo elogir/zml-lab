@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/util/search.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/launch_config.dart';
 import '../../../repositories/config_repository.dart';
@@ -24,15 +25,17 @@ class _ConfigsScreenState extends ConsumerState<ConfigsScreen> {
   Widget build(BuildContext context) {
     final all = ref.watch(configsStreamProvider).value ?? const [];
     final machines = ref.watch(machineMapProvider);
-    final q = _query.trim().toLowerCase();
+    final q = _query.trim();
 
     bool matches(LaunchConfig c) {
       final machineName = machines[c.machineId]?.name ?? c.machineId;
-      return c.name.toLowerCase().contains(q) ||
-          (c.description?.toLowerCase().contains(q) ?? false) ||
-          c.command.toLowerCase().contains(q) ||
-          machineName.toLowerCase().contains(q) ||
-          '${c.port}'.contains(q);
+      return matchesSearch(q, [
+        c.name,
+        c.description,
+        c.command,
+        machineName,
+        '${c.port}',
+      ]);
     }
 
     final configs = q.isEmpty ? all : all.where(matches).toList();

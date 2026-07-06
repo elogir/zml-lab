@@ -6,6 +6,7 @@ import '../../../core/execution/job_executor.dart';
 import '../../../core/providers/clock.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/format.dart';
+import '../../../core/util/search.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/job.dart';
 import '../../job_detail/presentation/job_terminal.dart';
@@ -30,11 +31,13 @@ class _JobsScreenState extends ConsumerState<JobsScreen> {
   bool _matches(JobListEntry e, String q) {
     final job = e.job;
     final machineName = e.machine?.name ?? job.machineId;
-    return job.name.toLowerCase().contains(q) ||
-        (job.description?.toLowerCase().contains(q) ?? false) ||
-        machineName.toLowerCase().contains(q) ||
-        job.command.toLowerCase().contains(q) ||
-        '${job.port}'.contains(q);
+    return matchesSearch(q, [
+      job.name,
+      job.description,
+      machineName,
+      job.command,
+      '${job.port}',
+    ]);
   }
 
   @override
@@ -42,7 +45,7 @@ class _JobsScreenState extends ConsumerState<JobsScreen> {
     final counts = ref.watch(jobCountsProvider);
     final filter = ref.watch(jobFilterProvider);
     final all = ref.watch(jobListProvider);
-    final q = _query.trim().toLowerCase();
+    final q = _query.trim();
     final entries = q.isEmpty ? all : all.where((e) => _matches(e, q)).toList();
 
     return Padding(
