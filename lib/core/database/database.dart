@@ -32,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -72,6 +72,12 @@ class AppDatabase extends _$AppDatabase {
         await m.database.customStatement(
           "ALTER TABLE saved_benchmarks ADD COLUMN samples_json TEXT NOT NULL "
           "DEFAULT '[]'",
+        );
+      }
+      if (from < 8) {
+        await m.database.customStatement(
+          "ALTER TABLE saved_benchmarks ADD COLUMN command TEXT NOT NULL "
+          "DEFAULT ''",
         );
       }
     },

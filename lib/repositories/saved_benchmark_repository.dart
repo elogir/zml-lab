@@ -37,6 +37,7 @@ class DriftSavedBenchmarkRepository implements SavedBenchmarkRepository {
           name: b.name,
           endpoint: b.endpoint,
           machineName: Value(b.machineName),
+          command: Value(b.command),
           prompt: b.prompt,
           batchSize: b.batchSize,
           aggregateTokensPerSecond: b.aggregateTokensPerSecond,

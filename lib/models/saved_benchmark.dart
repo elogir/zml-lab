@@ -20,6 +20,9 @@ abstract class SavedBenchmark with _$SavedBenchmark {
     /// The machine it ran on (its friendly name). Null for runs saved before
     /// this was tracked — callers fall back to the endpoint's host.
     String? machineName,
+
+    /// The job's launch command at save time, for reference.
+    @Default('') String command,
     required String prompt,
     required int batchSize,
     required double aggregateTokensPerSecond,

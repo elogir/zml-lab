@@ -14,6 +14,7 @@ Future<void> showSaveBenchmarkDialog(
   required BenchmarkRun run,
   required String endpoint,
   required String machineName,
+  required String command,
   required String defaultName,
 }) {
   return Navigator.of(context, rootNavigator: true).push(
@@ -27,6 +28,7 @@ Future<void> showSaveBenchmarkDialog(
         run: run,
         endpoint: endpoint,
         machineName: machineName,
+        command: command,
         defaultName: defaultName,
       ),
       transitionsBuilder: (context, anim, _, child) {
@@ -48,12 +50,14 @@ class _SaveDialog extends ConsumerStatefulWidget {
     required this.run,
     required this.endpoint,
     required this.machineName,
+    required this.command,
     required this.defaultName,
   });
 
   final BenchmarkRun run;
   final String endpoint;
   final String machineName;
+  final String command;
   final String defaultName;
 
   @override
@@ -83,6 +87,7 @@ class _SaveDialogState extends ConsumerState<_SaveDialog> {
             name: name,
             endpoint: widget.endpoint,
             machineName: widget.machineName,
+            command: widget.command,
             prompt: run.prompt,
             batchSize: run.requests.length,
             aggregateTokensPerSecond: run.aggregateTokensPerSecond,
