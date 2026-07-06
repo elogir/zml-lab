@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../../models/env_var.dart';
 import '../../../models/settings.dart';
 import '../application/settings_controller.dart';
 
@@ -22,6 +23,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _batch;
   late final TextEditingController _maxTokens;
   late final TextEditingController _temperature;
+  final List<_EnvRow> _env = [];
 
   SettingsController get _controller =>
       ref.read(settingsControllerProvider.notifier);
@@ -37,6 +39,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _maxTokens = TextEditingController(text: s.benchMaxTokens?.toString() ?? '');
     _temperature =
         TextEditingController(text: s.benchTemperature?.toString() ?? '');
+    _env.addAll(s.globalEnv.map(_EnvRow.from));
   }
 
   @override
@@ -47,7 +50,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _batch.dispose();
     _maxTokens.dispose();
     _temperature.dispose();
+    for (final e in _env) {
+      e.dispose();
+    }
     super.dispose();
+  }
+
+  void _commitEnv() => _controller.setGlobalEnv([
+    for (final e in _env)
+      EnvVar(key: e.keyCtrl.text, value: e.valueCtrl.text),
+  ]);
+
+  void _addEnv() => setState(() => _env.add(_EnvRow.empty()));
+
+  void _removeEnv(_EnvRow row) {
+    setState(() {
+      _env.remove(row);
+      row.dispose();
+    });
+    _commitEnv();
   }
 
   Future<void> _reset() async {
@@ -62,6 +83,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _batch.text = '${s.benchBatchSize}';
       _maxTokens.text = '';
       _temperature.text = '';
+      for (final e in _env) {
+        e.dispose();
+      }
+      _env.clear();
     });
   }
 
@@ -269,6 +294,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const SizedBox(height: AppSpacing.xl),
 
+              _Group(
+                label: 'Environment',
+                children: [
+                  _SettingRow(
+                    title: 'Global variables',
+                    description:
+                        'Injected into every job launch, local and remote. A '
+                        'job\'s own variables override these.',
+                    stacked: true,
+                    control: _EnvEditor(
+                      rows: _env,
+                      onAdd: _addEnv,
+                      onRemove: _removeEnv,
+                      onChanged: _commitEnv,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xl),
+
               Row(
                 children: [
                   Expanded(
@@ -373,6 +418,103 @@ class _SettingRow extends StatelessWidget {
                 control,
               ],
             ),
+    );
+  }
+}
+
+/// A key/value pair being edited, with its own text controllers.
+class _EnvRow {
+  _EnvRow({String key = '', String value = ''})
+    : keyCtrl = TextEditingController(text: key),
+      valueCtrl = TextEditingController(text: value);
+
+  _EnvRow.empty() : this();
+  _EnvRow.from(EnvVar e) : this(key: e.key, value: e.value);
+
+  final TextEditingController keyCtrl;
+  final TextEditingController valueCtrl;
+
+  void dispose() {
+    keyCtrl.dispose();
+    valueCtrl.dispose();
+  }
+}
+
+/// An add/remove editor for a list of `KEY=value` rows. Each edit calls
+/// [onChanged] so the store stays in sync as you type (empty keys are dropped
+/// by the controller).
+class _EnvEditor extends StatelessWidget {
+  const _EnvEditor({
+    required this.rows,
+    required this.onAdd,
+    required this.onRemove,
+    required this.onChanged,
+  });
+
+  final List<_EnvRow> rows;
+  final VoidCallback onAdd;
+  final void Function(_EnvRow) onRemove;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (rows.isEmpty)
+          Text(
+            'No global variables set.',
+            style: context.text.smallMuted,
+          ),
+        for (final row in rows) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Row(
+              children: [
+                Expanded(
+                  child: AppTextField(
+                    controller: row.keyCtrl,
+                    placeholder: 'KEY',
+                    mono: true,
+                    onChanged: (_) => onChanged(),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                  child: Text('=', style: context.text.monoSmall),
+                ),
+                Expanded(
+                  child: AppTextField(
+                    controller: row.valueCtrl,
+                    placeholder: 'value',
+                    mono: true,
+                    onChanged: (_) => onChanged(),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                AppIconButton(
+                  icon: AppIcons.close,
+                  size: 15,
+                  color: c.textMuted,
+                  hoverColor: c.statusFailed,
+                  onPressed: () => onRemove(row),
+                ),
+              ],
+            ),
+          ),
+        ],
+        Align(
+          alignment: Alignment.centerLeft,
+          child: AppButton(
+            label: 'Add variable',
+            icon: AppIcons.add,
+            variant: AppButtonVariant.ghost,
+            dense: true,
+            onPressed: onAdd,
+          ),
+        ),
+      ],
     );
   }
 }

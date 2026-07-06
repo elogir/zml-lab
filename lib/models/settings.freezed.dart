@@ -20,7 +20,9 @@ mixin _$AppSettings {
  int get healthIntervalSeconds;// Defaults a job's benchmark tab starts with.
  String get benchPrompt; int get benchBatchSize;/// Null = unlimited (the server stops at EOS or its max seqlen).
  int? get benchMaxTokens;/// Null = the server's default temperature.
- double? get benchTemperature;
+ double? get benchTemperature;/// Environment variables injected into every job launch (local and remote).
+/// A job's own env vars override these on a key clash.
+ List<EnvVar> get globalEnv;
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -31,16 +33,16 @@ $AppSettingsCopyWith<AppSettings> get copyWith => _$AppSettingsCopyWithImpl<AppS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSettings&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.terminalFontSize, terminalFontSize) || other.terminalFontSize == terminalFontSize)&&(identical(other.portRangeStart, portRangeStart) || other.portRangeStart == portRangeStart)&&(identical(other.portRangeEnd, portRangeEnd) || other.portRangeEnd == portRangeEnd)&&(identical(other.healthIntervalSeconds, healthIntervalSeconds) || other.healthIntervalSeconds == healthIntervalSeconds)&&(identical(other.benchPrompt, benchPrompt) || other.benchPrompt == benchPrompt)&&(identical(other.benchBatchSize, benchBatchSize) || other.benchBatchSize == benchBatchSize)&&(identical(other.benchMaxTokens, benchMaxTokens) || other.benchMaxTokens == benchMaxTokens)&&(identical(other.benchTemperature, benchTemperature) || other.benchTemperature == benchTemperature));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSettings&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.terminalFontSize, terminalFontSize) || other.terminalFontSize == terminalFontSize)&&(identical(other.portRangeStart, portRangeStart) || other.portRangeStart == portRangeStart)&&(identical(other.portRangeEnd, portRangeEnd) || other.portRangeEnd == portRangeEnd)&&(identical(other.healthIntervalSeconds, healthIntervalSeconds) || other.healthIntervalSeconds == healthIntervalSeconds)&&(identical(other.benchPrompt, benchPrompt) || other.benchPrompt == benchPrompt)&&(identical(other.benchBatchSize, benchBatchSize) || other.benchBatchSize == benchBatchSize)&&(identical(other.benchMaxTokens, benchMaxTokens) || other.benchMaxTokens == benchMaxTokens)&&(identical(other.benchTemperature, benchTemperature) || other.benchTemperature == benchTemperature)&&const DeepCollectionEquality().equals(other.globalEnv, globalEnv));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,themeMode,terminalFontSize,portRangeStart,portRangeEnd,healthIntervalSeconds,benchPrompt,benchBatchSize,benchMaxTokens,benchTemperature);
+int get hashCode => Object.hash(runtimeType,themeMode,terminalFontSize,portRangeStart,portRangeEnd,healthIntervalSeconds,benchPrompt,benchBatchSize,benchMaxTokens,benchTemperature,const DeepCollectionEquality().hash(globalEnv));
 
 @override
 String toString() {
-  return 'AppSettings(themeMode: $themeMode, terminalFontSize: $terminalFontSize, portRangeStart: $portRangeStart, portRangeEnd: $portRangeEnd, healthIntervalSeconds: $healthIntervalSeconds, benchPrompt: $benchPrompt, benchBatchSize: $benchBatchSize, benchMaxTokens: $benchMaxTokens, benchTemperature: $benchTemperature)';
+  return 'AppSettings(themeMode: $themeMode, terminalFontSize: $terminalFontSize, portRangeStart: $portRangeStart, portRangeEnd: $portRangeEnd, healthIntervalSeconds: $healthIntervalSeconds, benchPrompt: $benchPrompt, benchBatchSize: $benchBatchSize, benchMaxTokens: $benchMaxTokens, benchTemperature: $benchTemperature, globalEnv: $globalEnv)';
 }
 
 
@@ -51,7 +53,7 @@ abstract mixin class $AppSettingsCopyWith<$Res>  {
   factory $AppSettingsCopyWith(AppSettings value, $Res Function(AppSettings) _then) = _$AppSettingsCopyWithImpl;
 @useResult
 $Res call({
- AppThemeMode themeMode, double terminalFontSize, int portRangeStart, int portRangeEnd, int healthIntervalSeconds, String benchPrompt, int benchBatchSize, int? benchMaxTokens, double? benchTemperature
+ AppThemeMode themeMode, double terminalFontSize, int portRangeStart, int portRangeEnd, int healthIntervalSeconds, String benchPrompt, int benchBatchSize, int? benchMaxTokens, double? benchTemperature, List<EnvVar> globalEnv
 });
 
 
@@ -68,7 +70,7 @@ class _$AppSettingsCopyWithImpl<$Res>
 
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? themeMode = null,Object? terminalFontSize = null,Object? portRangeStart = null,Object? portRangeEnd = null,Object? healthIntervalSeconds = null,Object? benchPrompt = null,Object? benchBatchSize = null,Object? benchMaxTokens = freezed,Object? benchTemperature = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? themeMode = null,Object? terminalFontSize = null,Object? portRangeStart = null,Object? portRangeEnd = null,Object? healthIntervalSeconds = null,Object? benchPrompt = null,Object? benchBatchSize = null,Object? benchMaxTokens = freezed,Object? benchTemperature = freezed,Object? globalEnv = null,}) {
   return _then(_self.copyWith(
 themeMode: null == themeMode ? _self.themeMode : themeMode // ignore: cast_nullable_to_non_nullable
 as AppThemeMode,terminalFontSize: null == terminalFontSize ? _self.terminalFontSize : terminalFontSize // ignore: cast_nullable_to_non_nullable
@@ -79,7 +81,8 @@ as int,benchPrompt: null == benchPrompt ? _self.benchPrompt : benchPrompt // ign
 as String,benchBatchSize: null == benchBatchSize ? _self.benchBatchSize : benchBatchSize // ignore: cast_nullable_to_non_nullable
 as int,benchMaxTokens: freezed == benchMaxTokens ? _self.benchMaxTokens : benchMaxTokens // ignore: cast_nullable_to_non_nullable
 as int?,benchTemperature: freezed == benchTemperature ? _self.benchTemperature : benchTemperature // ignore: cast_nullable_to_non_nullable
-as double?,
+as double?,globalEnv: null == globalEnv ? _self.globalEnv : globalEnv // ignore: cast_nullable_to_non_nullable
+as List<EnvVar>,
   ));
 }
 
@@ -164,10 +167,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( AppThemeMode themeMode,  double terminalFontSize,  int portRangeStart,  int portRangeEnd,  int healthIntervalSeconds,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( AppThemeMode themeMode,  double terminalFontSize,  int portRangeStart,  int portRangeEnd,  int healthIntervalSeconds,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  List<EnvVar> globalEnv)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppSettings() when $default != null:
-return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_that.portRangeEnd,_that.healthIntervalSeconds,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature);case _:
+return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_that.portRangeEnd,_that.healthIntervalSeconds,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.globalEnv);case _:
   return orElse();
 
 }
@@ -185,10 +188,10 @@ return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( AppThemeMode themeMode,  double terminalFontSize,  int portRangeStart,  int portRangeEnd,  int healthIntervalSeconds,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( AppThemeMode themeMode,  double terminalFontSize,  int portRangeStart,  int portRangeEnd,  int healthIntervalSeconds,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  List<EnvVar> globalEnv)  $default,) {final _that = this;
 switch (_that) {
 case _AppSettings():
-return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_that.portRangeEnd,_that.healthIntervalSeconds,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature);case _:
+return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_that.portRangeEnd,_that.healthIntervalSeconds,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.globalEnv);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -205,10 +208,10 @@ return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( AppThemeMode themeMode,  double terminalFontSize,  int portRangeStart,  int portRangeEnd,  int healthIntervalSeconds,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( AppThemeMode themeMode,  double terminalFontSize,  int portRangeStart,  int portRangeEnd,  int healthIntervalSeconds,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  List<EnvVar> globalEnv)?  $default,) {final _that = this;
 switch (_that) {
 case _AppSettings() when $default != null:
-return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_that.portRangeEnd,_that.healthIntervalSeconds,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature);case _:
+return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_that.portRangeEnd,_that.healthIntervalSeconds,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.globalEnv);case _:
   return null;
 
 }
@@ -220,7 +223,7 @@ return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_tha
 
 
 class _AppSettings implements AppSettings {
-  const _AppSettings({this.themeMode = AppThemeMode.system, this.terminalFontSize = 14.0, this.portRangeStart = 8000, this.portRangeEnd = 8100, this.healthIntervalSeconds = 5, this.benchPrompt = defaultBenchmarkPrompt, this.benchBatchSize = 16, this.benchMaxTokens, this.benchTemperature});
+  const _AppSettings({this.themeMode = AppThemeMode.system, this.terminalFontSize = 14.0, this.portRangeStart = 8000, this.portRangeEnd = 8100, this.healthIntervalSeconds = 5, this.benchPrompt = defaultBenchmarkPrompt, this.benchBatchSize = 16, this.benchMaxTokens, this.benchTemperature, final  List<EnvVar> globalEnv = const <EnvVar>[]}): _globalEnv = globalEnv;
   
 
 @override@JsonKey() final  AppThemeMode themeMode;
@@ -238,6 +241,17 @@ class _AppSettings implements AppSettings {
 @override final  int? benchMaxTokens;
 /// Null = the server's default temperature.
 @override final  double? benchTemperature;
+/// Environment variables injected into every job launch (local and remote).
+/// A job's own env vars override these on a key clash.
+ final  List<EnvVar> _globalEnv;
+/// Environment variables injected into every job launch (local and remote).
+/// A job's own env vars override these on a key clash.
+@override@JsonKey() List<EnvVar> get globalEnv {
+  if (_globalEnv is EqualUnmodifiableListView) return _globalEnv;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_globalEnv);
+}
+
 
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
@@ -249,16 +263,16 @@ _$AppSettingsCopyWith<_AppSettings> get copyWith => __$AppSettingsCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSettings&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.terminalFontSize, terminalFontSize) || other.terminalFontSize == terminalFontSize)&&(identical(other.portRangeStart, portRangeStart) || other.portRangeStart == portRangeStart)&&(identical(other.portRangeEnd, portRangeEnd) || other.portRangeEnd == portRangeEnd)&&(identical(other.healthIntervalSeconds, healthIntervalSeconds) || other.healthIntervalSeconds == healthIntervalSeconds)&&(identical(other.benchPrompt, benchPrompt) || other.benchPrompt == benchPrompt)&&(identical(other.benchBatchSize, benchBatchSize) || other.benchBatchSize == benchBatchSize)&&(identical(other.benchMaxTokens, benchMaxTokens) || other.benchMaxTokens == benchMaxTokens)&&(identical(other.benchTemperature, benchTemperature) || other.benchTemperature == benchTemperature));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSettings&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.terminalFontSize, terminalFontSize) || other.terminalFontSize == terminalFontSize)&&(identical(other.portRangeStart, portRangeStart) || other.portRangeStart == portRangeStart)&&(identical(other.portRangeEnd, portRangeEnd) || other.portRangeEnd == portRangeEnd)&&(identical(other.healthIntervalSeconds, healthIntervalSeconds) || other.healthIntervalSeconds == healthIntervalSeconds)&&(identical(other.benchPrompt, benchPrompt) || other.benchPrompt == benchPrompt)&&(identical(other.benchBatchSize, benchBatchSize) || other.benchBatchSize == benchBatchSize)&&(identical(other.benchMaxTokens, benchMaxTokens) || other.benchMaxTokens == benchMaxTokens)&&(identical(other.benchTemperature, benchTemperature) || other.benchTemperature == benchTemperature)&&const DeepCollectionEquality().equals(other._globalEnv, _globalEnv));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,themeMode,terminalFontSize,portRangeStart,portRangeEnd,healthIntervalSeconds,benchPrompt,benchBatchSize,benchMaxTokens,benchTemperature);
+int get hashCode => Object.hash(runtimeType,themeMode,terminalFontSize,portRangeStart,portRangeEnd,healthIntervalSeconds,benchPrompt,benchBatchSize,benchMaxTokens,benchTemperature,const DeepCollectionEquality().hash(_globalEnv));
 
 @override
 String toString() {
-  return 'AppSettings(themeMode: $themeMode, terminalFontSize: $terminalFontSize, portRangeStart: $portRangeStart, portRangeEnd: $portRangeEnd, healthIntervalSeconds: $healthIntervalSeconds, benchPrompt: $benchPrompt, benchBatchSize: $benchBatchSize, benchMaxTokens: $benchMaxTokens, benchTemperature: $benchTemperature)';
+  return 'AppSettings(themeMode: $themeMode, terminalFontSize: $terminalFontSize, portRangeStart: $portRangeStart, portRangeEnd: $portRangeEnd, healthIntervalSeconds: $healthIntervalSeconds, benchPrompt: $benchPrompt, benchBatchSize: $benchBatchSize, benchMaxTokens: $benchMaxTokens, benchTemperature: $benchTemperature, globalEnv: $globalEnv)';
 }
 
 
@@ -269,7 +283,7 @@ abstract mixin class _$AppSettingsCopyWith<$Res> implements $AppSettingsCopyWith
   factory _$AppSettingsCopyWith(_AppSettings value, $Res Function(_AppSettings) _then) = __$AppSettingsCopyWithImpl;
 @override @useResult
 $Res call({
- AppThemeMode themeMode, double terminalFontSize, int portRangeStart, int portRangeEnd, int healthIntervalSeconds, String benchPrompt, int benchBatchSize, int? benchMaxTokens, double? benchTemperature
+ AppThemeMode themeMode, double terminalFontSize, int portRangeStart, int portRangeEnd, int healthIntervalSeconds, String benchPrompt, int benchBatchSize, int? benchMaxTokens, double? benchTemperature, List<EnvVar> globalEnv
 });
 
 
@@ -286,7 +300,7 @@ class __$AppSettingsCopyWithImpl<$Res>
 
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? themeMode = null,Object? terminalFontSize = null,Object? portRangeStart = null,Object? portRangeEnd = null,Object? healthIntervalSeconds = null,Object? benchPrompt = null,Object? benchBatchSize = null,Object? benchMaxTokens = freezed,Object? benchTemperature = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? themeMode = null,Object? terminalFontSize = null,Object? portRangeStart = null,Object? portRangeEnd = null,Object? healthIntervalSeconds = null,Object? benchPrompt = null,Object? benchBatchSize = null,Object? benchMaxTokens = freezed,Object? benchTemperature = freezed,Object? globalEnv = null,}) {
   return _then(_AppSettings(
 themeMode: null == themeMode ? _self.themeMode : themeMode // ignore: cast_nullable_to_non_nullable
 as AppThemeMode,terminalFontSize: null == terminalFontSize ? _self.terminalFontSize : terminalFontSize // ignore: cast_nullable_to_non_nullable
@@ -297,7 +311,8 @@ as int,benchPrompt: null == benchPrompt ? _self.benchPrompt : benchPrompt // ign
 as String,benchBatchSize: null == benchBatchSize ? _self.benchBatchSize : benchBatchSize // ignore: cast_nullable_to_non_nullable
 as int,benchMaxTokens: freezed == benchMaxTokens ? _self.benchMaxTokens : benchMaxTokens // ignore: cast_nullable_to_non_nullable
 as int?,benchTemperature: freezed == benchTemperature ? _self.benchTemperature : benchTemperature // ignore: cast_nullable_to_non_nullable
-as double?,
+as double?,globalEnv: null == globalEnv ? _self._globalEnv : globalEnv // ignore: cast_nullable_to_non_nullable
+as List<EnvVar>,
   ));
 }
 

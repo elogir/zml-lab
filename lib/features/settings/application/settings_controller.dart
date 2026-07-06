@@ -1,6 +1,8 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../models/env_var.dart';
 import '../../../models/settings.dart';
+import '../../../repositories/mappers.dart';
 import '../../../repositories/settings_repository.dart';
 
 part 'settings_controller.g.dart';
@@ -58,6 +60,9 @@ class SettingsController extends _$SettingsController {
       },
       benchMaxTokens: i('benchMaxTokens'),
       benchTemperature: d('benchTemperature')?.clamp(0.0, 2.0),
+      globalEnv: raw['globalEnv'] == null
+          ? def.globalEnv
+          : decodeEnv(raw['globalEnv']!),
     );
   }
 
@@ -119,6 +124,19 @@ class SettingsController extends _$SettingsController {
     v == null
         ? _repo.remove('benchTemperature')
         : _repo.put('benchTemperature', '$v');
+  }
+
+  /// Replace the global env vars applied to every launch. Empty entries are
+  /// dropped; an empty list removes the stored value.
+  void setGlobalEnv(List<EnvVar> env) {
+    final cleaned = [
+      for (final e in env)
+        if (e.key.trim().isNotEmpty) EnvVar(key: e.key.trim(), value: e.value),
+    ];
+    state = state.copyWith(globalEnv: cleaned);
+    cleaned.isEmpty
+        ? _repo.remove('globalEnv')
+        : _repo.put('globalEnv', encodeEnv(cleaned));
   }
 
   /// Back to built-in defaults, wiping the store.
