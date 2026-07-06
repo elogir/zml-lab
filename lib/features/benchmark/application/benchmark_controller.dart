@@ -226,7 +226,14 @@ class BenchmarkController extends _$BenchmarkController {
       final decodeMs = p.firstTokenAt == null
           ? 0
           : endRef.difference(p.firstTokenAt!).inMilliseconds;
-      final tps = decodeMs > 0 ? p.tokens / (decodeMs / 1000.0) : 0.0;
+      // Rate of the tokens *after* the first, over the first→last interval.
+      // Using (tokens-1) — and ignoring a sub-50ms warm-up while still
+      // streaming — avoids the huge early spike from dividing a single token
+      // by a near-zero elapsed time (which made avg tok/s start around 1000).
+      final settled = p.status.isTerminal;
+      final tps = (p.tokens > 1 && decodeMs > 0 && (settled || decodeMs >= 50))
+          ? (p.tokens - 1) / (decodeMs / 1000.0)
+          : 0.0;
       requests.add(
         BenchmarkRequest(
           index: p.index,
