@@ -410,6 +410,12 @@ class _AggregateBar extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.xxl),
           _Stat(
+            label: 'AVG / REQ',
+            value: run.averageTokensPerSecond.toStringAsFixed(1),
+            unit: 'tok/s',
+          ),
+          const SizedBox(width: AppSpacing.xxl),
+          _Stat(
             label: 'COMPLETED',
             value: '${run.completed}',
             // Denominator is the batch actually in flight, not the (editable)

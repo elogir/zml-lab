@@ -51,4 +51,7 @@ abstract class SavedBenchmark with _$SavedBenchmark {
   String get portLabel => endpoint.contains(':')
       ? endpoint.substring(endpoint.lastIndexOf(':'))
       : endpoint;
+
+  /// Mean per-request tok/s across the saved run (see [meanRequestTps]).
+  double get averageTokensPerSecond => meanRequestTps(requests);
 }
