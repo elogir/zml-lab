@@ -146,7 +146,7 @@ class _BenchmarkCard extends ConsumerWidget {
               const Spacer(),
               _Metric(
                 label: 'avg',
-                value: '${b.averageTokensPerSecond.toStringAsFixed(0)} t/s',
+                value: '${b.averageTokensPerSecond.toStringAsFixed(1)} t/s',
               ),
               const SizedBox(width: AppSpacing.lg),
               _Metric(label: 'ttft', value: '${b.medianTtftMs}ms'),
