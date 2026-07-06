@@ -146,34 +146,32 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
           onSave: run.requests.isNotEmpty && !run.isRunning
               ? _saveBenchmark
               : null,
+          // The grid/charts toggle rides on the right of the bar, past the
+          // streaming indicator / Save button.
+          trailing: run.requests.isEmpty
+              ? null
+              : SegmentedControl<_BenchView>(
+                  value: _view,
+                  onChanged: (v) => setState(() => _view = v),
+                  options: const [
+                    SegmentOption(
+                      value: _BenchView.grid,
+                      label: 'Grid',
+                      icon: AppIcons.grid,
+                    ),
+                    SegmentOption(
+                      value: _BenchView.charts,
+                      label: 'Charts',
+                      icon: AppIcons.chart,
+                    ),
+                  ],
+                ),
         ),
         // Truncation callout — some replies were cut off by a token limit
         // rather than finishing, so the numbers describe clipped responses.
         if (!run.isRunning && run.truncatedCount > 0) ...[
           const SizedBox(height: AppSpacing.sm),
           _TruncationNotice(run: run),
-        ],
-        if (run.requests.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.lg),
-          Align(
-            alignment: Alignment.centerRight,
-            child: SegmentedControl<_BenchView>(
-              value: _view,
-              onChanged: (v) => setState(() => _view = v),
-              options: const [
-                SegmentOption(
-                  value: _BenchView.grid,
-                  label: 'Grid',
-                  icon: AppIcons.grid,
-                ),
-                SegmentOption(
-                  value: _BenchView.charts,
-                  label: 'Charts',
-                  icon: AppIcons.chart,
-                ),
-              ],
-            ),
-          ),
         ],
         const SizedBox(height: AppSpacing.lg),
         Expanded(
@@ -380,12 +378,15 @@ class _TruncationNotice extends StatelessWidget {
 }
 
 class _AggregateBar extends StatelessWidget {
-  const _AggregateBar({required this.run, this.onSave});
+  const _AggregateBar({required this.run, this.onSave, this.trailing});
 
   final BenchmarkRun run;
 
   /// Non-null when the current run can be saved (finished, non-empty).
   final VoidCallback? onSave;
+
+  /// Pinned to the far right of the bar (the grid/charts toggle).
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -444,6 +445,10 @@ class _AggregateBar extends StatelessWidget {
               icon: AppIcons.save,
               onPressed: onSave,
             ),
+          if (trailing != null) ...[
+            const SizedBox(width: AppSpacing.md),
+            trailing!,
+          ],
         ],
       ),
     );
