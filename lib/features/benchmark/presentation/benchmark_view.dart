@@ -6,9 +6,12 @@ import '../../../core/widgets/widgets.dart';
 import '../../../models/benchmark.dart';
 import '../../saved_benchmarks/presentation/save_benchmark_dialog.dart';
 import '../application/benchmark_controller.dart';
+import 'benchmark_charts.dart';
 import 'benchmark_focus.dart';
 import 'benchmark_prompt_editor.dart';
 import 'benchmark_request_card.dart';
+
+enum _BenchView { grid, charts }
 
 /// Benchmark/test mode for a running job: fire a batch of requests and watch
 /// each stream its response with a live tokens/sec reading.
@@ -48,6 +51,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
   late final TextEditingController _batch;
   late final TextEditingController _maxTokens;
   late final TextEditingController _temperature;
+  _BenchView _view = _BenchView.grid;
 
   @override
   void initState() {
@@ -136,10 +140,34 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
           const SizedBox(height: AppSpacing.sm),
           _TruncationNotice(run: run),
         ],
+        if (run.requests.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Align(
+            alignment: Alignment.centerRight,
+            child: SegmentedControl<_BenchView>(
+              value: _view,
+              onChanged: (v) => setState(() => _view = v),
+              options: const [
+                SegmentOption(
+                  value: _BenchView.grid,
+                  label: 'Grid',
+                  icon: AppIcons.grid,
+                ),
+                SegmentOption(
+                  value: _BenchView.charts,
+                  label: 'Charts',
+                  icon: AppIcons.chart,
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         Expanded(
           child: run.requests.isEmpty
               ? _EmptyState(endpoint: widget.endpoint)
+              : _view == _BenchView.charts
+              ? BenchmarkCharts(samples: run.samples, requests: run.requests)
               : _Grid(
                   run: run,
                   jobId: widget.jobId,

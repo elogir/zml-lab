@@ -9,6 +9,8 @@ abstract final class AppIcons {
   static const IconData configs = LucideIcons.settings2;
   static const IconData machines = LucideIcons.monitor;
   static const IconData savedBenchmarks = LucideIcons.chartColumnBig;
+  static const IconData grid = LucideIcons.layoutGrid;
+  static const IconData chart = LucideIcons.chartLine;
   static const IconData settings = LucideIcons.settings;
   static const IconData collapseSidebar = LucideIcons.panelLeft;
   static const IconData chevronRight = LucideIcons.chevronRight;

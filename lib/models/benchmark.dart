@@ -2,6 +2,38 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'benchmark.freezed.dart';
 
+/// One time-series point sampled during a run: at [elapsedMs] into the run the
+/// batch was producing [tps] tokens/second in aggregate (summed over the
+/// requests still streaming) at an [avgTps] average per those requests, having
+/// generated [tokens] tokens total. Plotted to show throughput over time (its
+/// slope) — the aggregate ramps up and decays with concurrency, while the
+/// average shows single-request speed (which rises as contention drops).
+class BenchmarkSample {
+  const BenchmarkSample({
+    required this.elapsedMs,
+    required this.tps,
+    required this.avgTps,
+    required this.tokens,
+  });
+
+  final int elapsedMs;
+  final double tps;
+  final double avgTps;
+  final int tokens;
+
+  Map<String, dynamic> toMap() =>
+      {'t': elapsedMs, 'r': tps, 'a': avgTps, 'n': tokens};
+
+  factory BenchmarkSample.fromMap(Map<String, dynamic> m) => BenchmarkSample(
+    elapsedMs: (m['t'] as num?)?.toInt() ?? 0,
+    tps: (m['r'] as num?)?.toDouble() ?? 0,
+    // Older saved runs predate the average; fall back to the aggregate so the
+    // line isn't pinned at zero for them.
+    avgTps: (m['a'] as num?)?.toDouble() ?? (m['r'] as num?)?.toDouble() ?? 0,
+    tokens: (m['n'] as num?)?.toInt() ?? 0,
+  );
+}
+
 /// State of a single in-flight benchmark request.
 enum BenchmarkRequestStatus {
   queued,
@@ -71,6 +103,9 @@ abstract class BenchmarkRun with _$BenchmarkRun {
     /// replaced.
     @Default(0) int runToken,
     @Default(<BenchmarkRequest>[]) List<BenchmarkRequest> requests,
+
+    /// Throughput samples over the run, for the charts (see [BenchmarkSample]).
+    @Default(<BenchmarkSample>[]) List<BenchmarkSample> samples,
     @Default(false) bool isRunning,
     @Default(Duration.zero) Duration elapsed,
     // The aggregate throughput captured at full concurrency (see

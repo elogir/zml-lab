@@ -2123,6 +2123,18 @@ class $SavedBenchmarksTable extends SavedBenchmarks
     requiredDuringInsert: false,
     defaultValue: const Constant('[]'),
   );
+  static const VerificationMeta _samplesJsonMeta = const VerificationMeta(
+    'samplesJson',
+  );
+  @override
+  late final GeneratedColumn<String> samplesJson = GeneratedColumn<String>(
+    'samples_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2137,6 +2149,7 @@ class $SavedBenchmarksTable extends SavedBenchmarks
     elapsedMs,
     createdAt,
     requestsJson,
+    samplesJson,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2251,6 +2264,15 @@ class $SavedBenchmarksTable extends SavedBenchmarks
         ),
       );
     }
+    if (data.containsKey('samples_json')) {
+      context.handle(
+        _samplesJsonMeta,
+        samplesJson.isAcceptableOrUnknown(
+          data['samples_json']!,
+          _samplesJsonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2308,6 +2330,10 @@ class $SavedBenchmarksTable extends SavedBenchmarks
         DriftSqlType.string,
         data['${effectivePrefix}requests_json'],
       )!,
+      samplesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}samples_json'],
+      )!,
     );
   }
 
@@ -2336,6 +2362,9 @@ class SavedBenchmarkRow extends DataClass
 
   /// JSON-encoded `List<BenchmarkRequest>` — the saved per-request responses.
   final String requestsJson;
+
+  /// JSON-encoded `List<BenchmarkSample>` — the throughput time-series.
+  final String samplesJson;
   const SavedBenchmarkRow({
     required this.id,
     required this.name,
@@ -2349,6 +2378,7 @@ class SavedBenchmarkRow extends DataClass
     required this.elapsedMs,
     required this.createdAt,
     required this.requestsJson,
+    required this.samplesJson,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2369,6 +2399,7 @@ class SavedBenchmarkRow extends DataClass
     map['elapsed_ms'] = Variable<int>(elapsedMs);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['requests_json'] = Variable<String>(requestsJson);
+    map['samples_json'] = Variable<String>(samplesJson);
     return map;
   }
 
@@ -2388,6 +2419,7 @@ class SavedBenchmarkRow extends DataClass
       elapsedMs: Value(elapsedMs),
       createdAt: Value(createdAt),
       requestsJson: Value(requestsJson),
+      samplesJson: Value(samplesJson),
     );
   }
 
@@ -2411,6 +2443,7 @@ class SavedBenchmarkRow extends DataClass
       elapsedMs: serializer.fromJson<int>(json['elapsedMs']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       requestsJson: serializer.fromJson<String>(json['requestsJson']),
+      samplesJson: serializer.fromJson<String>(json['samplesJson']),
     );
   }
   @override
@@ -2431,6 +2464,7 @@ class SavedBenchmarkRow extends DataClass
       'elapsedMs': serializer.toJson<int>(elapsedMs),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'requestsJson': serializer.toJson<String>(requestsJson),
+      'samplesJson': serializer.toJson<String>(samplesJson),
     };
   }
 
@@ -2447,6 +2481,7 @@ class SavedBenchmarkRow extends DataClass
     int? elapsedMs,
     DateTime? createdAt,
     String? requestsJson,
+    String? samplesJson,
   }) => SavedBenchmarkRow(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -2461,6 +2496,7 @@ class SavedBenchmarkRow extends DataClass
     elapsedMs: elapsedMs ?? this.elapsedMs,
     createdAt: createdAt ?? this.createdAt,
     requestsJson: requestsJson ?? this.requestsJson,
+    samplesJson: samplesJson ?? this.samplesJson,
   );
   SavedBenchmarkRow copyWithCompanion(SavedBenchmarksCompanion data) {
     return SavedBenchmarkRow(
@@ -2484,6 +2520,9 @@ class SavedBenchmarkRow extends DataClass
       requestsJson: data.requestsJson.present
           ? data.requestsJson.value
           : this.requestsJson,
+      samplesJson: data.samplesJson.present
+          ? data.samplesJson.value
+          : this.samplesJson,
     );
   }
 
@@ -2501,7 +2540,8 @@ class SavedBenchmarkRow extends DataClass
           ..write('medianTtftMs: $medianTtftMs, ')
           ..write('elapsedMs: $elapsedMs, ')
           ..write('createdAt: $createdAt, ')
-          ..write('requestsJson: $requestsJson')
+          ..write('requestsJson: $requestsJson, ')
+          ..write('samplesJson: $samplesJson')
           ..write(')'))
         .toString();
   }
@@ -2520,6 +2560,7 @@ class SavedBenchmarkRow extends DataClass
     elapsedMs,
     createdAt,
     requestsJson,
+    samplesJson,
   );
   @override
   bool operator ==(Object other) =>
@@ -2536,7 +2577,8 @@ class SavedBenchmarkRow extends DataClass
           other.medianTtftMs == this.medianTtftMs &&
           other.elapsedMs == this.elapsedMs &&
           other.createdAt == this.createdAt &&
-          other.requestsJson == this.requestsJson);
+          other.requestsJson == this.requestsJson &&
+          other.samplesJson == this.samplesJson);
 }
 
 class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
@@ -2552,6 +2594,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
   final Value<int> elapsedMs;
   final Value<DateTime> createdAt;
   final Value<String> requestsJson;
+  final Value<String> samplesJson;
   final Value<int> rowid;
   const SavedBenchmarksCompanion({
     this.id = const Value.absent(),
@@ -2566,6 +2609,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     this.elapsedMs = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.requestsJson = const Value.absent(),
+    this.samplesJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SavedBenchmarksCompanion.insert({
@@ -2581,6 +2625,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     required int elapsedMs,
     required DateTime createdAt,
     this.requestsJson = const Value.absent(),
+    this.samplesJson = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -2605,6 +2650,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     Expression<int>? elapsedMs,
     Expression<DateTime>? createdAt,
     Expression<String>? requestsJson,
+    Expression<String>? samplesJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2621,6 +2667,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
       if (elapsedMs != null) 'elapsed_ms': elapsedMs,
       if (createdAt != null) 'created_at': createdAt,
       if (requestsJson != null) 'requests_json': requestsJson,
+      if (samplesJson != null) 'samples_json': samplesJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2638,6 +2685,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     Value<int>? elapsedMs,
     Value<DateTime>? createdAt,
     Value<String>? requestsJson,
+    Value<String>? samplesJson,
     Value<int>? rowid,
   }) {
     return SavedBenchmarksCompanion(
@@ -2654,6 +2702,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
       elapsedMs: elapsedMs ?? this.elapsedMs,
       createdAt: createdAt ?? this.createdAt,
       requestsJson: requestsJson ?? this.requestsJson,
+      samplesJson: samplesJson ?? this.samplesJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2699,6 +2748,9 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     if (requestsJson.present) {
       map['requests_json'] = Variable<String>(requestsJson.value);
     }
+    if (samplesJson.present) {
+      map['samples_json'] = Variable<String>(samplesJson.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2720,6 +2772,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
           ..write('elapsedMs: $elapsedMs, ')
           ..write('createdAt: $createdAt, ')
           ..write('requestsJson: $requestsJson, ')
+          ..write('samplesJson: $samplesJson, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3999,6 +4052,7 @@ typedef $$SavedBenchmarksTableCreateCompanionBuilder =
       required int elapsedMs,
       required DateTime createdAt,
       Value<String> requestsJson,
+      Value<String> samplesJson,
       Value<int> rowid,
     });
 typedef $$SavedBenchmarksTableUpdateCompanionBuilder =
@@ -4015,6 +4069,7 @@ typedef $$SavedBenchmarksTableUpdateCompanionBuilder =
       Value<int> elapsedMs,
       Value<DateTime> createdAt,
       Value<String> requestsJson,
+      Value<String> samplesJson,
       Value<int> rowid,
     });
 
@@ -4084,6 +4139,11 @@ class $$SavedBenchmarksTableFilterComposer
 
   ColumnFilters<String> get requestsJson => $composableBuilder(
     column: $table.requestsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get samplesJson => $composableBuilder(
+    column: $table.samplesJson,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4156,6 +4216,11 @@ class $$SavedBenchmarksTableOrderingComposer
     column: $table.requestsJson,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get samplesJson => $composableBuilder(
+    column: $table.samplesJson,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SavedBenchmarksTableAnnotationComposer
@@ -4210,6 +4275,11 @@ class $$SavedBenchmarksTableAnnotationComposer
     column: $table.requestsJson,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get samplesJson => $composableBuilder(
+    column: $table.samplesJson,
+    builder: (column) => column,
+  );
 }
 
 class $$SavedBenchmarksTableTableManager
@@ -4261,6 +4331,7 @@ class $$SavedBenchmarksTableTableManager
                 Value<int> elapsedMs = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> requestsJson = const Value.absent(),
+                Value<String> samplesJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SavedBenchmarksCompanion(
                 id: id,
@@ -4275,6 +4346,7 @@ class $$SavedBenchmarksTableTableManager
                 elapsedMs: elapsedMs,
                 createdAt: createdAt,
                 requestsJson: requestsJson,
+                samplesJson: samplesJson,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4291,6 +4363,7 @@ class $$SavedBenchmarksTableTableManager
                 required int elapsedMs,
                 required DateTime createdAt,
                 Value<String> requestsJson = const Value.absent(),
+                Value<String> samplesJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SavedBenchmarksCompanion.insert(
                 id: id,
@@ -4305,6 +4378,7 @@ class $$SavedBenchmarksTableTableManager
                 elapsedMs: elapsedMs,
                 createdAt: createdAt,
                 requestsJson: requestsJson,
+                samplesJson: samplesJson,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

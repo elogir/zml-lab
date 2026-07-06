@@ -45,6 +45,13 @@ class BenchmarkController extends _$BenchmarkController {
   List<_Progress> _progs = [];
   bool _flushScheduled = false;
 
+  // Throughput time-series. Appended on a ~250ms cadence (flush runs per-frame,
+  // far too often to sample every time); the snapshot is a stable reference so
+  // state.copyWith only churns when a point is actually added.
+  final List<BenchmarkSample> _samples = [];
+  List<BenchmarkSample> _samplesSnapshot = const [];
+  static const _sampleIntervalMs = 250;
+
   @override
   BenchmarkRun build(String jobId) {
     ref.onDispose(_teardown);
@@ -83,12 +90,15 @@ class BenchmarkController extends _$BenchmarkController {
     final now = DateTime.now();
     _startAt = now;
     _progs = List.generate(n, (i) => _Progress(index: i + 1, start: now));
+    _samples.clear();
+    _samplesSnapshot = const [];
 
     state = state.copyWith(
       isRunning: true,
       elapsed: Duration.zero,
       frozenAggregate: 0,
       runToken: state.runToken + 1,
+      samples: const [],
       requests: [
         for (final p in _progs)
           BenchmarkRequest(
@@ -249,11 +259,40 @@ class BenchmarkController extends _$BenchmarkController {
     }
 
     final anyActive = _progs.any((p) => !p.status.isTerminal);
+    final elapsedMs = now.difference(start).inMilliseconds;
+
+    // Sample throughput for the chart, on a fixed cadence (flush is per-frame)
+    // and always once at the end so the tail is captured. tps here is the live
+    // aggregate rate of the requests still streaming — the real instantaneous
+    // throughput, which ramps up then decays as requests finish.
+    final dueForSample = _samples.isEmpty ||
+        (elapsedMs - _samples.last.elapsedMs) >= _sampleIntervalMs ||
+        !anyActive;
+    if (dueForSample) {
+      final streaming = requests
+          .where((r) => r.status == BenchmarkRequestStatus.streaming)
+          .toList();
+      final liveTps = streaming.fold(0.0, (sum, r) => sum + r.tokensPerSecond);
+      // Average over only the still-running requests, so a request that has
+      // already finished doesn't drag the per-request rate down (same reason
+      // the aggregate freezes at the first completion).
+      final avgTps = streaming.isEmpty ? 0.0 : liveTps / streaming.length;
+      final totalTokens = requests.fold(0, (sum, r) => sum + r.tokens);
+      _samples.add(BenchmarkSample(
+        elapsedMs: elapsedMs,
+        tps: liveTps,
+        avgTps: avgTps,
+        tokens: totalTokens,
+      ));
+      _samplesSnapshot = List.unmodifiable(_samples);
+    }
+
     state = state.copyWith(
       requests: requests,
       elapsed: now.difference(start),
       isRunning: anyActive,
       frozenAggregate: frozen,
+      samples: _samplesSnapshot,
     );
     if (!anyActive) _ticker?.cancel();
   }

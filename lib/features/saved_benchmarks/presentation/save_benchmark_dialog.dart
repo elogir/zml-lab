@@ -91,6 +91,7 @@ class _SaveDialogState extends ConsumerState<_SaveDialog> {
             elapsedMs: run.elapsed.inMilliseconds,
             createdAt: DateTime.now(),
             requests: run.requests,
+            samples: run.samples,
           ),
         );
     Navigator.of(context).pop();

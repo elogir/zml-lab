@@ -30,6 +30,9 @@ abstract class SavedBenchmark with _$SavedBenchmark {
 
     /// The per-request responses (text + metrics) captured at save time.
     @Default(<BenchmarkRequest>[]) List<BenchmarkRequest> requests,
+
+    /// Throughput samples over the run, for the charts.
+    @Default(<BenchmarkSample>[]) List<BenchmarkSample> samples,
   }) = _SavedBenchmark;
 
   /// The machine it ran on. Uses the stored [machineName], falling back to the
