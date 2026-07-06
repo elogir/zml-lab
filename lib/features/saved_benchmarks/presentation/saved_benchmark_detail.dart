@@ -240,10 +240,7 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                 const SizedBox(height: AppSpacing.sm),
                 Expanded(
                   child: _tab == _DetailTab.charts
-                      ? BenchmarkCharts(
-                          samples: b.samples,
-                          requests: b.requests,
-                        )
+                      ? BenchmarkCharts(samples: b.samples)
                       : b.requests.isEmpty
                       ? Center(
                           child: Text(

@@ -167,7 +167,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
           child: run.requests.isEmpty
               ? _EmptyState(endpoint: widget.endpoint)
               : _view == _BenchView.charts
-              ? BenchmarkCharts(samples: run.samples, requests: run.requests)
+              ? BenchmarkCharts(samples: run.samples)
               : _Grid(
                   run: run,
                   jobId: widget.jobId,
