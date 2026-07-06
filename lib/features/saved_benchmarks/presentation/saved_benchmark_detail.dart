@@ -7,6 +7,7 @@ import '../../../core/widgets/widgets.dart';
 import '../../../models/benchmark.dart';
 import '../../../models/saved_benchmark.dart';
 import '../../../repositories/saved_benchmark_repository.dart';
+import '../../benchmark/presentation/benchmark_charts.dart';
 import '../../benchmark/presentation/benchmark_request_card.dart';
 import '../../benchmark/presentation/reasoning_view.dart';
 
@@ -41,9 +42,12 @@ class _DetailView extends ConsumerStatefulWidget {
   ConsumerState<_DetailView> createState() => _DetailViewState();
 }
 
+enum _DetailTab { responses, charts }
+
 class _DetailViewState extends ConsumerState<_DetailView> {
   late SavedBenchmark _b = widget.benchmark;
   bool _editingName = false;
+  _DetailTab _tab = _DetailTab.responses;
   late final TextEditingController _name = TextEditingController(
     text: widget.benchmark.name,
   );
@@ -201,14 +205,46 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                 const SizedBox(height: AppSpacing.lg),
                 Row(
                   children: [
-                    const SectionLabel('Responses'),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text('${b.requests.length}', style: context.text.smallMuted),
+                    SectionLabel(
+                      _tab == _DetailTab.charts ? 'Charts' : 'Responses',
+                    ),
+                    if (_tab == _DetailTab.responses) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        '${b.requests.length}',
+                        style: context.text.smallMuted,
+                      ),
+                    ],
+                    const Spacer(),
+                    // Only offer the charts tab when there's a time-series to
+                    // plot (older saved runs predate sampling).
+                    if (b.samples.length >= 2)
+                      SegmentedControl<_DetailTab>(
+                        value: _tab,
+                        onChanged: (v) => setState(() => _tab = v),
+                        options: const [
+                          SegmentOption(
+                            value: _DetailTab.responses,
+                            label: 'Responses',
+                            icon: AppIcons.grid,
+                          ),
+                          SegmentOption(
+                            value: _DetailTab.charts,
+                            label: 'Charts',
+                            icon: AppIcons.chart,
+                          ),
+                        ],
+                      ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Expanded(
-                  child: b.requests.isEmpty
+                  child: _tab == _DetailTab.charts
+                      ? BenchmarkCharts(
+                          samples: b.samples,
+                          requests: b.requests,
+                        )
+                      : b.requests.isEmpty
                       ? Center(
                           child: Text(
                             'No responses saved',

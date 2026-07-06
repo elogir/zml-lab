@@ -83,7 +83,7 @@ final class BenchmarkControllerProvider
 }
 
 String _$benchmarkControllerHash() =>
-    r'72a56154515c7d5145fb577448f8fd48a7310941';
+    r'40c180adffc96a9fc4ff483ba89bc7cdd689bc5e';
 
 /// Drives a real benchmark run: fires [batchSize] concurrent streaming requests
 /// at the job's `/v1/chat/completions` endpoint and reports per-request and

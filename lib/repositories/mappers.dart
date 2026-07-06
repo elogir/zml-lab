@@ -48,6 +48,20 @@ String encodeBenchmarkRequests(List<BenchmarkRequest> requests) => jsonEncode([
     },
 ]);
 
+/// The throughput time-series persists as a compact JSON blob (see
+/// [BenchmarkSample.toMap]).
+String encodeBenchmarkSamples(List<BenchmarkSample> samples) =>
+    jsonEncode([for (final s in samples) s.toMap()]);
+
+List<BenchmarkSample> decodeBenchmarkSamples(String json) {
+  final decoded = jsonDecode(json);
+  if (decoded is! List) return const [];
+  return decoded
+      .whereType<Map<String, dynamic>>()
+      .map(BenchmarkSample.fromMap)
+      .toList();
+}
+
 List<BenchmarkRequest> decodeBenchmarkRequests(String json) {
   final decoded = jsonDecode(json);
   if (decoded is! List) return const [];
@@ -122,6 +136,7 @@ extension SavedBenchmarkRowMapper on SavedBenchmarkRow {
     elapsedMs: elapsedMs,
     createdAt: createdAt,
     requests: decodeBenchmarkRequests(requestsJson),
+    samples: decodeBenchmarkSamples(samplesJson),
   );
 }
 

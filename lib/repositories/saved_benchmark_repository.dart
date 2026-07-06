@@ -45,6 +45,7 @@ class DriftSavedBenchmarkRepository implements SavedBenchmarkRepository {
           elapsedMs: b.elapsedMs,
           createdAt: b.createdAt,
           requestsJson: Value(encodeBenchmarkRequests(b.requests)),
+          samplesJson: Value(encodeBenchmarkSamples(b.samples)),
         ),
       );
 

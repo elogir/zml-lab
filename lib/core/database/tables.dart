@@ -59,6 +59,9 @@ class SavedBenchmarks extends Table {
   /// JSON-encoded `List<BenchmarkRequest>` — the saved per-request responses.
   TextColumn get requestsJson => text().withDefault(const Constant('[]'))();
 
+  /// JSON-encoded `List<BenchmarkSample>` — the throughput time-series.
+  TextColumn get samplesJson => text().withDefault(const Constant('[]'))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
