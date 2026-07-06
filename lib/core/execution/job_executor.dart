@@ -338,6 +338,16 @@ class JobExecutor extends ChangeNotifier {
     // Remote: run the same command over SSH, folding cd + env into the remote
     // shell (the local PTY just runs `ssh`).
     final remote = StringBuffer();
+    // `ssh host 'cmd'` runs a non-login, non-interactive shell that sources
+    // neither .zprofile nor .zshrc, so the user's PATH additions are absent and
+    // tools like bazel / uv installed under ~/.local/bin (or Homebrew) aren't
+    // found. Put the usual locations back on PATH. $HOME/$PATH expand on the
+    // remote (the whole command is single-quoted to ssh, so nothing expands
+    // here).
+    remote.write(
+      r'export PATH="$HOME/.local/bin:$HOME/bin:/opt/homebrew/bin:'
+      r'/usr/local/bin:$PATH" && ',
+    );
     if (workingDir != null) {
       remote.write('cd ${_shQuoteRemotePath(workingDir)} && ');
     }
