@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/execution/job_executor.dart';
+import '../../../core/router/routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/job.dart';
@@ -150,6 +151,8 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                   onRestart: machine == null
                       ? null
                       : () => ref.read(jobExecutorProvider).restart(job, machine),
+                  onEdit: () =>
+                      NewCustomJobRoute(jobId: job.id).push<void>(context),
                   onCapture: profiler.capturing
                       ? null
                       : () => ref

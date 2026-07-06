@@ -152,6 +152,7 @@ extension JobRowMapper on JobRow {
     port: port,
     status: _statusFromName(status),
     env: decodeEnv(envJson),
+    configId: configId,
     pid: pid,
     startedAt: startedAt,
   );

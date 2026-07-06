@@ -86,13 +86,23 @@ class EditMachineRoute extends GoRouteData with $EditMachineRoute {
 }
 
 class NewCustomJobRoute extends GoRouteData with $NewCustomJobRoute {
-  const NewCustomJobRoute({this.configId});
+  const NewCustomJobRoute({this.configId, this.jobId, this.newConfig = false});
 
+  /// Editing an existing config.
   final String? configId;
 
+  /// Editing an existing job (pre-filled from it, saves back to the job).
+  final String? jobId;
+
+  /// Framing: opened from the configs tab to author a config.
+  final bool newConfig;
+
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      CustomJobScreen(configId: configId);
+  Widget build(BuildContext context, GoRouterState state) => CustomJobScreen(
+    configId: configId,
+    jobId: jobId,
+    newConfig: newConfig,
+  );
 }
 
 class JobDetailRoute extends GoRouteData with $JobDetailRoute {

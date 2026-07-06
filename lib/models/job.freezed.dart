@@ -15,7 +15,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Job {
 
- String get id; String get name; String? get description; String get machineId; String get command; String? get workingDir; int get port; JobStatus get status; List<EnvVar> get env; int? get pid; DateTime? get startedAt;
+ String get id; String get name; String? get description; String get machineId; String get command; String? get workingDir; int get port; JobStatus get status; List<EnvVar> get env;/// The saved config this job was launched from, if any — so editing the
+/// job can offer to push the change back to that config.
+ String? get configId; int? get pid; DateTime? get startedAt;
 /// Create a copy of Job
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +30,16 @@ $JobCopyWith<Job> get copyWith => _$JobCopyWithImpl<Job>(this as Job, _$identity
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Job&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.machineId, machineId) || other.machineId == machineId)&&(identical(other.command, command) || other.command == command)&&(identical(other.workingDir, workingDir) || other.workingDir == workingDir)&&(identical(other.port, port) || other.port == port)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.env, env)&&(identical(other.pid, pid) || other.pid == pid)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Job&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.machineId, machineId) || other.machineId == machineId)&&(identical(other.command, command) || other.command == command)&&(identical(other.workingDir, workingDir) || other.workingDir == workingDir)&&(identical(other.port, port) || other.port == port)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.env, env)&&(identical(other.configId, configId) || other.configId == configId)&&(identical(other.pid, pid) || other.pid == pid)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,description,machineId,command,workingDir,port,status,const DeepCollectionEquality().hash(env),pid,startedAt);
+int get hashCode => Object.hash(runtimeType,id,name,description,machineId,command,workingDir,port,status,const DeepCollectionEquality().hash(env),configId,pid,startedAt);
 
 @override
 String toString() {
-  return 'Job(id: $id, name: $name, description: $description, machineId: $machineId, command: $command, workingDir: $workingDir, port: $port, status: $status, env: $env, pid: $pid, startedAt: $startedAt)';
+  return 'Job(id: $id, name: $name, description: $description, machineId: $machineId, command: $command, workingDir: $workingDir, port: $port, status: $status, env: $env, configId: $configId, pid: $pid, startedAt: $startedAt)';
 }
 
 
@@ -48,7 +50,7 @@ abstract mixin class $JobCopyWith<$Res>  {
   factory $JobCopyWith(Job value, $Res Function(Job) _then) = _$JobCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String? description, String machineId, String command, String? workingDir, int port, JobStatus status, List<EnvVar> env, int? pid, DateTime? startedAt
+ String id, String name, String? description, String machineId, String command, String? workingDir, int port, JobStatus status, List<EnvVar> env, String? configId, int? pid, DateTime? startedAt
 });
 
 
@@ -65,7 +67,7 @@ class _$JobCopyWithImpl<$Res>
 
 /// Create a copy of Job
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? machineId = null,Object? command = null,Object? workingDir = freezed,Object? port = null,Object? status = null,Object? env = null,Object? pid = freezed,Object? startedAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? machineId = null,Object? command = null,Object? workingDir = freezed,Object? port = null,Object? status = null,Object? env = null,Object? configId = freezed,Object? pid = freezed,Object? startedAt = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -76,7 +78,8 @@ as String,workingDir: freezed == workingDir ? _self.workingDir : workingDir // i
 as String?,port: null == port ? _self.port : port // ignore: cast_nullable_to_non_nullable
 as int,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as JobStatus,env: null == env ? _self.env : env // ignore: cast_nullable_to_non_nullable
-as List<EnvVar>,pid: freezed == pid ? _self.pid : pid // ignore: cast_nullable_to_non_nullable
+as List<EnvVar>,configId: freezed == configId ? _self.configId : configId // ignore: cast_nullable_to_non_nullable
+as String?,pid: freezed == pid ? _self.pid : pid // ignore: cast_nullable_to_non_nullable
 as int?,startedAt: freezed == startedAt ? _self.startedAt : startedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,
   ));
@@ -163,10 +166,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String machineId,  String command,  String? workingDir,  int port,  JobStatus status,  List<EnvVar> env,  int? pid,  DateTime? startedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String machineId,  String command,  String? workingDir,  int port,  JobStatus status,  List<EnvVar> env,  String? configId,  int? pid,  DateTime? startedAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Job() when $default != null:
-return $default(_that.id,_that.name,_that.description,_that.machineId,_that.command,_that.workingDir,_that.port,_that.status,_that.env,_that.pid,_that.startedAt);case _:
+return $default(_that.id,_that.name,_that.description,_that.machineId,_that.command,_that.workingDir,_that.port,_that.status,_that.env,_that.configId,_that.pid,_that.startedAt);case _:
   return orElse();
 
 }
@@ -184,10 +187,10 @@ return $default(_that.id,_that.name,_that.description,_that.machineId,_that.comm
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String machineId,  String command,  String? workingDir,  int port,  JobStatus status,  List<EnvVar> env,  int? pid,  DateTime? startedAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String machineId,  String command,  String? workingDir,  int port,  JobStatus status,  List<EnvVar> env,  String? configId,  int? pid,  DateTime? startedAt)  $default,) {final _that = this;
 switch (_that) {
 case _Job():
-return $default(_that.id,_that.name,_that.description,_that.machineId,_that.command,_that.workingDir,_that.port,_that.status,_that.env,_that.pid,_that.startedAt);case _:
+return $default(_that.id,_that.name,_that.description,_that.machineId,_that.command,_that.workingDir,_that.port,_that.status,_that.env,_that.configId,_that.pid,_that.startedAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -204,10 +207,10 @@ return $default(_that.id,_that.name,_that.description,_that.machineId,_that.comm
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? description,  String machineId,  String command,  String? workingDir,  int port,  JobStatus status,  List<EnvVar> env,  int? pid,  DateTime? startedAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? description,  String machineId,  String command,  String? workingDir,  int port,  JobStatus status,  List<EnvVar> env,  String? configId,  int? pid,  DateTime? startedAt)?  $default,) {final _that = this;
 switch (_that) {
 case _Job() when $default != null:
-return $default(_that.id,_that.name,_that.description,_that.machineId,_that.command,_that.workingDir,_that.port,_that.status,_that.env,_that.pid,_that.startedAt);case _:
+return $default(_that.id,_that.name,_that.description,_that.machineId,_that.command,_that.workingDir,_that.port,_that.status,_that.env,_that.configId,_that.pid,_that.startedAt);case _:
   return null;
 
 }
@@ -219,7 +222,7 @@ return $default(_that.id,_that.name,_that.description,_that.machineId,_that.comm
 @JsonSerializable()
 
 class _Job extends Job {
-  const _Job({required this.id, required this.name, this.description, required this.machineId, required this.command, this.workingDir, required this.port, required this.status, final  List<EnvVar> env = const <EnvVar>[], this.pid, this.startedAt}): _env = env,super._();
+  const _Job({required this.id, required this.name, this.description, required this.machineId, required this.command, this.workingDir, required this.port, required this.status, final  List<EnvVar> env = const <EnvVar>[], this.configId, this.pid, this.startedAt}): _env = env,super._();
   factory _Job.fromJson(Map<String, dynamic> json) => _$JobFromJson(json);
 
 @override final  String id;
@@ -237,6 +240,9 @@ class _Job extends Job {
   return EqualUnmodifiableListView(_env);
 }
 
+/// The saved config this job was launched from, if any — so editing the
+/// job can offer to push the change back to that config.
+@override final  String? configId;
 @override final  int? pid;
 @override final  DateTime? startedAt;
 
@@ -253,16 +259,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Job&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.machineId, machineId) || other.machineId == machineId)&&(identical(other.command, command) || other.command == command)&&(identical(other.workingDir, workingDir) || other.workingDir == workingDir)&&(identical(other.port, port) || other.port == port)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._env, _env)&&(identical(other.pid, pid) || other.pid == pid)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Job&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.machineId, machineId) || other.machineId == machineId)&&(identical(other.command, command) || other.command == command)&&(identical(other.workingDir, workingDir) || other.workingDir == workingDir)&&(identical(other.port, port) || other.port == port)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._env, _env)&&(identical(other.configId, configId) || other.configId == configId)&&(identical(other.pid, pid) || other.pid == pid)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,description,machineId,command,workingDir,port,status,const DeepCollectionEquality().hash(_env),pid,startedAt);
+int get hashCode => Object.hash(runtimeType,id,name,description,machineId,command,workingDir,port,status,const DeepCollectionEquality().hash(_env),configId,pid,startedAt);
 
 @override
 String toString() {
-  return 'Job(id: $id, name: $name, description: $description, machineId: $machineId, command: $command, workingDir: $workingDir, port: $port, status: $status, env: $env, pid: $pid, startedAt: $startedAt)';
+  return 'Job(id: $id, name: $name, description: $description, machineId: $machineId, command: $command, workingDir: $workingDir, port: $port, status: $status, env: $env, configId: $configId, pid: $pid, startedAt: $startedAt)';
 }
 
 
@@ -273,7 +279,7 @@ abstract mixin class _$JobCopyWith<$Res> implements $JobCopyWith<$Res> {
   factory _$JobCopyWith(_Job value, $Res Function(_Job) _then) = __$JobCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String? description, String machineId, String command, String? workingDir, int port, JobStatus status, List<EnvVar> env, int? pid, DateTime? startedAt
+ String id, String name, String? description, String machineId, String command, String? workingDir, int port, JobStatus status, List<EnvVar> env, String? configId, int? pid, DateTime? startedAt
 });
 
 
@@ -290,7 +296,7 @@ class __$JobCopyWithImpl<$Res>
 
 /// Create a copy of Job
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? machineId = null,Object? command = null,Object? workingDir = freezed,Object? port = null,Object? status = null,Object? env = null,Object? pid = freezed,Object? startedAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? machineId = null,Object? command = null,Object? workingDir = freezed,Object? port = null,Object? status = null,Object? env = null,Object? configId = freezed,Object? pid = freezed,Object? startedAt = freezed,}) {
   return _then(_Job(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -301,7 +307,8 @@ as String,workingDir: freezed == workingDir ? _self.workingDir : workingDir // i
 as String?,port: null == port ? _self.port : port // ignore: cast_nullable_to_non_nullable
 as int,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as JobStatus,env: null == env ? _self._env : env // ignore: cast_nullable_to_non_nullable
-as List<EnvVar>,pid: freezed == pid ? _self.pid : pid // ignore: cast_nullable_to_non_nullable
+as List<EnvVar>,configId: freezed == configId ? _self.configId : configId // ignore: cast_nullable_to_non_nullable
+as String?,pid: freezed == pid ? _self.pid : pid // ignore: cast_nullable_to_non_nullable
 as int?,startedAt: freezed == startedAt ? _self.startedAt : startedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,
   ));

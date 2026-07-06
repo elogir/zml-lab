@@ -20,6 +20,7 @@ _Job _$JobFromJson(Map<String, dynamic> json) => _Job(
           ?.map((e) => EnvVar.fromJson(e as Map<String, dynamic>))
           .toList() ??
       const <EnvVar>[],
+  configId: json['configId'] as String?,
   pid: (json['pid'] as num?)?.toInt(),
   startedAt: json['startedAt'] == null
       ? null
@@ -36,6 +37,7 @@ Map<String, dynamic> _$JobToJson(_Job instance) => <String, dynamic>{
   'port': instance.port,
   'status': _$JobStatusEnumMap[instance.status]!,
   'env': instance.env,
+  'configId': instance.configId,
   'pid': instance.pid,
   'startedAt': instance.startedAt?.toIso8601String(),
 };
