@@ -2036,6 +2036,18 @@ class $SavedBenchmarksTable extends SavedBenchmarks
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _commandMeta = const VerificationMeta(
+    'command',
+  );
+  @override
+  late final GeneratedColumn<String> command = GeneratedColumn<String>(
+    'command',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _promptMeta = const VerificationMeta('prompt');
   @override
   late final GeneratedColumn<String> prompt = GeneratedColumn<String>(
@@ -2141,6 +2153,7 @@ class $SavedBenchmarksTable extends SavedBenchmarks
     name,
     endpoint,
     machineName,
+    command,
     prompt,
     batchSize,
     aggregateTokensPerSecond,
@@ -2191,6 +2204,12 @@ class $SavedBenchmarksTable extends SavedBenchmarks
           data['machine_name']!,
           _machineNameMeta,
         ),
+      );
+    }
+    if (data.containsKey('command')) {
+      context.handle(
+        _commandMeta,
+        command.isAcceptableOrUnknown(data['command']!, _commandMeta),
       );
     }
     if (data.containsKey('prompt')) {
@@ -2298,6 +2317,10 @@ class $SavedBenchmarksTable extends SavedBenchmarks
         DriftSqlType.string,
         data['${effectivePrefix}machine_name'],
       ),
+      command: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}command'],
+      )!,
       prompt: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}prompt'],
@@ -2352,6 +2375,9 @@ class SavedBenchmarkRow extends DataClass
   /// The machine it ran on, for display. Nullable: rows saved before this
   /// column existed fall back to the endpoint's host part.
   final String? machineName;
+
+  /// The job's launch command at save time.
+  final String command;
   final String prompt;
   final int batchSize;
   final double aggregateTokensPerSecond;
@@ -2370,6 +2396,7 @@ class SavedBenchmarkRow extends DataClass
     required this.name,
     required this.endpoint,
     this.machineName,
+    required this.command,
     required this.prompt,
     required this.batchSize,
     required this.aggregateTokensPerSecond,
@@ -2389,6 +2416,7 @@ class SavedBenchmarkRow extends DataClass
     if (!nullToAbsent || machineName != null) {
       map['machine_name'] = Variable<String>(machineName);
     }
+    map['command'] = Variable<String>(command);
     map['prompt'] = Variable<String>(prompt);
     map['batch_size'] = Variable<int>(batchSize);
     map['aggregate_tokens_per_second'] = Variable<double>(
@@ -2411,6 +2439,7 @@ class SavedBenchmarkRow extends DataClass
       machineName: machineName == null && nullToAbsent
           ? const Value.absent()
           : Value(machineName),
+      command: Value(command),
       prompt: Value(prompt),
       batchSize: Value(batchSize),
       aggregateTokensPerSecond: Value(aggregateTokensPerSecond),
@@ -2433,6 +2462,7 @@ class SavedBenchmarkRow extends DataClass
       name: serializer.fromJson<String>(json['name']),
       endpoint: serializer.fromJson<String>(json['endpoint']),
       machineName: serializer.fromJson<String?>(json['machineName']),
+      command: serializer.fromJson<String>(json['command']),
       prompt: serializer.fromJson<String>(json['prompt']),
       batchSize: serializer.fromJson<int>(json['batchSize']),
       aggregateTokensPerSecond: serializer.fromJson<double>(
@@ -2454,6 +2484,7 @@ class SavedBenchmarkRow extends DataClass
       'name': serializer.toJson<String>(name),
       'endpoint': serializer.toJson<String>(endpoint),
       'machineName': serializer.toJson<String?>(machineName),
+      'command': serializer.toJson<String>(command),
       'prompt': serializer.toJson<String>(prompt),
       'batchSize': serializer.toJson<int>(batchSize),
       'aggregateTokensPerSecond': serializer.toJson<double>(
@@ -2473,6 +2504,7 @@ class SavedBenchmarkRow extends DataClass
     String? name,
     String? endpoint,
     Value<String?> machineName = const Value.absent(),
+    String? command,
     String? prompt,
     int? batchSize,
     double? aggregateTokensPerSecond,
@@ -2487,6 +2519,7 @@ class SavedBenchmarkRow extends DataClass
     name: name ?? this.name,
     endpoint: endpoint ?? this.endpoint,
     machineName: machineName.present ? machineName.value : this.machineName,
+    command: command ?? this.command,
     prompt: prompt ?? this.prompt,
     batchSize: batchSize ?? this.batchSize,
     aggregateTokensPerSecond:
@@ -2506,6 +2539,7 @@ class SavedBenchmarkRow extends DataClass
       machineName: data.machineName.present
           ? data.machineName.value
           : this.machineName,
+      command: data.command.present ? data.command.value : this.command,
       prompt: data.prompt.present ? data.prompt.value : this.prompt,
       batchSize: data.batchSize.present ? data.batchSize.value : this.batchSize,
       aggregateTokensPerSecond: data.aggregateTokensPerSecond.present
@@ -2533,6 +2567,7 @@ class SavedBenchmarkRow extends DataClass
           ..write('name: $name, ')
           ..write('endpoint: $endpoint, ')
           ..write('machineName: $machineName, ')
+          ..write('command: $command, ')
           ..write('prompt: $prompt, ')
           ..write('batchSize: $batchSize, ')
           ..write('aggregateTokensPerSecond: $aggregateTokensPerSecond, ')
@@ -2552,6 +2587,7 @@ class SavedBenchmarkRow extends DataClass
     name,
     endpoint,
     machineName,
+    command,
     prompt,
     batchSize,
     aggregateTokensPerSecond,
@@ -2570,6 +2606,7 @@ class SavedBenchmarkRow extends DataClass
           other.name == this.name &&
           other.endpoint == this.endpoint &&
           other.machineName == this.machineName &&
+          other.command == this.command &&
           other.prompt == this.prompt &&
           other.batchSize == this.batchSize &&
           other.aggregateTokensPerSecond == this.aggregateTokensPerSecond &&
@@ -2586,6 +2623,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
   final Value<String> name;
   final Value<String> endpoint;
   final Value<String?> machineName;
+  final Value<String> command;
   final Value<String> prompt;
   final Value<int> batchSize;
   final Value<double> aggregateTokensPerSecond;
@@ -2601,6 +2639,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     this.name = const Value.absent(),
     this.endpoint = const Value.absent(),
     this.machineName = const Value.absent(),
+    this.command = const Value.absent(),
     this.prompt = const Value.absent(),
     this.batchSize = const Value.absent(),
     this.aggregateTokensPerSecond = const Value.absent(),
@@ -2617,6 +2656,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     required String name,
     required String endpoint,
     this.machineName = const Value.absent(),
+    this.command = const Value.absent(),
     required String prompt,
     required int batchSize,
     required double aggregateTokensPerSecond,
@@ -2642,6 +2682,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     Expression<String>? name,
     Expression<String>? endpoint,
     Expression<String>? machineName,
+    Expression<String>? command,
     Expression<String>? prompt,
     Expression<int>? batchSize,
     Expression<double>? aggregateTokensPerSecond,
@@ -2658,6 +2699,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
       if (name != null) 'name': name,
       if (endpoint != null) 'endpoint': endpoint,
       if (machineName != null) 'machine_name': machineName,
+      if (command != null) 'command': command,
       if (prompt != null) 'prompt': prompt,
       if (batchSize != null) 'batch_size': batchSize,
       if (aggregateTokensPerSecond != null)
@@ -2677,6 +2719,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     Value<String>? name,
     Value<String>? endpoint,
     Value<String?>? machineName,
+    Value<String>? command,
     Value<String>? prompt,
     Value<int>? batchSize,
     Value<double>? aggregateTokensPerSecond,
@@ -2693,6 +2736,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
       name: name ?? this.name,
       endpoint: endpoint ?? this.endpoint,
       machineName: machineName ?? this.machineName,
+      command: command ?? this.command,
       prompt: prompt ?? this.prompt,
       batchSize: batchSize ?? this.batchSize,
       aggregateTokensPerSecond:
@@ -2721,6 +2765,9 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     }
     if (machineName.present) {
       map['machine_name'] = Variable<String>(machineName.value);
+    }
+    if (command.present) {
+      map['command'] = Variable<String>(command.value);
     }
     if (prompt.present) {
       map['prompt'] = Variable<String>(prompt.value);
@@ -2764,6 +2811,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
           ..write('name: $name, ')
           ..write('endpoint: $endpoint, ')
           ..write('machineName: $machineName, ')
+          ..write('command: $command, ')
           ..write('prompt: $prompt, ')
           ..write('batchSize: $batchSize, ')
           ..write('aggregateTokensPerSecond: $aggregateTokensPerSecond, ')
@@ -4044,6 +4092,7 @@ typedef $$SavedBenchmarksTableCreateCompanionBuilder =
       required String name,
       required String endpoint,
       Value<String?> machineName,
+      Value<String> command,
       required String prompt,
       required int batchSize,
       required double aggregateTokensPerSecond,
@@ -4061,6 +4110,7 @@ typedef $$SavedBenchmarksTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> endpoint,
       Value<String?> machineName,
+      Value<String> command,
       Value<String> prompt,
       Value<int> batchSize,
       Value<double> aggregateTokensPerSecond,
@@ -4099,6 +4149,11 @@ class $$SavedBenchmarksTableFilterComposer
 
   ColumnFilters<String> get machineName => $composableBuilder(
     column: $table.machineName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get command => $composableBuilder(
+    column: $table.command,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4177,6 +4232,11 @@ class $$SavedBenchmarksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get command => $composableBuilder(
+    column: $table.command,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get prompt => $composableBuilder(
     column: $table.prompt,
     builder: (column) => ColumnOrderings(column),
@@ -4245,6 +4305,9 @@ class $$SavedBenchmarksTableAnnotationComposer
     column: $table.machineName,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get command =>
+      $composableBuilder(column: $table.command, builder: (column) => column);
 
   GeneratedColumn<String> get prompt =>
       $composableBuilder(column: $table.prompt, builder: (column) => column);
@@ -4323,6 +4386,7 @@ class $$SavedBenchmarksTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> endpoint = const Value.absent(),
                 Value<String?> machineName = const Value.absent(),
+                Value<String> command = const Value.absent(),
                 Value<String> prompt = const Value.absent(),
                 Value<int> batchSize = const Value.absent(),
                 Value<double> aggregateTokensPerSecond = const Value.absent(),
@@ -4338,6 +4402,7 @@ class $$SavedBenchmarksTableTableManager
                 name: name,
                 endpoint: endpoint,
                 machineName: machineName,
+                command: command,
                 prompt: prompt,
                 batchSize: batchSize,
                 aggregateTokensPerSecond: aggregateTokensPerSecond,
@@ -4355,6 +4420,7 @@ class $$SavedBenchmarksTableTableManager
                 required String name,
                 required String endpoint,
                 Value<String?> machineName = const Value.absent(),
+                Value<String> command = const Value.absent(),
                 required String prompt,
                 required int batchSize,
                 required double aggregateTokensPerSecond,
@@ -4370,6 +4436,7 @@ class $$SavedBenchmarksTableTableManager
                 name: name,
                 endpoint: endpoint,
                 machineName: machineName,
+                command: command,
                 prompt: prompt,
                 batchSize: batchSize,
                 aggregateTokensPerSecond: aggregateTokensPerSecond,

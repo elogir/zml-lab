@@ -123,6 +123,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                           jobId: job.id,
                           jobName: job.name,
                           jobDescription: job.description ?? '',
+                          jobCommand: job.command,
                           machineName: machine?.name ?? job.machineId,
                           endpoint: endpoint,
                           host: host,

@@ -48,6 +48,9 @@ class SavedBenchmarks extends Table {
   /// The machine it ran on, for display. Nullable: rows saved before this
   /// column existed fall back to the endpoint's host part.
   TextColumn get machineName => text().nullable()();
+
+  /// The job's launch command at save time.
+  TextColumn get command => text().withDefault(const Constant(''))();
   TextColumn get prompt => text()();
   IntColumn get batchSize => integer()();
   RealColumn get aggregateTokensPerSecond => real()();

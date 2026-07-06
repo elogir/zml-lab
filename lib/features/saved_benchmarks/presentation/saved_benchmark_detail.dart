@@ -202,6 +202,38 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                     ),
                   ),
                 ),
+                if (b.command.trim().isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  AppPanel(
+                    color: c.surfaceMuted,
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: AppSelectionArea(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r'$',
+                            style: context.text.monoSmall.copyWith(
+                              color: c.textFaint,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              b.command,
+                              style: context.text.monoSmall.copyWith(
+                                color: c.textSecondary,
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          CopyButton(text: b.command),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.lg),
                 Row(
                   children: [
