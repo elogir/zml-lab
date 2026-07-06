@@ -20,6 +20,7 @@ class BenchmarkView extends ConsumerStatefulWidget {
     super.key,
     required this.jobId,
     required this.jobName,
+    required this.jobDescription,
     required this.machineName,
     required this.endpoint,
     required this.host,
@@ -28,8 +29,12 @@ class BenchmarkView extends ConsumerStatefulWidget {
 
   final String jobId;
 
-  /// The job's display name — the default name when saving a run.
+  /// The job's display name — the base of the default name when saving a run.
   final String jobName;
+
+  /// The job's description — appended to the default save name after a
+  /// separator, when present.
+  final String jobDescription;
 
   /// The machine the job runs on — stored with a saved run so its origin
   /// shows in the Saved benchmarks view.
@@ -83,12 +88,15 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
 
   void _saveBenchmark() {
     final run = ref.read(benchmarkControllerProvider(widget.jobId));
+    final desc = widget.jobDescription.trim();
+    final defaultName =
+        desc.isEmpty ? widget.jobName : '${widget.jobName} · $desc';
     showSaveBenchmarkDialog(
       context,
       run: run,
       endpoint: widget.endpoint,
       machineName: widget.machineName,
-      defaultName: widget.jobName,
+      defaultName: defaultName,
     );
   }
 
