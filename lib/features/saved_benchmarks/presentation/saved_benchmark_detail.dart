@@ -323,6 +323,12 @@ class _Stats extends StatelessWidget {
             unit: 'tok/s',
           ),
           const SizedBox(width: AppSpacing.xxl),
+          _Stat(
+            label: 'AVG / REQ',
+            value: b.averageTokensPerSecond.toStringAsFixed(1),
+            unit: 'tok/s',
+          ),
+          const SizedBox(width: AppSpacing.xxl),
           _Stat(label: 'BATCH', value: '${b.batchSize}', unit: ''),
           const SizedBox(width: AppSpacing.xxl),
           _Stat(

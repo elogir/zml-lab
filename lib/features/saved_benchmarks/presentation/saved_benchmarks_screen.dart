@@ -142,8 +142,13 @@ class _BenchmarkCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              Text('tok/s', style: context.text.monoSmall),
+              Text('tok/s agg', style: context.text.monoSmall),
               const Spacer(),
+              _Metric(
+                label: 'avg',
+                value: '${b.averageTokensPerSecond.toStringAsFixed(0)} t/s',
+              ),
+              const SizedBox(width: AppSpacing.lg),
               _Metric(label: 'ttft', value: '${b.medianTtftMs}ms'),
               const SizedBox(width: AppSpacing.lg),
               _Metric(

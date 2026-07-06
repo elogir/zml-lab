@@ -34,6 +34,17 @@ class BenchmarkSample {
   );
 }
 
+/// The mean tok/s over the requests that produced any output — the per-request
+/// average, shared by live [BenchmarkRun]s and saved runs.
+double meanRequestTps(List<BenchmarkRequest> requests) {
+  final rates = [
+    for (final r in requests)
+      if (r.tokensPerSecond > 0) r.tokensPerSecond,
+  ];
+  if (rates.isEmpty) return 0;
+  return rates.reduce((a, b) => a + b) / rates.length;
+}
+
 /// State of a single in-flight benchmark request.
 enum BenchmarkRequestStatus {
   queued,
@@ -116,6 +127,12 @@ abstract class BenchmarkRun with _$BenchmarkRun {
 
   int get completed =>
       requests.where((r) => r.status.isTerminal).length;
+
+  /// Mean decode rate of a single request across the run — the average of each
+  /// request's tok/s (over those that produced any). Unlike [aggregateTokens
+  /// PerSecond] this doesn't scale with batch size, so it reads as "how fast is
+  /// one request" rather than "total throughput".
+  double get averageTokensPerSecond => meanRequestTps(requests);
 
   /// Requests whose reply was cut off by a token limit (max seqlen or the
   /// configured cap).
