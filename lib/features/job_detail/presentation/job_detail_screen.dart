@@ -122,6 +122,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                       : BenchmarkView(
                           jobId: job.id,
                           jobName: job.name,
+                          jobDescription: job.description ?? '',
                           machineName: machine?.name ?? job.machineId,
                           endpoint: endpoint,
                           host: host,
