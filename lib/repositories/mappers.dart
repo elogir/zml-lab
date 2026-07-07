@@ -7,6 +7,7 @@ import '../models/enums.dart';
 import '../models/job.dart';
 import '../models/launch_config.dart';
 import '../models/machine.dart';
+import '../models/perf_report.dart';
 import '../models/saved_benchmark.dart';
 
 /// Conversions between drift rows and the domain models the UI consumes.
@@ -139,6 +140,24 @@ extension SavedBenchmarkRowMapper on SavedBenchmarkRow {
     requests: decodeBenchmarkRequests(requestsJson),
     samples: decodeBenchmarkSamples(samplesJson),
   );
+}
+
+extension PerfReportRowMapper on PerfReportRow {
+  PerfReport toModel() {
+    final decoded = jsonDecode(reportJson);
+    return PerfReport.fromParts(
+      id: id,
+      name: name,
+      machineName: machineName,
+      endpoint: endpoint,
+      server: server,
+      createdAt: createdAt,
+      totalRequests: totalRequests,
+      tokensPerSecond: tokensPerSecond,
+      requestsPerSecond: requestsPerSecond,
+      m: decoded is Map ? decoded.cast<String, dynamic>() : const {},
+    );
+  }
 }
 
 extension JobRowMapper on JobRow {

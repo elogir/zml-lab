@@ -1,8 +1,17 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'env_var.dart';
+import 'perf_report.dart';
 
 part 'settings.freezed.dart';
+
+/// Where the monorepo's benchmarker lives (the app runs it locally).
+const defaultPerfToolDir = '~/Documents/Git-Repos/monorepo/tools/benchmark';
+
+/// The ShareGPT dataset the benchmarker draws prompts from (the guide keeps
+/// it inside the tool's folder).
+const defaultPerfDatasetPath =
+    '$defaultPerfToolDir/ShareGPT_V3_unfiltered_cleaned_split.json';
 
 /// The prompt a fresh benchmark run starts with when none is configured.
 const defaultBenchmarkPrompt =
@@ -52,6 +61,18 @@ abstract class AppSettings with _$AppSettings {
     /// Environment variables injected into every job launch (local and remote).
     /// A job's own env vars override these on a key clash.
     @Default(<EnvVar>[]) List<EnvVar> globalEnv,
+
+    // Perf benchmark (monorepo tools/benchmark) integration.
+    @Default(defaultPerfToolDir) String perfToolDir,
+    @Default(defaultPerfDatasetPath) String perfDatasetPath,
+
+    /// A duckdb command the "Copy results" button pipes the run's raw event
+    /// CSV through (run in the tool dir). Empty = copy the app's own render.
+    @Default('') String perfDuckdbCommand,
+
+    /// Last-used perf run parameters — the form remembers them so nothing has
+    /// to be re-entered between runs.
+    @Default(PerfParams()) PerfParams perfParams,
   }) = _AppSettings;
 }
 

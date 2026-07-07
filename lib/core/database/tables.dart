@@ -69,6 +69,30 @@ class SavedBenchmarks extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Saved perf benchmark reports (runs of the monorepo's tools/benchmark load
+/// generator). Scalar columns cover what the list cards show; the full report
+/// (stats table, time series, per-request data) lives in [reportJson].
+@DataClassName('PerfReportRow')
+class PerfReports extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get machineName => text()();
+  TextColumn get endpoint => text()();
+
+  /// Server type the tool detected ('zml', 'vllm', 'openai', 'unknown').
+  TextColumn get server => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  IntColumn get totalRequests => integer()();
+  RealColumn get tokensPerSecond => real()();
+  RealColumn get requestsPerSecond => real()();
+
+  /// JSON-encoded remainder of the [PerfReport].
+  TextColumn get reportJson => text().withDefault(const Constant('{}'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// App-wide preferences as a key/value store (values stringified). One row
 /// per setting; absent keys mean "use the built-in default".
 @DataClassName('SettingRow')

@@ -22,7 +22,12 @@ mixin _$AppSettings {
  int? get benchMaxTokens;/// Null = the server's default temperature.
  double? get benchTemperature;/// Environment variables injected into every job launch (local and remote).
 /// A job's own env vars override these on a key clash.
- List<EnvVar> get globalEnv;
+ List<EnvVar> get globalEnv;// Perf benchmark (monorepo tools/benchmark) integration.
+ String get perfToolDir; String get perfDatasetPath;/// A duckdb command the "Copy results" button pipes the run's raw event
+/// CSV through (run in the tool dir). Empty = copy the app's own render.
+ String get perfDuckdbCommand;/// Last-used perf run parameters — the form remembers them so nothing has
+/// to be re-entered between runs.
+ PerfParams get perfParams;
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -33,16 +38,16 @@ $AppSettingsCopyWith<AppSettings> get copyWith => _$AppSettingsCopyWithImpl<AppS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSettings&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.terminalFontSize, terminalFontSize) || other.terminalFontSize == terminalFontSize)&&(identical(other.portRangeStart, portRangeStart) || other.portRangeStart == portRangeStart)&&(identical(other.portRangeEnd, portRangeEnd) || other.portRangeEnd == portRangeEnd)&&(identical(other.healthIntervalSeconds, healthIntervalSeconds) || other.healthIntervalSeconds == healthIntervalSeconds)&&(identical(other.benchPrompt, benchPrompt) || other.benchPrompt == benchPrompt)&&(identical(other.benchBatchSize, benchBatchSize) || other.benchBatchSize == benchBatchSize)&&(identical(other.benchMaxTokens, benchMaxTokens) || other.benchMaxTokens == benchMaxTokens)&&(identical(other.benchTemperature, benchTemperature) || other.benchTemperature == benchTemperature)&&const DeepCollectionEquality().equals(other.globalEnv, globalEnv));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSettings&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.terminalFontSize, terminalFontSize) || other.terminalFontSize == terminalFontSize)&&(identical(other.portRangeStart, portRangeStart) || other.portRangeStart == portRangeStart)&&(identical(other.portRangeEnd, portRangeEnd) || other.portRangeEnd == portRangeEnd)&&(identical(other.healthIntervalSeconds, healthIntervalSeconds) || other.healthIntervalSeconds == healthIntervalSeconds)&&(identical(other.benchPrompt, benchPrompt) || other.benchPrompt == benchPrompt)&&(identical(other.benchBatchSize, benchBatchSize) || other.benchBatchSize == benchBatchSize)&&(identical(other.benchMaxTokens, benchMaxTokens) || other.benchMaxTokens == benchMaxTokens)&&(identical(other.benchTemperature, benchTemperature) || other.benchTemperature == benchTemperature)&&const DeepCollectionEquality().equals(other.globalEnv, globalEnv)&&(identical(other.perfToolDir, perfToolDir) || other.perfToolDir == perfToolDir)&&(identical(other.perfDatasetPath, perfDatasetPath) || other.perfDatasetPath == perfDatasetPath)&&(identical(other.perfDuckdbCommand, perfDuckdbCommand) || other.perfDuckdbCommand == perfDuckdbCommand)&&(identical(other.perfParams, perfParams) || other.perfParams == perfParams));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,themeMode,terminalFontSize,portRangeStart,portRangeEnd,healthIntervalSeconds,benchPrompt,benchBatchSize,benchMaxTokens,benchTemperature,const DeepCollectionEquality().hash(globalEnv));
+int get hashCode => Object.hash(runtimeType,themeMode,terminalFontSize,portRangeStart,portRangeEnd,healthIntervalSeconds,benchPrompt,benchBatchSize,benchMaxTokens,benchTemperature,const DeepCollectionEquality().hash(globalEnv),perfToolDir,perfDatasetPath,perfDuckdbCommand,perfParams);
 
 @override
 String toString() {
-  return 'AppSettings(themeMode: $themeMode, terminalFontSize: $terminalFontSize, portRangeStart: $portRangeStart, portRangeEnd: $portRangeEnd, healthIntervalSeconds: $healthIntervalSeconds, benchPrompt: $benchPrompt, benchBatchSize: $benchBatchSize, benchMaxTokens: $benchMaxTokens, benchTemperature: $benchTemperature, globalEnv: $globalEnv)';
+  return 'AppSettings(themeMode: $themeMode, terminalFontSize: $terminalFontSize, portRangeStart: $portRangeStart, portRangeEnd: $portRangeEnd, healthIntervalSeconds: $healthIntervalSeconds, benchPrompt: $benchPrompt, benchBatchSize: $benchBatchSize, benchMaxTokens: $benchMaxTokens, benchTemperature: $benchTemperature, globalEnv: $globalEnv, perfToolDir: $perfToolDir, perfDatasetPath: $perfDatasetPath, perfDuckdbCommand: $perfDuckdbCommand, perfParams: $perfParams)';
 }
 
 
@@ -53,7 +58,7 @@ abstract mixin class $AppSettingsCopyWith<$Res>  {
   factory $AppSettingsCopyWith(AppSettings value, $Res Function(AppSettings) _then) = _$AppSettingsCopyWithImpl;
 @useResult
 $Res call({
- AppThemeMode themeMode, double terminalFontSize, int portRangeStart, int portRangeEnd, int healthIntervalSeconds, String benchPrompt, int benchBatchSize, int? benchMaxTokens, double? benchTemperature, List<EnvVar> globalEnv
+ AppThemeMode themeMode, double terminalFontSize, int portRangeStart, int portRangeEnd, int healthIntervalSeconds, String benchPrompt, int benchBatchSize, int? benchMaxTokens, double? benchTemperature, List<EnvVar> globalEnv, String perfToolDir, String perfDatasetPath, String perfDuckdbCommand, PerfParams perfParams
 });
 
 
@@ -70,7 +75,7 @@ class _$AppSettingsCopyWithImpl<$Res>
 
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? themeMode = null,Object? terminalFontSize = null,Object? portRangeStart = null,Object? portRangeEnd = null,Object? healthIntervalSeconds = null,Object? benchPrompt = null,Object? benchBatchSize = null,Object? benchMaxTokens = freezed,Object? benchTemperature = freezed,Object? globalEnv = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? themeMode = null,Object? terminalFontSize = null,Object? portRangeStart = null,Object? portRangeEnd = null,Object? healthIntervalSeconds = null,Object? benchPrompt = null,Object? benchBatchSize = null,Object? benchMaxTokens = freezed,Object? benchTemperature = freezed,Object? globalEnv = null,Object? perfToolDir = null,Object? perfDatasetPath = null,Object? perfDuckdbCommand = null,Object? perfParams = null,}) {
   return _then(_self.copyWith(
 themeMode: null == themeMode ? _self.themeMode : themeMode // ignore: cast_nullable_to_non_nullable
 as AppThemeMode,terminalFontSize: null == terminalFontSize ? _self.terminalFontSize : terminalFontSize // ignore: cast_nullable_to_non_nullable
@@ -82,7 +87,11 @@ as String,benchBatchSize: null == benchBatchSize ? _self.benchBatchSize : benchB
 as int,benchMaxTokens: freezed == benchMaxTokens ? _self.benchMaxTokens : benchMaxTokens // ignore: cast_nullable_to_non_nullable
 as int?,benchTemperature: freezed == benchTemperature ? _self.benchTemperature : benchTemperature // ignore: cast_nullable_to_non_nullable
 as double?,globalEnv: null == globalEnv ? _self.globalEnv : globalEnv // ignore: cast_nullable_to_non_nullable
-as List<EnvVar>,
+as List<EnvVar>,perfToolDir: null == perfToolDir ? _self.perfToolDir : perfToolDir // ignore: cast_nullable_to_non_nullable
+as String,perfDatasetPath: null == perfDatasetPath ? _self.perfDatasetPath : perfDatasetPath // ignore: cast_nullable_to_non_nullable
+as String,perfDuckdbCommand: null == perfDuckdbCommand ? _self.perfDuckdbCommand : perfDuckdbCommand // ignore: cast_nullable_to_non_nullable
+as String,perfParams: null == perfParams ? _self.perfParams : perfParams // ignore: cast_nullable_to_non_nullable
+as PerfParams,
   ));
 }
 
@@ -167,10 +176,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( AppThemeMode themeMode,  double terminalFontSize,  int portRangeStart,  int portRangeEnd,  int healthIntervalSeconds,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  List<EnvVar> globalEnv)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( AppThemeMode themeMode,  double terminalFontSize,  int portRangeStart,  int portRangeEnd,  int healthIntervalSeconds,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  List<EnvVar> globalEnv,  String perfToolDir,  String perfDatasetPath,  String perfDuckdbCommand,  PerfParams perfParams)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppSettings() when $default != null:
-return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_that.portRangeEnd,_that.healthIntervalSeconds,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.globalEnv);case _:
+return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_that.portRangeEnd,_that.healthIntervalSeconds,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.globalEnv,_that.perfToolDir,_that.perfDatasetPath,_that.perfDuckdbCommand,_that.perfParams);case _:
   return orElse();
 
 }
@@ -188,10 +197,10 @@ return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( AppThemeMode themeMode,  double terminalFontSize,  int portRangeStart,  int portRangeEnd,  int healthIntervalSeconds,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  List<EnvVar> globalEnv)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( AppThemeMode themeMode,  double terminalFontSize,  int portRangeStart,  int portRangeEnd,  int healthIntervalSeconds,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  List<EnvVar> globalEnv,  String perfToolDir,  String perfDatasetPath,  String perfDuckdbCommand,  PerfParams perfParams)  $default,) {final _that = this;
 switch (_that) {
 case _AppSettings():
-return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_that.portRangeEnd,_that.healthIntervalSeconds,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.globalEnv);case _:
+return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_that.portRangeEnd,_that.healthIntervalSeconds,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.globalEnv,_that.perfToolDir,_that.perfDatasetPath,_that.perfDuckdbCommand,_that.perfParams);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -208,10 +217,10 @@ return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( AppThemeMode themeMode,  double terminalFontSize,  int portRangeStart,  int portRangeEnd,  int healthIntervalSeconds,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  List<EnvVar> globalEnv)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( AppThemeMode themeMode,  double terminalFontSize,  int portRangeStart,  int portRangeEnd,  int healthIntervalSeconds,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  List<EnvVar> globalEnv,  String perfToolDir,  String perfDatasetPath,  String perfDuckdbCommand,  PerfParams perfParams)?  $default,) {final _that = this;
 switch (_that) {
 case _AppSettings() when $default != null:
-return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_that.portRangeEnd,_that.healthIntervalSeconds,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.globalEnv);case _:
+return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_that.portRangeEnd,_that.healthIntervalSeconds,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.globalEnv,_that.perfToolDir,_that.perfDatasetPath,_that.perfDuckdbCommand,_that.perfParams);case _:
   return null;
 
 }
@@ -223,7 +232,7 @@ return $default(_that.themeMode,_that.terminalFontSize,_that.portRangeStart,_tha
 
 
 class _AppSettings implements AppSettings {
-  const _AppSettings({this.themeMode = AppThemeMode.system, this.terminalFontSize = 14.0, this.portRangeStart = 8000, this.portRangeEnd = 8100, this.healthIntervalSeconds = 5, this.benchPrompt = defaultBenchmarkPrompt, this.benchBatchSize = 16, this.benchMaxTokens, this.benchTemperature, final  List<EnvVar> globalEnv = const <EnvVar>[]}): _globalEnv = globalEnv;
+  const _AppSettings({this.themeMode = AppThemeMode.system, this.terminalFontSize = 14.0, this.portRangeStart = 8000, this.portRangeEnd = 8100, this.healthIntervalSeconds = 5, this.benchPrompt = defaultBenchmarkPrompt, this.benchBatchSize = 16, this.benchMaxTokens, this.benchTemperature, final  List<EnvVar> globalEnv = const <EnvVar>[], this.perfToolDir = defaultPerfToolDir, this.perfDatasetPath = defaultPerfDatasetPath, this.perfDuckdbCommand = '', this.perfParams = const PerfParams()}): _globalEnv = globalEnv;
   
 
 @override@JsonKey() final  AppThemeMode themeMode;
@@ -252,6 +261,15 @@ class _AppSettings implements AppSettings {
   return EqualUnmodifiableListView(_globalEnv);
 }
 
+// Perf benchmark (monorepo tools/benchmark) integration.
+@override@JsonKey() final  String perfToolDir;
+@override@JsonKey() final  String perfDatasetPath;
+/// A duckdb command the "Copy results" button pipes the run's raw event
+/// CSV through (run in the tool dir). Empty = copy the app's own render.
+@override@JsonKey() final  String perfDuckdbCommand;
+/// Last-used perf run parameters — the form remembers them so nothing has
+/// to be re-entered between runs.
+@override@JsonKey() final  PerfParams perfParams;
 
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
@@ -263,16 +281,16 @@ _$AppSettingsCopyWith<_AppSettings> get copyWith => __$AppSettingsCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSettings&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.terminalFontSize, terminalFontSize) || other.terminalFontSize == terminalFontSize)&&(identical(other.portRangeStart, portRangeStart) || other.portRangeStart == portRangeStart)&&(identical(other.portRangeEnd, portRangeEnd) || other.portRangeEnd == portRangeEnd)&&(identical(other.healthIntervalSeconds, healthIntervalSeconds) || other.healthIntervalSeconds == healthIntervalSeconds)&&(identical(other.benchPrompt, benchPrompt) || other.benchPrompt == benchPrompt)&&(identical(other.benchBatchSize, benchBatchSize) || other.benchBatchSize == benchBatchSize)&&(identical(other.benchMaxTokens, benchMaxTokens) || other.benchMaxTokens == benchMaxTokens)&&(identical(other.benchTemperature, benchTemperature) || other.benchTemperature == benchTemperature)&&const DeepCollectionEquality().equals(other._globalEnv, _globalEnv));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSettings&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.terminalFontSize, terminalFontSize) || other.terminalFontSize == terminalFontSize)&&(identical(other.portRangeStart, portRangeStart) || other.portRangeStart == portRangeStart)&&(identical(other.portRangeEnd, portRangeEnd) || other.portRangeEnd == portRangeEnd)&&(identical(other.healthIntervalSeconds, healthIntervalSeconds) || other.healthIntervalSeconds == healthIntervalSeconds)&&(identical(other.benchPrompt, benchPrompt) || other.benchPrompt == benchPrompt)&&(identical(other.benchBatchSize, benchBatchSize) || other.benchBatchSize == benchBatchSize)&&(identical(other.benchMaxTokens, benchMaxTokens) || other.benchMaxTokens == benchMaxTokens)&&(identical(other.benchTemperature, benchTemperature) || other.benchTemperature == benchTemperature)&&const DeepCollectionEquality().equals(other._globalEnv, _globalEnv)&&(identical(other.perfToolDir, perfToolDir) || other.perfToolDir == perfToolDir)&&(identical(other.perfDatasetPath, perfDatasetPath) || other.perfDatasetPath == perfDatasetPath)&&(identical(other.perfDuckdbCommand, perfDuckdbCommand) || other.perfDuckdbCommand == perfDuckdbCommand)&&(identical(other.perfParams, perfParams) || other.perfParams == perfParams));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,themeMode,terminalFontSize,portRangeStart,portRangeEnd,healthIntervalSeconds,benchPrompt,benchBatchSize,benchMaxTokens,benchTemperature,const DeepCollectionEquality().hash(_globalEnv));
+int get hashCode => Object.hash(runtimeType,themeMode,terminalFontSize,portRangeStart,portRangeEnd,healthIntervalSeconds,benchPrompt,benchBatchSize,benchMaxTokens,benchTemperature,const DeepCollectionEquality().hash(_globalEnv),perfToolDir,perfDatasetPath,perfDuckdbCommand,perfParams);
 
 @override
 String toString() {
-  return 'AppSettings(themeMode: $themeMode, terminalFontSize: $terminalFontSize, portRangeStart: $portRangeStart, portRangeEnd: $portRangeEnd, healthIntervalSeconds: $healthIntervalSeconds, benchPrompt: $benchPrompt, benchBatchSize: $benchBatchSize, benchMaxTokens: $benchMaxTokens, benchTemperature: $benchTemperature, globalEnv: $globalEnv)';
+  return 'AppSettings(themeMode: $themeMode, terminalFontSize: $terminalFontSize, portRangeStart: $portRangeStart, portRangeEnd: $portRangeEnd, healthIntervalSeconds: $healthIntervalSeconds, benchPrompt: $benchPrompt, benchBatchSize: $benchBatchSize, benchMaxTokens: $benchMaxTokens, benchTemperature: $benchTemperature, globalEnv: $globalEnv, perfToolDir: $perfToolDir, perfDatasetPath: $perfDatasetPath, perfDuckdbCommand: $perfDuckdbCommand, perfParams: $perfParams)';
 }
 
 
@@ -283,7 +301,7 @@ abstract mixin class _$AppSettingsCopyWith<$Res> implements $AppSettingsCopyWith
   factory _$AppSettingsCopyWith(_AppSettings value, $Res Function(_AppSettings) _then) = __$AppSettingsCopyWithImpl;
 @override @useResult
 $Res call({
- AppThemeMode themeMode, double terminalFontSize, int portRangeStart, int portRangeEnd, int healthIntervalSeconds, String benchPrompt, int benchBatchSize, int? benchMaxTokens, double? benchTemperature, List<EnvVar> globalEnv
+ AppThemeMode themeMode, double terminalFontSize, int portRangeStart, int portRangeEnd, int healthIntervalSeconds, String benchPrompt, int benchBatchSize, int? benchMaxTokens, double? benchTemperature, List<EnvVar> globalEnv, String perfToolDir, String perfDatasetPath, String perfDuckdbCommand, PerfParams perfParams
 });
 
 
@@ -300,7 +318,7 @@ class __$AppSettingsCopyWithImpl<$Res>
 
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? themeMode = null,Object? terminalFontSize = null,Object? portRangeStart = null,Object? portRangeEnd = null,Object? healthIntervalSeconds = null,Object? benchPrompt = null,Object? benchBatchSize = null,Object? benchMaxTokens = freezed,Object? benchTemperature = freezed,Object? globalEnv = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? themeMode = null,Object? terminalFontSize = null,Object? portRangeStart = null,Object? portRangeEnd = null,Object? healthIntervalSeconds = null,Object? benchPrompt = null,Object? benchBatchSize = null,Object? benchMaxTokens = freezed,Object? benchTemperature = freezed,Object? globalEnv = null,Object? perfToolDir = null,Object? perfDatasetPath = null,Object? perfDuckdbCommand = null,Object? perfParams = null,}) {
   return _then(_AppSettings(
 themeMode: null == themeMode ? _self.themeMode : themeMode // ignore: cast_nullable_to_non_nullable
 as AppThemeMode,terminalFontSize: null == terminalFontSize ? _self.terminalFontSize : terminalFontSize // ignore: cast_nullable_to_non_nullable
@@ -312,7 +330,11 @@ as String,benchBatchSize: null == benchBatchSize ? _self.benchBatchSize : benchB
 as int,benchMaxTokens: freezed == benchMaxTokens ? _self.benchMaxTokens : benchMaxTokens // ignore: cast_nullable_to_non_nullable
 as int?,benchTemperature: freezed == benchTemperature ? _self.benchTemperature : benchTemperature // ignore: cast_nullable_to_non_nullable
 as double?,globalEnv: null == globalEnv ? _self._globalEnv : globalEnv // ignore: cast_nullable_to_non_nullable
-as List<EnvVar>,
+as List<EnvVar>,perfToolDir: null == perfToolDir ? _self.perfToolDir : perfToolDir // ignore: cast_nullable_to_non_nullable
+as String,perfDatasetPath: null == perfDatasetPath ? _self.perfDatasetPath : perfDatasetPath // ignore: cast_nullable_to_non_nullable
+as String,perfDuckdbCommand: null == perfDuckdbCommand ? _self.perfDuckdbCommand : perfDuckdbCommand // ignore: cast_nullable_to_non_nullable
+as String,perfParams: null == perfParams ? _self.perfParams : perfParams // ignore: cast_nullable_to_non_nullable
+as PerfParams,
   ));
 }
 

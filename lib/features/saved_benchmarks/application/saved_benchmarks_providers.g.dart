@@ -50,3 +50,42 @@ final class SavedBenchmarksStreamProvider
 
 String _$savedBenchmarksStreamHash() =>
     r'b666bb2c5498473c0c7b41bd20f8c703c33356b4';
+
+@ProviderFor(perfReportsStream)
+final perfReportsStreamProvider = PerfReportsStreamProvider._();
+
+final class PerfReportsStreamProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<PerfReport>>,
+          List<PerfReport>,
+          Stream<List<PerfReport>>
+        >
+    with $FutureModifier<List<PerfReport>>, $StreamProvider<List<PerfReport>> {
+  PerfReportsStreamProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'perfReportsStreamProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$perfReportsStreamHash();
+
+  @$internal
+  @override
+  $StreamProviderElement<List<PerfReport>> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<List<PerfReport>> create(Ref ref) {
+    return perfReportsStream(ref);
+  }
+}
+
+String _$perfReportsStreamHash() => r'1333aae8bd43c4eb8b106936065c9857685ba744';

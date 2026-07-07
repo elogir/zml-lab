@@ -29,6 +29,8 @@ abstract final class AppIcons {
   static const IconData kill = LucideIcons.square;
   static const IconData profiler = LucideIcons.activity;
   static const IconData captureTrace = LucideIcons.circleDot;
+  static const IconData perf = LucideIcons.zap;
+  static const IconData download = LucideIcons.download;
   static const IconData restart = LucideIcons.rotateCw;
   static const IconData copy = LucideIcons.copy;
   static const IconData edit = LucideIcons.pencil;

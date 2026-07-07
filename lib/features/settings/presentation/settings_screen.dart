@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/env_var.dart';
+import '../../../models/perf_report.dart';
 import '../../../models/settings.dart';
 import '../application/settings_controller.dart';
 
@@ -23,6 +24,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _batch;
   late final TextEditingController _maxTokens;
   late final TextEditingController _temperature;
+  late final TextEditingController _perfToolDir;
+  late final TextEditingController _perfDataset;
+  late final TextEditingController _perfDuration;
+  late final TextEditingController _perfConcurrency;
+  late final TextEditingController _perfMaxTokens;
+  late final TextEditingController _perfModel;
+  late final TextEditingController _perfDuckdb;
   final List<_EnvRow> _env = [];
 
   SettingsController get _controller =>
@@ -39,6 +47,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _maxTokens = TextEditingController(text: s.benchMaxTokens?.toString() ?? '');
     _temperature =
         TextEditingController(text: s.benchTemperature?.toString() ?? '');
+    _perfToolDir = TextEditingController(text: s.perfToolDir);
+    _perfDataset = TextEditingController(text: s.perfDatasetPath);
+    _perfDuration =
+        TextEditingController(text: '${s.perfParams.durationSeconds}');
+    _perfConcurrency =
+        TextEditingController(text: '${s.perfParams.concurrency}');
+    _perfMaxTokens = TextEditingController(
+      text: s.perfParams.maxCompletionTokens?.toString() ?? '',
+    );
+    _perfModel = TextEditingController(text: s.perfParams.model);
+    _perfDuckdb = TextEditingController(text: s.perfDuckdbCommand);
     _env.addAll(s.globalEnv.map(_EnvRow.from));
   }
 
@@ -50,6 +69,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _batch.dispose();
     _maxTokens.dispose();
     _temperature.dispose();
+    _perfToolDir.dispose();
+    _perfDataset.dispose();
+    _perfDuration.dispose();
+    _perfConcurrency.dispose();
+    _perfMaxTokens.dispose();
+    _perfModel.dispose();
+    _perfDuckdb.dispose();
     for (final e in _env) {
       e.dispose();
     }
@@ -60,6 +86,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     for (final e in _env)
       EnvVar(key: e.keyCtrl.text, value: e.valueCtrl.text),
   ]);
+
+  /// Edits the shared perf-run params (the Perf tab's form reads the same
+  /// blob, so a change here shows up there while idle).
+  void _patchPerf(PerfParams Function(PerfParams) patch) {
+    _controller.setPerfParams(
+      patch(ref.read(settingsControllerProvider).perfParams),
+    );
+  }
 
   void _addEnv() => setState(() => _env.add(_EnvRow.empty()));
 
@@ -83,6 +117,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _batch.text = '${s.benchBatchSize}';
       _maxTokens.text = '';
       _temperature.text = '';
+      _perfToolDir.text = s.perfToolDir;
+      _perfDataset.text = s.perfDatasetPath;
+      _perfDuration.text = '${s.perfParams.durationSeconds}';
+      _perfConcurrency.text = '${s.perfParams.concurrency}';
+      _perfMaxTokens.text = '';
+      _perfModel.text = '';
+      _perfDuckdb.text = '';
       for (final e in _env) {
         e.dispose();
       }
@@ -288,6 +329,170 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         onChanged: (v) => _controller
                             .setBenchTemperature(double.tryParse(v.trim())),
                       ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xl),
+
+              _Group(
+                label: 'Perf benchmark',
+                children: [
+                  _SettingRow(
+                    title: 'Benchmarker directory',
+                    description:
+                        'The monorepo\'s tools/benchmark — built with go and '
+                        'run locally against the job\'s endpoint.',
+                    stacked: true,
+                    control: AppTextField(
+                      controller: _perfToolDir,
+                      mono: true,
+                      placeholder: defaultPerfToolDir,
+                      onChanged: _controller.setPerfToolDir,
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'ShareGPT dataset',
+                    description:
+                        'The conversations the benchmarker draws prompts from.',
+                    stacked: true,
+                    control: AppTextField(
+                      controller: _perfDataset,
+                      mono: true,
+                      placeholder: defaultPerfDatasetPath,
+                      onChanged: _controller.setPerfDatasetPath,
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'Duration',
+                    description: 'How long each run generates load, in seconds.',
+                    control: SizedBox(
+                      width: 72,
+                      child: AppTextField(
+                        controller: _perfDuration,
+                        mono: true,
+                        onChanged: (v) {
+                          final n = int.tryParse(v.trim());
+                          if (n != null && n > 0) {
+                            _patchPerf((p) => p.copyWith(durationSeconds: n));
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'Concurrency',
+                    description:
+                        'Requests kept in flight — match it to the server\'s '
+                        'batch size.',
+                    control: SizedBox(
+                      width: 72,
+                      child: AppTextField(
+                        controller: _perfConcurrency,
+                        mono: true,
+                        onChanged: (v) {
+                          final n = int.tryParse(v.trim());
+                          if (n != null && n > 0) {
+                            _patchPerf((p) => p.copyWith(concurrency: n));
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'Max output tokens',
+                    description:
+                        'Empty = don\'t pass --max-completion-tokens (the '
+                        'benchmarker uses its own default).',
+                    control: SizedBox(
+                      width: 96,
+                      child: AppTextField(
+                        controller: _perfMaxTokens,
+                        mono: true,
+                        placeholder: 'default',
+                        onChanged: (v) {
+                          final n = int.tryParse(v.trim());
+                          _patchPerf(
+                            (p) => p.copyWith(
+                              maxCompletionTokens: n != null && n > 0 ? n : null,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'Prompt length',
+                    description:
+                        'Long sends the whole prompt; short caps it at 512 '
+                        'characters.',
+                    control: SegmentedControl<String>(
+                      value: s.perfParams.sequenceType,
+                      onChanged: (v) =>
+                          _patchPerf((p) => p.copyWith(sequenceType: v)),
+                      options: const [
+                        SegmentOption(value: 'long', label: 'Long'),
+                        SegmentOption(value: 'short', label: 'Short'),
+                      ],
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'Turns',
+                    description:
+                        'All uses every turn of a conversation; first only its '
+                        'opening prompt (prefix-caching test).',
+                    control: SegmentedControl<String>(
+                      value: s.perfParams.mode,
+                      onChanged: (v) => _patchPerf((p) => p.copyWith(mode: v)),
+                      options: const [
+                        SegmentOption(value: 'all', label: 'All'),
+                        SegmentOption(value: 'first', label: 'First'),
+                      ],
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'Warm-up request',
+                    description:
+                        'Send one request and wait for it before measuring, so '
+                        'the run starts on a hot server.',
+                    control: SegmentedControl<bool>(
+                      value: s.perfParams.warmup,
+                      onChanged: (v) =>
+                          _patchPerf((p) => p.copyWith(warmup: v)),
+                      options: const [
+                        SegmentOption(value: true, label: 'On'),
+                        SegmentOption(value: false, label: 'Off'),
+                      ],
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'Model',
+                    description:
+                        'Sent in each request. vLLM needs the real name; llmd '
+                        'ignores it. Empty = pull from /v1/models.',
+                    stacked: true,
+                    control: AppTextField(
+                      controller: _perfModel,
+                      mono: true,
+                      placeholder: 'from /v1/models',
+                      onChanged: (v) =>
+                          _patchPerf((p) => p.copyWith(model: v.trim())),
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'duckdb copy command',
+                    description:
+                        '"Copy results" pipes the run\'s raw event CSV through '
+                        'this (run in the tool dir). Empty = copy the app\'s own '
+                        'render. Needs duckdb installed.',
+                    stacked: true,
+                    control: AppTextField(
+                      controller: _perfDuckdb,
+                      mono: true,
+                      placeholder:
+                          "duckdb -list -header -separator '\\t' "
+                          "-c '.read duckdb/report.sql'",
+                      onChanged: _controller.setPerfDuckdbCommand,
                     ),
                   ),
                 ],

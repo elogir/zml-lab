@@ -48,7 +48,8 @@ class Sidebar extends ConsumerWidget {
     final configCount =
         ref.watch(configsStreamProvider).value?.length ?? 0;
     final benchmarkCount =
-        ref.watch(savedBenchmarksStreamProvider).value?.length ?? 0;
+        (ref.watch(savedBenchmarksStreamProvider).value?.length ?? 0) +
+        (ref.watch(perfReportsStreamProvider).value?.length ?? 0);
     final machineCount =
         ref.watch(machinesStreamProvider).value?.length ?? 0;
 

@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../models/env_var.dart';
+import '../../../models/perf_report.dart';
 import '../../../models/settings.dart';
 import '../../../repositories/mappers.dart';
 import '../../../repositories/settings_repository.dart';
@@ -63,7 +66,22 @@ class SettingsController extends _$SettingsController {
       globalEnv: raw['globalEnv'] == null
           ? def.globalEnv
           : decodeEnv(raw['globalEnv']!),
+      perfToolDir: raw['perfToolDir'] ?? def.perfToolDir,
+      perfDatasetPath: raw['perfDatasetPath'] ?? def.perfDatasetPath,
+      perfDuckdbCommand: raw['perfDuckdbCommand'] ?? def.perfDuckdbCommand,
+      perfParams: _decodePerfParams(raw['perfParams']) ?? def.perfParams,
     );
+  }
+
+  static PerfParams? _decodePerfParams(String? json) {
+    if (json == null) return null;
+    try {
+      final decoded = jsonDecode(json);
+      if (decoded is! Map) return null;
+      return PerfParams.fromMap(decoded.cast<String, dynamic>());
+    } catch (_) {
+      return null;
+    }
   }
 
   void setThemeMode(AppThemeMode mode) {
@@ -137,6 +155,37 @@ class SettingsController extends _$SettingsController {
     cleaned.isEmpty
         ? _repo.remove('globalEnv')
         : _repo.put('globalEnv', encodeEnv(cleaned));
+  }
+
+  void setPerfToolDir(String dir) {
+    final v = dir.trim();
+    state = state.copyWith(perfToolDir: v.isEmpty ? defaultPerfToolDir : v);
+    v.isEmpty ? _repo.remove('perfToolDir') : _repo.put('perfToolDir', v);
+  }
+
+  void setPerfDatasetPath(String path) {
+    final v = path.trim();
+    state = state.copyWith(
+      perfDatasetPath: v.isEmpty ? defaultPerfDatasetPath : v,
+    );
+    v.isEmpty
+        ? _repo.remove('perfDatasetPath')
+        : _repo.put('perfDatasetPath', v);
+  }
+
+  void setPerfDuckdbCommand(String command) {
+    final v = command.trim();
+    state = state.copyWith(perfDuckdbCommand: v);
+    v.isEmpty
+        ? _repo.remove('perfDuckdbCommand')
+        : _repo.put('perfDuckdbCommand', v);
+  }
+
+  /// The perf run parameters — the shared source of truth for both the Perf
+  /// tab's form and the Settings defaults. Persisted on every edit in either.
+  void setPerfParams(PerfParams params) {
+    state = state.copyWith(perfParams: params);
+    _repo.put('perfParams', jsonEncode(params.toMap()));
   }
 
   /// Back to built-in defaults, wiping the store.
