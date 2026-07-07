@@ -33,7 +33,12 @@ Stream<bool?> machineReachable(Ref ref, String machineId) async* {
     final up = m == null
         ? false
         : m.isLocal || await checkHealth(m.address, m.sshPort);
+    // The health probe is an async gap during which the provider can be
+    // auto-disposed (the dot scrolled off-screen); touching ref then throws.
+    if (!ref.mounted) return;
     yield up;
     await Future<void>.delayed(const Duration(seconds: 10));
+    // Likewise the 10s wait: bail before the next ref.read if disposed.
+    if (!ref.mounted) return;
   }
 }
