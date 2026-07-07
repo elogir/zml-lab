@@ -10,6 +10,7 @@ import '../../../models/job.dart';
 import '../../../models/machine.dart';
 import '../../benchmark/presentation/benchmark_view.dart';
 import '../../machines/application/machines_providers.dart';
+import '../../perf/presentation/perf_view.dart';
 import '../application/job_detail_providers.dart';
 import '../application/profiler_controller.dart';
 import '../application/terminal_fullscreen.dart';
@@ -17,7 +18,7 @@ import 'actions_panel.dart';
 import 'endpoint_test_dialog.dart';
 import 'job_terminal.dart';
 
-enum _DetailMode { terminal, benchmark }
+enum _DetailMode { terminal, benchmark, perf }
 
 class JobDetailScreen extends ConsumerStatefulWidget {
   const JobDetailScreen({super.key, required this.jobId});
@@ -118,18 +119,29 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                           AppSpacing.lg,
                           AppSpacing.xl,
                         ),
-                  child: _mode == _DetailMode.terminal
-                      ? JobTerminal(job: job, machine: machine)
-                      : BenchmarkView(
-                          jobId: job.id,
-                          jobName: job.name,
-                          jobDescription: job.description ?? '',
-                          jobCommand: job.command,
-                          machineName: machine?.name ?? job.machineId,
-                          endpoint: endpoint,
-                          host: host,
-                          port: job.port,
-                        ),
+                  child: switch (_mode) {
+                    _DetailMode.terminal =>
+                      JobTerminal(job: job, machine: machine),
+                    _DetailMode.benchmark => BenchmarkView(
+                      jobId: job.id,
+                      jobName: job.name,
+                      jobDescription: job.description ?? '',
+                      jobCommand: job.command,
+                      machineName: machine?.name ?? job.machineId,
+                      endpoint: endpoint,
+                      host: host,
+                      port: job.port,
+                    ),
+                    _DetailMode.perf => PerfView(
+                      jobId: job.id,
+                      jobName: job.name,
+                      jobDescription: job.description ?? '',
+                      jobCommand: job.command,
+                      machineName: machine?.name ?? job.machineId,
+                      host: host,
+                      port: job.port,
+                    ),
+                  },
                 ),
               ),
               if (!fullscreen)
@@ -261,6 +273,11 @@ class _Header extends StatelessWidget {
                     value: _DetailMode.benchmark,
                     label: 'Benchmark',
                     icon: AppIcons.benchmark,
+                  ),
+                  SegmentOption(
+                    value: _DetailMode.perf,
+                    label: 'Perf',
+                    icon: AppIcons.perf,
                   ),
                 ],
               ),

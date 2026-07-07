@@ -2878,6 +2878,635 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
   }
 }
 
+class $PerfReportsTable extends PerfReports
+    with TableInfo<$PerfReportsTable, PerfReportRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PerfReportsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _machineNameMeta = const VerificationMeta(
+    'machineName',
+  );
+  @override
+  late final GeneratedColumn<String> machineName = GeneratedColumn<String>(
+    'machine_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endpointMeta = const VerificationMeta(
+    'endpoint',
+  );
+  @override
+  late final GeneratedColumn<String> endpoint = GeneratedColumn<String>(
+    'endpoint',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverMeta = const VerificationMeta('server');
+  @override
+  late final GeneratedColumn<String> server = GeneratedColumn<String>(
+    'server',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _totalRequestsMeta = const VerificationMeta(
+    'totalRequests',
+  );
+  @override
+  late final GeneratedColumn<int> totalRequests = GeneratedColumn<int>(
+    'total_requests',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _tokensPerSecondMeta = const VerificationMeta(
+    'tokensPerSecond',
+  );
+  @override
+  late final GeneratedColumn<double> tokensPerSecond = GeneratedColumn<double>(
+    'tokens_per_second',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _requestsPerSecondMeta = const VerificationMeta(
+    'requestsPerSecond',
+  );
+  @override
+  late final GeneratedColumn<double> requestsPerSecond =
+      GeneratedColumn<double>(
+        'requests_per_second',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _reportJsonMeta = const VerificationMeta(
+    'reportJson',
+  );
+  @override
+  late final GeneratedColumn<String> reportJson = GeneratedColumn<String>(
+    'report_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    machineName,
+    endpoint,
+    server,
+    createdAt,
+    totalRequests,
+    tokensPerSecond,
+    requestsPerSecond,
+    reportJson,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'perf_reports';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PerfReportRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('machine_name')) {
+      context.handle(
+        _machineNameMeta,
+        machineName.isAcceptableOrUnknown(
+          data['machine_name']!,
+          _machineNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_machineNameMeta);
+    }
+    if (data.containsKey('endpoint')) {
+      context.handle(
+        _endpointMeta,
+        endpoint.isAcceptableOrUnknown(data['endpoint']!, _endpointMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_endpointMeta);
+    }
+    if (data.containsKey('server')) {
+      context.handle(
+        _serverMeta,
+        server.isAcceptableOrUnknown(data['server']!, _serverMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('total_requests')) {
+      context.handle(
+        _totalRequestsMeta,
+        totalRequests.isAcceptableOrUnknown(
+          data['total_requests']!,
+          _totalRequestsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_totalRequestsMeta);
+    }
+    if (data.containsKey('tokens_per_second')) {
+      context.handle(
+        _tokensPerSecondMeta,
+        tokensPerSecond.isAcceptableOrUnknown(
+          data['tokens_per_second']!,
+          _tokensPerSecondMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_tokensPerSecondMeta);
+    }
+    if (data.containsKey('requests_per_second')) {
+      context.handle(
+        _requestsPerSecondMeta,
+        requestsPerSecond.isAcceptableOrUnknown(
+          data['requests_per_second']!,
+          _requestsPerSecondMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_requestsPerSecondMeta);
+    }
+    if (data.containsKey('report_json')) {
+      context.handle(
+        _reportJsonMeta,
+        reportJson.isAcceptableOrUnknown(data['report_json']!, _reportJsonMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PerfReportRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PerfReportRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      machineName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}machine_name'],
+      )!,
+      endpoint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}endpoint'],
+      )!,
+      server: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      totalRequests: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_requests'],
+      )!,
+      tokensPerSecond: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}tokens_per_second'],
+      )!,
+      requestsPerSecond: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}requests_per_second'],
+      )!,
+      reportJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}report_json'],
+      )!,
+    );
+  }
+
+  @override
+  $PerfReportsTable createAlias(String alias) {
+    return $PerfReportsTable(attachedDatabase, alias);
+  }
+}
+
+class PerfReportRow extends DataClass implements Insertable<PerfReportRow> {
+  final String id;
+  final String name;
+  final String machineName;
+  final String endpoint;
+
+  /// Server type the tool detected ('zml', 'vllm', 'openai', 'unknown').
+  final String server;
+  final DateTime createdAt;
+  final int totalRequests;
+  final double tokensPerSecond;
+  final double requestsPerSecond;
+
+  /// JSON-encoded remainder of the [PerfReport].
+  final String reportJson;
+  const PerfReportRow({
+    required this.id,
+    required this.name,
+    required this.machineName,
+    required this.endpoint,
+    required this.server,
+    required this.createdAt,
+    required this.totalRequests,
+    required this.tokensPerSecond,
+    required this.requestsPerSecond,
+    required this.reportJson,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['machine_name'] = Variable<String>(machineName);
+    map['endpoint'] = Variable<String>(endpoint);
+    map['server'] = Variable<String>(server);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['total_requests'] = Variable<int>(totalRequests);
+    map['tokens_per_second'] = Variable<double>(tokensPerSecond);
+    map['requests_per_second'] = Variable<double>(requestsPerSecond);
+    map['report_json'] = Variable<String>(reportJson);
+    return map;
+  }
+
+  PerfReportsCompanion toCompanion(bool nullToAbsent) {
+    return PerfReportsCompanion(
+      id: Value(id),
+      name: Value(name),
+      machineName: Value(machineName),
+      endpoint: Value(endpoint),
+      server: Value(server),
+      createdAt: Value(createdAt),
+      totalRequests: Value(totalRequests),
+      tokensPerSecond: Value(tokensPerSecond),
+      requestsPerSecond: Value(requestsPerSecond),
+      reportJson: Value(reportJson),
+    );
+  }
+
+  factory PerfReportRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PerfReportRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      machineName: serializer.fromJson<String>(json['machineName']),
+      endpoint: serializer.fromJson<String>(json['endpoint']),
+      server: serializer.fromJson<String>(json['server']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      totalRequests: serializer.fromJson<int>(json['totalRequests']),
+      tokensPerSecond: serializer.fromJson<double>(json['tokensPerSecond']),
+      requestsPerSecond: serializer.fromJson<double>(json['requestsPerSecond']),
+      reportJson: serializer.fromJson<String>(json['reportJson']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'machineName': serializer.toJson<String>(machineName),
+      'endpoint': serializer.toJson<String>(endpoint),
+      'server': serializer.toJson<String>(server),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'totalRequests': serializer.toJson<int>(totalRequests),
+      'tokensPerSecond': serializer.toJson<double>(tokensPerSecond),
+      'requestsPerSecond': serializer.toJson<double>(requestsPerSecond),
+      'reportJson': serializer.toJson<String>(reportJson),
+    };
+  }
+
+  PerfReportRow copyWith({
+    String? id,
+    String? name,
+    String? machineName,
+    String? endpoint,
+    String? server,
+    DateTime? createdAt,
+    int? totalRequests,
+    double? tokensPerSecond,
+    double? requestsPerSecond,
+    String? reportJson,
+  }) => PerfReportRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    machineName: machineName ?? this.machineName,
+    endpoint: endpoint ?? this.endpoint,
+    server: server ?? this.server,
+    createdAt: createdAt ?? this.createdAt,
+    totalRequests: totalRequests ?? this.totalRequests,
+    tokensPerSecond: tokensPerSecond ?? this.tokensPerSecond,
+    requestsPerSecond: requestsPerSecond ?? this.requestsPerSecond,
+    reportJson: reportJson ?? this.reportJson,
+  );
+  PerfReportRow copyWithCompanion(PerfReportsCompanion data) {
+    return PerfReportRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      machineName: data.machineName.present
+          ? data.machineName.value
+          : this.machineName,
+      endpoint: data.endpoint.present ? data.endpoint.value : this.endpoint,
+      server: data.server.present ? data.server.value : this.server,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      totalRequests: data.totalRequests.present
+          ? data.totalRequests.value
+          : this.totalRequests,
+      tokensPerSecond: data.tokensPerSecond.present
+          ? data.tokensPerSecond.value
+          : this.tokensPerSecond,
+      requestsPerSecond: data.requestsPerSecond.present
+          ? data.requestsPerSecond.value
+          : this.requestsPerSecond,
+      reportJson: data.reportJson.present
+          ? data.reportJson.value
+          : this.reportJson,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PerfReportRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('machineName: $machineName, ')
+          ..write('endpoint: $endpoint, ')
+          ..write('server: $server, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('totalRequests: $totalRequests, ')
+          ..write('tokensPerSecond: $tokensPerSecond, ')
+          ..write('requestsPerSecond: $requestsPerSecond, ')
+          ..write('reportJson: $reportJson')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    machineName,
+    endpoint,
+    server,
+    createdAt,
+    totalRequests,
+    tokensPerSecond,
+    requestsPerSecond,
+    reportJson,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PerfReportRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.machineName == this.machineName &&
+          other.endpoint == this.endpoint &&
+          other.server == this.server &&
+          other.createdAt == this.createdAt &&
+          other.totalRequests == this.totalRequests &&
+          other.tokensPerSecond == this.tokensPerSecond &&
+          other.requestsPerSecond == this.requestsPerSecond &&
+          other.reportJson == this.reportJson);
+}
+
+class PerfReportsCompanion extends UpdateCompanion<PerfReportRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> machineName;
+  final Value<String> endpoint;
+  final Value<String> server;
+  final Value<DateTime> createdAt;
+  final Value<int> totalRequests;
+  final Value<double> tokensPerSecond;
+  final Value<double> requestsPerSecond;
+  final Value<String> reportJson;
+  final Value<int> rowid;
+  const PerfReportsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.machineName = const Value.absent(),
+    this.endpoint = const Value.absent(),
+    this.server = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.totalRequests = const Value.absent(),
+    this.tokensPerSecond = const Value.absent(),
+    this.requestsPerSecond = const Value.absent(),
+    this.reportJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PerfReportsCompanion.insert({
+    required String id,
+    required String name,
+    required String machineName,
+    required String endpoint,
+    required String server,
+    required DateTime createdAt,
+    required int totalRequests,
+    required double tokensPerSecond,
+    required double requestsPerSecond,
+    this.reportJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       machineName = Value(machineName),
+       endpoint = Value(endpoint),
+       server = Value(server),
+       createdAt = Value(createdAt),
+       totalRequests = Value(totalRequests),
+       tokensPerSecond = Value(tokensPerSecond),
+       requestsPerSecond = Value(requestsPerSecond);
+  static Insertable<PerfReportRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? machineName,
+    Expression<String>? endpoint,
+    Expression<String>? server,
+    Expression<DateTime>? createdAt,
+    Expression<int>? totalRequests,
+    Expression<double>? tokensPerSecond,
+    Expression<double>? requestsPerSecond,
+    Expression<String>? reportJson,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (machineName != null) 'machine_name': machineName,
+      if (endpoint != null) 'endpoint': endpoint,
+      if (server != null) 'server': server,
+      if (createdAt != null) 'created_at': createdAt,
+      if (totalRequests != null) 'total_requests': totalRequests,
+      if (tokensPerSecond != null) 'tokens_per_second': tokensPerSecond,
+      if (requestsPerSecond != null) 'requests_per_second': requestsPerSecond,
+      if (reportJson != null) 'report_json': reportJson,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PerfReportsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? machineName,
+    Value<String>? endpoint,
+    Value<String>? server,
+    Value<DateTime>? createdAt,
+    Value<int>? totalRequests,
+    Value<double>? tokensPerSecond,
+    Value<double>? requestsPerSecond,
+    Value<String>? reportJson,
+    Value<int>? rowid,
+  }) {
+    return PerfReportsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      machineName: machineName ?? this.machineName,
+      endpoint: endpoint ?? this.endpoint,
+      server: server ?? this.server,
+      createdAt: createdAt ?? this.createdAt,
+      totalRequests: totalRequests ?? this.totalRequests,
+      tokensPerSecond: tokensPerSecond ?? this.tokensPerSecond,
+      requestsPerSecond: requestsPerSecond ?? this.requestsPerSecond,
+      reportJson: reportJson ?? this.reportJson,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (machineName.present) {
+      map['machine_name'] = Variable<String>(machineName.value);
+    }
+    if (endpoint.present) {
+      map['endpoint'] = Variable<String>(endpoint.value);
+    }
+    if (server.present) {
+      map['server'] = Variable<String>(server.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (totalRequests.present) {
+      map['total_requests'] = Variable<int>(totalRequests.value);
+    }
+    if (tokensPerSecond.present) {
+      map['tokens_per_second'] = Variable<double>(tokensPerSecond.value);
+    }
+    if (requestsPerSecond.present) {
+      map['requests_per_second'] = Variable<double>(requestsPerSecond.value);
+    }
+    if (reportJson.present) {
+      map['report_json'] = Variable<String>(reportJson.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PerfReportsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('machineName: $machineName, ')
+          ..write('endpoint: $endpoint, ')
+          ..write('server: $server, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('totalRequests: $totalRequests, ')
+          ..write('tokensPerSecond: $tokensPerSecond, ')
+          ..write('requestsPerSecond: $requestsPerSecond, ')
+          ..write('reportJson: $reportJson, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SettingsTable extends Settings
     with TableInfo<$SettingsTable, SettingRow> {
   @override
@@ -3097,6 +3726,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SavedBenchmarksTable savedBenchmarks = $SavedBenchmarksTable(
     this,
   );
+  late final $PerfReportsTable perfReports = $PerfReportsTable(this);
   late final $SettingsTable settings = $SettingsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -3108,6 +3738,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     jobs,
     browserHistoryEntries,
     savedBenchmarks,
+    perfReports,
     settings,
   ];
 }
@@ -4543,6 +5174,311 @@ typedef $$SavedBenchmarksTableProcessedTableManager =
       SavedBenchmarkRow,
       PrefetchHooks Function()
     >;
+typedef $$PerfReportsTableCreateCompanionBuilder =
+    PerfReportsCompanion Function({
+      required String id,
+      required String name,
+      required String machineName,
+      required String endpoint,
+      required String server,
+      required DateTime createdAt,
+      required int totalRequests,
+      required double tokensPerSecond,
+      required double requestsPerSecond,
+      Value<String> reportJson,
+      Value<int> rowid,
+    });
+typedef $$PerfReportsTableUpdateCompanionBuilder =
+    PerfReportsCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> machineName,
+      Value<String> endpoint,
+      Value<String> server,
+      Value<DateTime> createdAt,
+      Value<int> totalRequests,
+      Value<double> tokensPerSecond,
+      Value<double> requestsPerSecond,
+      Value<String> reportJson,
+      Value<int> rowid,
+    });
+
+class $$PerfReportsTableFilterComposer
+    extends Composer<_$AppDatabase, $PerfReportsTable> {
+  $$PerfReportsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get machineName => $composableBuilder(
+    column: $table.machineName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endpoint => $composableBuilder(
+    column: $table.endpoint,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get server => $composableBuilder(
+    column: $table.server,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalRequests => $composableBuilder(
+    column: $table.totalRequests,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get tokensPerSecond => $composableBuilder(
+    column: $table.tokensPerSecond,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get requestsPerSecond => $composableBuilder(
+    column: $table.requestsPerSecond,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reportJson => $composableBuilder(
+    column: $table.reportJson,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PerfReportsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PerfReportsTable> {
+  $$PerfReportsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get machineName => $composableBuilder(
+    column: $table.machineName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endpoint => $composableBuilder(
+    column: $table.endpoint,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get server => $composableBuilder(
+    column: $table.server,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalRequests => $composableBuilder(
+    column: $table.totalRequests,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get tokensPerSecond => $composableBuilder(
+    column: $table.tokensPerSecond,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get requestsPerSecond => $composableBuilder(
+    column: $table.requestsPerSecond,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reportJson => $composableBuilder(
+    column: $table.reportJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PerfReportsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PerfReportsTable> {
+  $$PerfReportsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get machineName => $composableBuilder(
+    column: $table.machineName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get endpoint =>
+      $composableBuilder(column: $table.endpoint, builder: (column) => column);
+
+  GeneratedColumn<String> get server =>
+      $composableBuilder(column: $table.server, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get totalRequests => $composableBuilder(
+    column: $table.totalRequests,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get tokensPerSecond => $composableBuilder(
+    column: $table.tokensPerSecond,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get requestsPerSecond => $composableBuilder(
+    column: $table.requestsPerSecond,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reportJson => $composableBuilder(
+    column: $table.reportJson,
+    builder: (column) => column,
+  );
+}
+
+class $$PerfReportsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PerfReportsTable,
+          PerfReportRow,
+          $$PerfReportsTableFilterComposer,
+          $$PerfReportsTableOrderingComposer,
+          $$PerfReportsTableAnnotationComposer,
+          $$PerfReportsTableCreateCompanionBuilder,
+          $$PerfReportsTableUpdateCompanionBuilder,
+          (
+            PerfReportRow,
+            BaseReferences<_$AppDatabase, $PerfReportsTable, PerfReportRow>,
+          ),
+          PerfReportRow,
+          PrefetchHooks Function()
+        > {
+  $$PerfReportsTableTableManager(_$AppDatabase db, $PerfReportsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PerfReportsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PerfReportsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PerfReportsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> machineName = const Value.absent(),
+                Value<String> endpoint = const Value.absent(),
+                Value<String> server = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> totalRequests = const Value.absent(),
+                Value<double> tokensPerSecond = const Value.absent(),
+                Value<double> requestsPerSecond = const Value.absent(),
+                Value<String> reportJson = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PerfReportsCompanion(
+                id: id,
+                name: name,
+                machineName: machineName,
+                endpoint: endpoint,
+                server: server,
+                createdAt: createdAt,
+                totalRequests: totalRequests,
+                tokensPerSecond: tokensPerSecond,
+                requestsPerSecond: requestsPerSecond,
+                reportJson: reportJson,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String machineName,
+                required String endpoint,
+                required String server,
+                required DateTime createdAt,
+                required int totalRequests,
+                required double tokensPerSecond,
+                required double requestsPerSecond,
+                Value<String> reportJson = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PerfReportsCompanion.insert(
+                id: id,
+                name: name,
+                machineName: machineName,
+                endpoint: endpoint,
+                server: server,
+                createdAt: createdAt,
+                totalRequests: totalRequests,
+                tokensPerSecond: tokensPerSecond,
+                requestsPerSecond: requestsPerSecond,
+                reportJson: reportJson,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PerfReportsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PerfReportsTable,
+      PerfReportRow,
+      $$PerfReportsTableFilterComposer,
+      $$PerfReportsTableOrderingComposer,
+      $$PerfReportsTableAnnotationComposer,
+      $$PerfReportsTableCreateCompanionBuilder,
+      $$PerfReportsTableUpdateCompanionBuilder,
+      (
+        PerfReportRow,
+        BaseReferences<_$AppDatabase, $PerfReportsTable, PerfReportRow>,
+      ),
+      PerfReportRow,
+      PrefetchHooks Function()
+    >;
 typedef $$SettingsTableCreateCompanionBuilder =
     SettingsCompanion Function({
       required String key,
@@ -4692,6 +5628,8 @@ class $AppDatabaseManager {
       $$BrowserHistoryEntriesTableTableManager(_db, _db.browserHistoryEntries);
   $$SavedBenchmarksTableTableManager get savedBenchmarks =>
       $$SavedBenchmarksTableTableManager(_db, _db.savedBenchmarks);
+  $$PerfReportsTableTableManager get perfReports =>
+      $$PerfReportsTableTableManager(_db, _db.perfReports);
   $$SettingsTableTableManager get settings =>
       $$SettingsTableTableManager(_db, _db.settings);
 }

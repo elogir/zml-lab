@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,8 +6,11 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/util/format.dart';
 import '../../../core/util/search.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../../models/perf_report.dart';
 import '../../../models/saved_benchmark.dart';
+import '../../../repositories/perf_report_repository.dart';
 import '../../../repositories/saved_benchmark_repository.dart';
+import '../../perf/presentation/perf_report_detail.dart';
 import '../application/saved_benchmarks_providers.dart';
 import 'saved_benchmark_detail.dart';
 
@@ -29,13 +33,43 @@ class _SavedBenchmarksScreenState extends ConsumerState<SavedBenchmarksScreen> {
     b.prompt,
   ]);
 
+  bool _matchesReport(PerfReport r, String q) => matchesSearch(q, [
+    r.name,
+    r.endpoint,
+    r.machineName,
+    r.serverLabel,
+    r.params.model,
+    r.benchCommand,
+    r.jobCommand,
+  ]);
+
   @override
   Widget build(BuildContext context) {
     final all = ref.watch(savedBenchmarksStreamProvider).value ?? const [];
+    final allReports = ref.watch(perfReportsStreamProvider).value ?? const [];
     final q = _query.trim();
     final benchmarks = q.isEmpty
         ? all
         : all.where((b) => _matches(b, q)).toList();
+    final reports = q.isEmpty
+        ? allReports
+        : allReports.where((r) => _matchesReport(r, q)).toList();
+    // Group labels only earn their place when both kinds are present.
+    final labelled = benchmarks.isNotEmpty && reports.isNotEmpty;
+
+    Widget grid(List<Widget> cards) => LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = AppSpacing.lg;
+        final width = (constraints.maxWidth - gap) / 2;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final card in cards) SizedBox(width: width, child: card),
+          ],
+        );
+      },
+    );
 
     return Padding(
       padding: AppSpacing.screen,
@@ -45,7 +79,7 @@ class _SavedBenchmarksScreenState extends ConsumerState<SavedBenchmarksScreen> {
           const ScreenHeader(
             title: 'Saved benchmarks',
             subtitle:
-                'Named snapshots of past runs. Open one to review its responses.',
+                'Named snapshots of past runs — chat benchmarks and perf reports.',
           ),
           const SizedBox(height: AppSpacing.lg),
           AppSearchField(
@@ -54,27 +88,137 @@ class _SavedBenchmarksScreenState extends ConsumerState<SavedBenchmarksScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           Expanded(
-            child: benchmarks.isEmpty
+            child: benchmarks.isEmpty && reports.isEmpty
                 ? _EmptyState(searching: q.isNotEmpty)
                 : SingleChildScrollView(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        const gap = AppSpacing.lg;
-                        final width = (constraints.maxWidth - gap) / 2;
-                        return Wrap(
-                          spacing: gap,
-                          runSpacing: gap,
-                          children: [
-                            for (final b in benchmarks)
-                              SizedBox(
-                                width: width,
-                                child: _BenchmarkCard(benchmark: b),
-                              ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (reports.isNotEmpty) ...[
+                          if (labelled) ...[
+                            const SectionLabel('PERF REPORTS'),
+                            const SizedBox(height: AppSpacing.md),
                           ],
-                        );
-                      },
+                          grid([
+                            for (final r in reports)
+                              _PerfReportCard(report: r),
+                          ]),
+                        ],
+                        if (labelled) const SizedBox(height: AppSpacing.xl),
+                        if (benchmarks.isNotEmpty) ...[
+                          if (labelled) ...[
+                            const SectionLabel('CHAT BENCHMARKS'),
+                            const SizedBox(height: AppSpacing.md),
+                          ],
+                          grid([
+                            for (final b in benchmarks)
+                              _BenchmarkCard(benchmark: b),
+                          ]),
+                        ],
+                      ],
                     ),
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PerfReportCard extends ConsumerWidget {
+  const _PerfReportCard({required this.report});
+
+  final PerfReport report;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final r = report;
+    final ttft = r.stats
+        .where((s) => s.label == 'Time to first token')
+        .firstOrNull;
+
+    return AppCard(
+      onTap: () => showPerfReportDetail(context, r),
+      onDelete: () => ref.read(perfReportRepositoryProvider).delete(r.id),
+      topRight: Text(formatAgo(r.createdAt), style: context.text.smallMuted),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 44),
+            child: Row(
+              children: [
+                Icon(AppIcons.perf, size: 12, color: c.textFaint),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    r.name,
+                    style: context.text.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Icon(AppIcons.machines, size: 12, color: c.textFaint),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  r.endpoint,
+                  style: context.text.monoSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Text(r.serverLabel, style: context.text.smallMuted),
+              const SizedBox(width: AppSpacing.md),
+              Text(
+                'c ${r.params.concurrency}',
+                style: context.text.smallMuted,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                r.tokensPerSecond.toStringAsFixed(1),
+                style: context.text.mono.copyWith(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: c.statusRunning,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text('tok/s', style: context.text.monoSmall),
+              const Spacer(),
+              _Metric(
+                label: 'req/s',
+                value: r.requestsPerSecond.toStringAsFixed(2),
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              if (ttft != null) ...[
+                _Metric(
+                  label: 'ttft p50',
+                  value: '${ttft.p50.round()}ms',
+                ),
+                const SizedBox(width: AppSpacing.lg),
+              ],
+              _Metric(
+                label: 'dur',
+                value: '${r.totalSeconds.toStringAsFixed(0)}s',
+              ),
+            ],
           ),
         ],
       ),
