@@ -102,8 +102,13 @@ class TerminalSession {
     try {
       final shell = Platform.environment['SHELL'] ?? '/bin/zsh';
       final pty = runCommand == null
+          // -l: a login shell, like Terminal.app spawns. A GUI app only
+          // inherits launchd's minimal PATH, and a non-login zsh never
+          // sources /etc/zprofile or ~/.zprofile — so without this, brew,
+          // go, ~/.local/bin etc. are all missing from interactive tabs.
           ? Pty.start(
               shell,
+              arguments: ['-l'],
               columns: 80,
               rows: 24,
               workingDirectory: workingDirectory ?? Platform.environment['HOME'],
