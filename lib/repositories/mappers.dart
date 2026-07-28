@@ -46,6 +46,8 @@ String encodeBenchmarkRequests(List<BenchmarkRequest> requests) => jsonEncode([
       'tokensPerSecond': r.tokensPerSecond,
       'ttftMs': r.ttftMs,
       'latencyMs': r.latencyMs,
+      if (r.finishReason != null) 'finishReason': r.finishReason,
+      if (r.error != null) 'error': r.error,
     },
 ]);
 
@@ -76,6 +78,8 @@ List<BenchmarkRequest> decodeBenchmarkRequests(String json) {
       tokensPerSecond: (m['tokensPerSecond'] as num?)?.toDouble() ?? 0,
       ttftMs: (m['ttftMs'] as num?)?.toInt(),
       latencyMs: (m['latencyMs'] as num?)?.toInt(),
+      finishReason: m['finishReason'] as String?,
+      error: m['error'] as String?,
     );
   }).toList();
 }

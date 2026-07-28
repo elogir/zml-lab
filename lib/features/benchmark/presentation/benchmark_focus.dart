@@ -277,7 +277,16 @@ class _Turn extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (turn.reasoning.isNotEmpty) ReasoningView(turn.reasoning),
-                if (turn.text.isEmpty)
+                if (turn.error != null)
+                  // The failure reason, in place of the (usually empty) reply.
+                  Text(
+                    turn.error!,
+                    style: context.text.mono.copyWith(
+                      color: c.statusFailed,
+                      height: 1.5,
+                    ),
+                  )
+                else if (turn.text.isEmpty)
                   // Placeholder only before anything (not while thinking) shows.
                   if (turn.reasoning.isEmpty)
                     Text(

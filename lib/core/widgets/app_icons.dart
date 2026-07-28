@@ -15,6 +15,7 @@ abstract final class AppIcons {
   static const IconData collapseSidebar = LucideIcons.panelLeft;
   static const IconData chevronRight = LucideIcons.chevronRight;
   static const IconData chevronLeft = LucideIcons.chevronLeft;
+  static const IconData chevronDown = LucideIcons.chevronDown;
   static const IconData back = LucideIcons.chevronLeft;
 
   // Actions
@@ -30,6 +31,7 @@ abstract final class AppIcons {
   static const IconData profiler = LucideIcons.activity;
   static const IconData captureTrace = LucideIcons.circleDot;
   static const IconData perf = LucideIcons.zap;
+  static const IconData benchmarkTool = LucideIcons.flaskConical;
   static const IconData download = LucideIcons.download;
   static const IconData restart = LucideIcons.rotateCw;
   static const IconData copy = LucideIcons.copy;

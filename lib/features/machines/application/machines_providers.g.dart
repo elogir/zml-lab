@@ -233,7 +233,7 @@ final class MachineReachableProvider
   }
 }
 
-String _$machineReachableHash() => r'090cec307dadb4a011549a0efd76e9f22a9d2d16';
+String _$machineReachableHash() => r'34d52c020ac8827f57427093d0a2d48d54adcf2f';
 
 /// Live reachability of a machine: null while the first probe runs, then a
 /// fresh answer every 10s while somebody is watching (auto-dispose stops the

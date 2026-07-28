@@ -28,6 +28,7 @@ Stream<ChatToken> streamChat(
   List<Map<String, String>> messages, {
   int? maxTokens,
   double? temperature,
+  String model = '',
 }) async* {
   // No dart:io on web — benchmarking is native-only.
 }

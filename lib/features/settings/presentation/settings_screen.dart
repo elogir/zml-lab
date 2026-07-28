@@ -24,6 +24,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _batch;
   late final TextEditingController _maxTokens;
   late final TextEditingController _temperature;
+  late final TextEditingController _benchModel;
   late final TextEditingController _perfToolDir;
   late final TextEditingController _perfDataset;
   late final TextEditingController _perfDuration;
@@ -47,6 +48,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _maxTokens = TextEditingController(text: s.benchMaxTokens?.toString() ?? '');
     _temperature =
         TextEditingController(text: s.benchTemperature?.toString() ?? '');
+    _benchModel = TextEditingController(text: s.benchModel);
     _perfToolDir = TextEditingController(text: s.perfToolDir);
     _perfDataset = TextEditingController(text: s.perfDatasetPath);
     _perfDuration =
@@ -69,6 +71,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _batch.dispose();
     _maxTokens.dispose();
     _temperature.dispose();
+    _benchModel.dispose();
     _perfToolDir.dispose();
     _perfDataset.dispose();
     _perfDuration.dispose();
@@ -117,6 +120,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _batch.text = '${s.benchBatchSize}';
       _maxTokens.text = '';
       _temperature.text = '';
+      _benchModel.text = '';
       _perfToolDir.text = s.perfToolDir;
       _perfDataset.text = s.perfDatasetPath;
       _perfDuration.text = '${s.perfParams.durationSeconds}';
@@ -200,6 +204,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ? () => _controller
                                 .setTerminalFontSize(s.terminalFontSize + 1)
                           : null,
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'Option as Meta',
+                    description:
+                        'Option+letter sends ESC+letter so Option+F/B jump '
+                        'words in the shell.',
+                    control: SegmentedControl<bool>(
+                      value: s.terminalOptionAsMeta,
+                      onChanged: _controller.setTerminalOptionAsMeta,
+                      options: const [
+                        SegmentOption(value: true, label: 'On'),
+                        SegmentOption(value: false, label: 'Off'),
+                      ],
                     ),
                   ),
                 ],
@@ -329,6 +347,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         onChanged: (v) => _controller
                             .setBenchTemperature(double.tryParse(v.trim())),
                       ),
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'Model',
+                    description:
+                        'Sent with each request. vLLM needs the real name; '
+                        'llmd ignores it.',
+                    stacked: true,
+                    control: AppTextField(
+                      controller: _benchModel,
+                      mono: true,
+                      placeholder: 'zml_model',
+                      onChanged: _controller.setBenchModel,
                     ),
                   ),
                 ],

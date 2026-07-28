@@ -35,6 +35,8 @@ class TerminalSession {
   String get title => '';
   VoidCallback? onTitleChanged;
 
+  void sendInput(String data) {}
+
   void sendSignal() {}
 
   void sendKill() {}

@@ -403,7 +403,15 @@ class _Response extends StatelessWidget {
         children: [
           _ResponseHeader(request: r),
           const SizedBox(height: AppSpacing.sm),
-          if (r.text.isEmpty && r.reasoning.isEmpty)
+          if (r.status == BenchmarkRequestStatus.failed && r.error != null)
+            Text(
+              r.error!,
+              style: context.text.monoSmall.copyWith(
+                color: c.statusFailed,
+                height: 1.5,
+              ),
+            )
+          else if (r.text.isEmpty && r.reasoning.isEmpty)
             Text(
               '—',
               style: context.text.monoSmall.copyWith(

@@ -85,6 +85,10 @@ abstract class BenchmarkRequest with _$BenchmarkRequest {
     /// The server's `finish_reason` for the reply, once one arrived
     /// (`stop`, `length`, `tool_calls`, …).
     String? finishReason,
+
+    /// Why the request failed, when [status] is `failed` — the HTTP error
+    /// (status + body) or the connection error, shown on the card.
+    String? error,
   }) = _BenchmarkRequest;
 
   /// Whether the reply was cut off by a token limit rather than finishing
@@ -108,6 +112,10 @@ abstract class BenchmarkRun with _$BenchmarkRun {
 
     /// Sampling temperature. Null means the server's default.
     double? temperature,
+
+    /// Model name sent with each request (vLLM requires the real one; llmd
+    /// ignores it). Empty = send `zml_model`.
+    @Default('') String model,
 
     /// Bumped each time a new batch is started. Chats opened from a request
     /// key their seed to this, so they reset when the run they came from is

@@ -70,7 +70,7 @@ final class PerfControllerProvider
   }
 }
 
-String _$perfControllerHash() => r'04317fe6cd2c3a0992994c4a30a8d87924aa91de';
+String _$perfControllerHash() => r'65798f2ea3de23d190f747d6b8642f81ac655d90';
 
 /// Runs the monorepo's Go benchmarker (tools/benchmark) against a job's
 /// endpoint and turns its CSV event stream into live charts and a final

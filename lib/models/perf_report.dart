@@ -244,6 +244,7 @@ class PerfReport {
     required this.requestsPerSecond,
     this.maxSeq = 0,
     required this.errorCount,
+    this.errorSample,
     this.cancelled = false,
     required this.stats,
     required this.series,
@@ -285,6 +286,9 @@ class PerfReport {
   final int maxSeq;
   final int errorCount;
 
+  /// A representative error message from the errored requests, when any.
+  final String? errorSample;
+
   /// True when the run was stopped early — the report covers a partial run.
   final bool cancelled;
 
@@ -311,6 +315,7 @@ class PerfReport {
     requestsPerSecond: requestsPerSecond,
     maxSeq: maxSeq,
     errorCount: errorCount,
+    errorSample: errorSample,
     cancelled: cancelled,
     stats: stats,
     series: series,
@@ -333,6 +338,7 @@ class PerfReport {
     'totalSeconds': totalSeconds,
     'totalEvents': totalEvents,
     'maxSeq': maxSeq,
+    if (errorSample != null) 'errorSample': errorSample,
     'errorCount': errorCount,
     'cancelled': cancelled,
     'stats': [for (final s in stats) s.toMap()],
@@ -374,6 +380,7 @@ class PerfReport {
     requestsPerSecond: requestsPerSecond,
     maxSeq: (m['maxSeq'] as num?)?.toInt() ?? 0,
     errorCount: (m['errorCount'] as num?)?.toInt() ?? 0,
+    errorSample: m['errorSample'] as String?,
     cancelled: m['cancelled'] as bool? ?? false,
     stats: [
       for (final s in (m['stats'] as List? ?? const []))

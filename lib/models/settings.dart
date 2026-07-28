@@ -41,6 +41,10 @@ abstract class AppSettings with _$AppSettings {
     /// Terminal text size (flterm renders from font data, not app text styles).
     @Default(14.0) double terminalFontSize,
 
+    /// Treat Option as Meta in terminals: Option+letter sends `ESC`+letter (so
+    /// Option+F/B jump words in zsh) instead of macOS composing a glyph (ƒ, ∫).
+    @Default(true) bool terminalOptionAsMeta,
+
     /// The range `findFreePort` scans when pre-filling a new job's port.
     @Default(8000) int portRangeStart,
     @Default(8100) int portRangeEnd,
@@ -57,6 +61,10 @@ abstract class AppSettings with _$AppSettings {
 
     /// Null = the server's default temperature.
     double? benchTemperature,
+
+    /// Model name sent in benchmark requests (vLLM requires the real one;
+    /// llmd ignores it). Empty = send `zml_model`.
+    @Default('') String benchModel,
 
     /// Environment variables injected into every job launch (local and remote).
     /// A job's own env vars override these on a key clash.

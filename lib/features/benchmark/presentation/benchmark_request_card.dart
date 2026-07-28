@@ -78,7 +78,18 @@ class BenchmarkRequestCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: ClipRect(
-              child: request.text.isEmpty && request.reasoning.isEmpty
+              child: request.status == BenchmarkRequestStatus.failed
+                  // A failed request shows why, not its (usually empty) text.
+                  ? SingleChildScrollView(
+                      child: Text(
+                        request.error ?? 'request failed',
+                        style: context.text.monoSmall.copyWith(
+                          color: c.statusFailed,
+                          height: 1.5,
+                        ),
+                      ),
+                    )
+                  : request.text.isEmpty && request.reasoning.isEmpty
                   ? Text(
                       '…',
                       style: context.text.monoSmall.copyWith(

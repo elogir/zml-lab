@@ -92,6 +92,14 @@ class Sidebar extends ConsumerWidget {
               ),
               _NavItem(
                 t: t,
+                icon: AppIcons.benchmarkTool,
+                label: 'Benchmark',
+                badge: 0,
+                active: loc == '/benchmark' || loc.startsWith('/benchmark/'),
+                onTap: () => context.go('/benchmark'),
+              ),
+              _NavItem(
+                t: t,
                 icon: AppIcons.savedBenchmarks,
                 label: 'Saved benchmarks',
                 badge: benchmarkCount,

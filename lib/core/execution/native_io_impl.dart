@@ -112,12 +112,15 @@ typedef ChatToken = ({
 ///
 /// A null [maxTokens] sends no cap — the server generates until EOS or its max
 /// sequence length. A null [temperature] leaves sampling at the server default.
+/// An empty [model] sends `zml_model` (llmd ignores the name; vLLM rejects a
+/// request whose model it doesn't serve, so it must be set for those).
 Stream<ChatToken> streamChat(
   String host,
   int port,
   List<Map<String, String>> messages, {
   int? maxTokens,
   double? temperature,
+  String model = '',
 }) async* {
   final client = HttpClient()
     ..connectionTimeout = const Duration(seconds: 10);
@@ -126,7 +129,7 @@ Stream<ChatToken> streamChat(
     request.headers.contentType = ContentType.json;
     request.headers.set(HttpHeaders.acceptHeader, 'text/event-stream');
     request.add(utf8.encode(jsonEncode({
-      'model': 'zml_model',
+      'model': model.isEmpty ? 'zml_model' : model,
       'messages': messages,
       if (maxTokens != null) 'max_tokens': maxTokens,
       if (temperature != null) 'temperature': temperature,
@@ -137,6 +140,13 @@ Stream<ChatToken> streamChat(
       },
     })));
     final response = await request.close();
+    if (response.statusCode >= 400) {
+      // The body isn't SSE — it's the server's error (usually an OpenAI-shape
+      // JSON). Surface it so the request card can show why it failed instead
+      // of a bare "failed".
+      final body = await response.transform(utf8.decoder).join();
+      throw Exception('HTTP ${response.statusCode}: ${_errorSnippet(body)}');
+    }
     final lines = response
         .transform(utf8.decoder)
         .transform(const LineSplitter());
@@ -179,9 +189,53 @@ Stream<ChatToken> streamChat(
         finishReason: finishReason,
       );
     }
+  } on Object catch (e) {
+    // Rethrow with a clean, human message (the raw SocketException/HttpException
+    // toString is noisy). The benchmark controller shows this on the card.
+    throw Exception(describeIoError(e));
   } finally {
     client.close(force: true);
   }
+}
+
+/// A short, human-readable message for a network error thrown while talking to
+/// a server — used on the benchmark request cards. Strips the noisy wrapper
+/// text off the common dart:io exceptions.
+String describeIoError(Object e) {
+  if (e is SocketException) {
+    final os = e.osError?.message.trim();
+    if (os != null && os.isNotEmpty) return os; // e.g. "Connection refused"
+    return e.message.isEmpty ? 'connection failed' : e.message;
+  }
+  if (e is HttpException) return e.message;
+  if (e is TimeoutException) return 'timed out';
+  final s = e.toString();
+  return s.startsWith('Exception: ') ? s.substring('Exception: '.length) : s;
+}
+
+/// How much of an unstructured error body to keep. Generous on purpose: the
+/// expanded request card shows this in full (it scrolls), and a server error
+/// is only useful if it isn't cut off mid-sentence. Still bounded so a stray
+/// HTML page can't be carried around whole.
+const _maxErrorBodyChars = 4000;
+
+/// Pulls a message out of an error response body — OpenAI's `{"error":{...}}`
+/// shape when present, else a trimmed snippet of the raw body.
+String _errorSnippet(String body) {
+  try {
+    final json = jsonDecode(body);
+    if (json is Map) {
+      final err = json['error'];
+      if (err is Map && err['message'] is String) return err['message'] as String;
+      if (err is String && err.isNotEmpty) return err;
+      if (json['message'] is String) return json['message'] as String;
+    }
+  } catch (_) {}
+  final t = body.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (t.isEmpty) return 'no response body';
+  return t.length > _maxErrorBodyChars
+      ? '${t.substring(0, _maxErrorBodyChars)}…'
+      : t;
 }
 
 /// Fires one chat request with the `x-zml-profiler` header set, so llmd captures

@@ -1080,6 +1080,60 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     };
   }
 
+  // Per-session Option-as-Meta key handlers, kept for identity so the sync
+  // below can tell ours apart from flterm's (and toggle it cleanly).
+  final Map<TerminalSession, KeyEventResult Function(FocusNode, KeyEvent)>
+  _metaHandlers = {};
+
+  /// Installs (or removes) our Option-as-Meta handler on a session's focus
+  /// node. flterm keeps the focused node's own `onKeyEvent` free — its key
+  /// handling lives on an ancestor Focus — so a handler here runs first and
+  /// can turn Option+letter into `ESC`+letter before flterm sees the glyph
+  /// macOS composed. flterm nulls the node's handler when its view (re)mounts,
+  /// so we re-assert after the frame.
+  void _syncMetaHandler(TerminalSession session, bool enabled) {
+    final node = session.focusNode;
+    final handler = _metaHandlers.putIfAbsent(
+      session,
+      () => (n, e) => _handleMetaKey(session, e),
+    );
+    final desired = enabled ? handler : null;
+    if (identical(node.onKeyEvent, desired)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !identical(node.onKeyEvent, desired)) {
+        node.onKeyEvent = desired;
+      }
+    });
+  }
+
+  KeyEventResult _handleMetaKey(TerminalSession session, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final kb = HardwareKeyboard.instance;
+    // Plain Option only — leave Ctrl/Cmd combos and everything else to flterm.
+    if (!kb.isAltPressed || kb.isControlPressed || kb.isMetaPressed) {
+      return KeyEventResult.ignored;
+    }
+    final base = _metaBaseChar(event.logicalKey, kb.isShiftPressed);
+    if (base == null) return KeyEventResult.ignored;
+    session.sendInput('\u001b$base'); // ESC + letter = Meta
+    return KeyEventResult.handled; // swallow the macOS-composed glyph
+  }
+
+  /// The base character for an Option+key combo, from the logical key (which
+  /// stays the plain letter even when macOS composes the character). Letters
+  /// and digits only — the keys word-motions and friends use.
+  String? _metaBaseChar(LogicalKeyboardKey key, bool shift) {
+    final label = key.keyLabel;
+    if (label.length != 1) return null;
+    final code = label.codeUnitAt(0);
+    final isLetter = code >= 0x41 && code <= 0x5A; // A–Z
+    final isDigit = code >= 0x30 && code <= 0x39; // 0–9
+    if (!isLetter && !isDigit) return null;
+    return (isLetter && !shift) ? label.toLowerCase() : label;
+  }
+
   Widget _buildTermLeaf(
     _Leaf leaf,
     TerminalSession session,
@@ -1087,6 +1141,15 @@ class _JobTerminalState extends ConsumerState<JobTerminal> {
     required bool closable,
   }) {
     final focused = leaf.id == _focusedId;
+
+    if (session.isLive) {
+      _syncMetaHandler(
+        session,
+        ref.watch(
+          settingsControllerProvider.select((s) => s.terminalOptionAsMeta),
+        ),
+      );
+    }
 
     final Widget inner = session.isLive
         ? TerminalView(
