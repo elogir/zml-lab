@@ -18,7 +18,9 @@ mixin _$BenchmarkRequest {
 /// answer for reasoning models. Empty when the model doesn't emit any.
  String get reasoning; int get tokens; double get tokensPerSecond; int? get ttftMs; int? get latencyMs;/// The server's `finish_reason` for the reply, once one arrived
 /// (`stop`, `length`, `tool_calls`, …).
- String? get finishReason;
+ String? get finishReason;/// Why the request failed, when [status] is `failed` — the HTTP error
+/// (status + body) or the connection error, shown on the card.
+ String? get error;
 /// Create a copy of BenchmarkRequest
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +31,16 @@ $BenchmarkRequestCopyWith<BenchmarkRequest> get copyWith => _$BenchmarkRequestCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkRequest&&(identical(other.index, index) || other.index == index)&&(identical(other.status, status) || other.status == status)&&(identical(other.text, text) || other.text == text)&&(identical(other.reasoning, reasoning) || other.reasoning == reasoning)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkRequest&&(identical(other.index, index) || other.index == index)&&(identical(other.status, status) || other.status == status)&&(identical(other.text, text) || other.text == text)&&(identical(other.reasoning, reasoning) || other.reasoning == reasoning)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,index,status,text,reasoning,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason);
+int get hashCode => Object.hash(runtimeType,index,status,text,reasoning,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason,error);
 
 @override
 String toString() {
-  return 'BenchmarkRequest(index: $index, status: $status, text: $text, reasoning: $reasoning, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason)';
+  return 'BenchmarkRequest(index: $index, status: $status, text: $text, reasoning: $reasoning, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason, error: $error)';
 }
 
 
@@ -49,7 +51,7 @@ abstract mixin class $BenchmarkRequestCopyWith<$Res>  {
   factory $BenchmarkRequestCopyWith(BenchmarkRequest value, $Res Function(BenchmarkRequest) _then) = _$BenchmarkRequestCopyWithImpl;
 @useResult
 $Res call({
- int index, BenchmarkRequestStatus status, String text, String reasoning, int tokens, double tokensPerSecond, int? ttftMs, int? latencyMs, String? finishReason
+ int index, BenchmarkRequestStatus status, String text, String reasoning, int tokens, double tokensPerSecond, int? ttftMs, int? latencyMs, String? finishReason, String? error
 });
 
 
@@ -66,7 +68,7 @@ class _$BenchmarkRequestCopyWithImpl<$Res>
 
 /// Create a copy of BenchmarkRequest
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? index = null,Object? status = null,Object? text = null,Object? reasoning = null,Object? tokens = null,Object? tokensPerSecond = null,Object? ttftMs = freezed,Object? latencyMs = freezed,Object? finishReason = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? index = null,Object? status = null,Object? text = null,Object? reasoning = null,Object? tokens = null,Object? tokensPerSecond = null,Object? ttftMs = freezed,Object? latencyMs = freezed,Object? finishReason = freezed,Object? error = freezed,}) {
   return _then(_self.copyWith(
 index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
 as int,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
@@ -77,6 +79,7 @@ as int,tokensPerSecond: null == tokensPerSecond ? _self.tokensPerSecond : tokens
 as double,ttftMs: freezed == ttftMs ? _self.ttftMs : ttftMs // ignore: cast_nullable_to_non_nullable
 as int?,latencyMs: freezed == latencyMs ? _self.latencyMs : latencyMs // ignore: cast_nullable_to_non_nullable
 as int?,finishReason: freezed == finishReason ? _self.finishReason : finishReason // ignore: cast_nullable_to_non_nullable
+as String?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -162,10 +165,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int index,  BenchmarkRequestStatus status,  String text,  String reasoning,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs,  String? finishReason)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int index,  BenchmarkRequestStatus status,  String text,  String reasoning,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs,  String? finishReason,  String? error)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _BenchmarkRequest() when $default != null:
-return $default(_that.index,_that.status,_that.text,_that.reasoning,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs,_that.finishReason);case _:
+return $default(_that.index,_that.status,_that.text,_that.reasoning,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs,_that.finishReason,_that.error);case _:
   return orElse();
 
 }
@@ -183,10 +186,10 @@ return $default(_that.index,_that.status,_that.text,_that.reasoning,_that.tokens
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int index,  BenchmarkRequestStatus status,  String text,  String reasoning,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs,  String? finishReason)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int index,  BenchmarkRequestStatus status,  String text,  String reasoning,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs,  String? finishReason,  String? error)  $default,) {final _that = this;
 switch (_that) {
 case _BenchmarkRequest():
-return $default(_that.index,_that.status,_that.text,_that.reasoning,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs,_that.finishReason);case _:
+return $default(_that.index,_that.status,_that.text,_that.reasoning,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs,_that.finishReason,_that.error);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -203,10 +206,10 @@ return $default(_that.index,_that.status,_that.text,_that.reasoning,_that.tokens
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int index,  BenchmarkRequestStatus status,  String text,  String reasoning,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs,  String? finishReason)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int index,  BenchmarkRequestStatus status,  String text,  String reasoning,  int tokens,  double tokensPerSecond,  int? ttftMs,  int? latencyMs,  String? finishReason,  String? error)?  $default,) {final _that = this;
 switch (_that) {
 case _BenchmarkRequest() when $default != null:
-return $default(_that.index,_that.status,_that.text,_that.reasoning,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs,_that.finishReason);case _:
+return $default(_that.index,_that.status,_that.text,_that.reasoning,_that.tokens,_that.tokensPerSecond,_that.ttftMs,_that.latencyMs,_that.finishReason,_that.error);case _:
   return null;
 
 }
@@ -218,7 +221,7 @@ return $default(_that.index,_that.status,_that.text,_that.reasoning,_that.tokens
 
 
 class _BenchmarkRequest extends BenchmarkRequest {
-  const _BenchmarkRequest({required this.index, this.status = BenchmarkRequestStatus.queued, this.text = '', this.reasoning = '', this.tokens = 0, this.tokensPerSecond = 0, this.ttftMs, this.latencyMs, this.finishReason}): super._();
+  const _BenchmarkRequest({required this.index, this.status = BenchmarkRequestStatus.queued, this.text = '', this.reasoning = '', this.tokens = 0, this.tokensPerSecond = 0, this.ttftMs, this.latencyMs, this.finishReason, this.error}): super._();
   
 
 @override final  int index;
@@ -234,6 +237,9 @@ class _BenchmarkRequest extends BenchmarkRequest {
 /// The server's `finish_reason` for the reply, once one arrived
 /// (`stop`, `length`, `tool_calls`, …).
 @override final  String? finishReason;
+/// Why the request failed, when [status] is `failed` — the HTTP error
+/// (status + body) or the connection error, shown on the card.
+@override final  String? error;
 
 /// Create a copy of BenchmarkRequest
 /// with the given fields replaced by the non-null parameter values.
@@ -245,16 +251,16 @@ _$BenchmarkRequestCopyWith<_BenchmarkRequest> get copyWith => __$BenchmarkReques
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkRequest&&(identical(other.index, index) || other.index == index)&&(identical(other.status, status) || other.status == status)&&(identical(other.text, text) || other.text == text)&&(identical(other.reasoning, reasoning) || other.reasoning == reasoning)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkRequest&&(identical(other.index, index) || other.index == index)&&(identical(other.status, status) || other.status == status)&&(identical(other.text, text) || other.text == text)&&(identical(other.reasoning, reasoning) || other.reasoning == reasoning)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,index,status,text,reasoning,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason);
+int get hashCode => Object.hash(runtimeType,index,status,text,reasoning,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason,error);
 
 @override
 String toString() {
-  return 'BenchmarkRequest(index: $index, status: $status, text: $text, reasoning: $reasoning, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason)';
+  return 'BenchmarkRequest(index: $index, status: $status, text: $text, reasoning: $reasoning, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason, error: $error)';
 }
 
 
@@ -265,7 +271,7 @@ abstract mixin class _$BenchmarkRequestCopyWith<$Res> implements $BenchmarkReque
   factory _$BenchmarkRequestCopyWith(_BenchmarkRequest value, $Res Function(_BenchmarkRequest) _then) = __$BenchmarkRequestCopyWithImpl;
 @override @useResult
 $Res call({
- int index, BenchmarkRequestStatus status, String text, String reasoning, int tokens, double tokensPerSecond, int? ttftMs, int? latencyMs, String? finishReason
+ int index, BenchmarkRequestStatus status, String text, String reasoning, int tokens, double tokensPerSecond, int? ttftMs, int? latencyMs, String? finishReason, String? error
 });
 
 
@@ -282,7 +288,7 @@ class __$BenchmarkRequestCopyWithImpl<$Res>
 
 /// Create a copy of BenchmarkRequest
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? status = null,Object? text = null,Object? reasoning = null,Object? tokens = null,Object? tokensPerSecond = null,Object? ttftMs = freezed,Object? latencyMs = freezed,Object? finishReason = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? status = null,Object? text = null,Object? reasoning = null,Object? tokens = null,Object? tokensPerSecond = null,Object? ttftMs = freezed,Object? latencyMs = freezed,Object? finishReason = freezed,Object? error = freezed,}) {
   return _then(_BenchmarkRequest(
 index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
 as int,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
@@ -293,6 +299,7 @@ as int,tokensPerSecond: null == tokensPerSecond ? _self.tokensPerSecond : tokens
 as double,ttftMs: freezed == ttftMs ? _self.ttftMs : ttftMs // ignore: cast_nullable_to_non_nullable
 as int?,latencyMs: freezed == latencyMs ? _self.latencyMs : latencyMs // ignore: cast_nullable_to_non_nullable
 as int?,finishReason: freezed == finishReason ? _self.finishReason : finishReason // ignore: cast_nullable_to_non_nullable
+as String?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -306,7 +313,9 @@ mixin _$BenchmarkRun {
  String get prompt; int get batchSize;/// Per-request output-token cap. Null means unlimited — the server decides
 /// (it stops at its max sequence length).
  int? get maxTokens;/// Sampling temperature. Null means the server's default.
- double? get temperature;/// Bumped each time a new batch is started. Chats opened from a request
+ double? get temperature;/// Model name sent with each request (vLLM requires the real one; llmd
+/// ignores it). Empty = send `zml_model`.
+ String get model;/// Bumped each time a new batch is started. Chats opened from a request
 /// key their seed to this, so they reset when the run they came from is
 /// replaced.
  int get runToken; List<BenchmarkRequest> get requests;/// Throughput samples over the run, for the charts (see [BenchmarkSample]).
@@ -324,16 +333,16 @@ $BenchmarkRunCopyWith<BenchmarkRun> get copyWith => _$BenchmarkRunCopyWithImpl<B
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkRun&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&(identical(other.maxTokens, maxTokens) || other.maxTokens == maxTokens)&&(identical(other.temperature, temperature) || other.temperature == temperature)&&(identical(other.runToken, runToken) || other.runToken == runToken)&&const DeepCollectionEquality().equals(other.requests, requests)&&const DeepCollectionEquality().equals(other.samples, samples)&&(identical(other.isRunning, isRunning) || other.isRunning == isRunning)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.frozenAggregate, frozenAggregate) || other.frozenAggregate == frozenAggregate));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkRun&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&(identical(other.maxTokens, maxTokens) || other.maxTokens == maxTokens)&&(identical(other.temperature, temperature) || other.temperature == temperature)&&(identical(other.model, model) || other.model == model)&&(identical(other.runToken, runToken) || other.runToken == runToken)&&const DeepCollectionEquality().equals(other.requests, requests)&&const DeepCollectionEquality().equals(other.samples, samples)&&(identical(other.isRunning, isRunning) || other.isRunning == isRunning)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.frozenAggregate, frozenAggregate) || other.frozenAggregate == frozenAggregate));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,prompt,batchSize,maxTokens,temperature,runToken,const DeepCollectionEquality().hash(requests),const DeepCollectionEquality().hash(samples),isRunning,elapsed,frozenAggregate);
+int get hashCode => Object.hash(runtimeType,prompt,batchSize,maxTokens,temperature,model,runToken,const DeepCollectionEquality().hash(requests),const DeepCollectionEquality().hash(samples),isRunning,elapsed,frozenAggregate);
 
 @override
 String toString() {
-  return 'BenchmarkRun(prompt: $prompt, batchSize: $batchSize, maxTokens: $maxTokens, temperature: $temperature, runToken: $runToken, requests: $requests, samples: $samples, isRunning: $isRunning, elapsed: $elapsed, frozenAggregate: $frozenAggregate)';
+  return 'BenchmarkRun(prompt: $prompt, batchSize: $batchSize, maxTokens: $maxTokens, temperature: $temperature, model: $model, runToken: $runToken, requests: $requests, samples: $samples, isRunning: $isRunning, elapsed: $elapsed, frozenAggregate: $frozenAggregate)';
 }
 
 
@@ -344,7 +353,7 @@ abstract mixin class $BenchmarkRunCopyWith<$Res>  {
   factory $BenchmarkRunCopyWith(BenchmarkRun value, $Res Function(BenchmarkRun) _then) = _$BenchmarkRunCopyWithImpl;
 @useResult
 $Res call({
- String prompt, int batchSize, int? maxTokens, double? temperature, int runToken, List<BenchmarkRequest> requests, List<BenchmarkSample> samples, bool isRunning, Duration elapsed, double frozenAggregate
+ String prompt, int batchSize, int? maxTokens, double? temperature, String model, int runToken, List<BenchmarkRequest> requests, List<BenchmarkSample> samples, bool isRunning, Duration elapsed, double frozenAggregate
 });
 
 
@@ -361,13 +370,14 @@ class _$BenchmarkRunCopyWithImpl<$Res>
 
 /// Create a copy of BenchmarkRun
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? prompt = null,Object? batchSize = null,Object? maxTokens = freezed,Object? temperature = freezed,Object? runToken = null,Object? requests = null,Object? samples = null,Object? isRunning = null,Object? elapsed = null,Object? frozenAggregate = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? prompt = null,Object? batchSize = null,Object? maxTokens = freezed,Object? temperature = freezed,Object? model = null,Object? runToken = null,Object? requests = null,Object? samples = null,Object? isRunning = null,Object? elapsed = null,Object? frozenAggregate = null,}) {
   return _then(_self.copyWith(
 prompt: null == prompt ? _self.prompt : prompt // ignore: cast_nullable_to_non_nullable
 as String,batchSize: null == batchSize ? _self.batchSize : batchSize // ignore: cast_nullable_to_non_nullable
 as int,maxTokens: freezed == maxTokens ? _self.maxTokens : maxTokens // ignore: cast_nullable_to_non_nullable
 as int?,temperature: freezed == temperature ? _self.temperature : temperature // ignore: cast_nullable_to_non_nullable
-as double?,runToken: null == runToken ? _self.runToken : runToken // ignore: cast_nullable_to_non_nullable
+as double?,model: null == model ? _self.model : model // ignore: cast_nullable_to_non_nullable
+as String,runToken: null == runToken ? _self.runToken : runToken // ignore: cast_nullable_to_non_nullable
 as int,requests: null == requests ? _self.requests : requests // ignore: cast_nullable_to_non_nullable
 as List<BenchmarkRequest>,samples: null == samples ? _self.samples : samples // ignore: cast_nullable_to_non_nullable
 as List<BenchmarkSample>,isRunning: null == isRunning ? _self.isRunning : isRunning // ignore: cast_nullable_to_non_nullable
@@ -458,10 +468,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String prompt,  int batchSize,  int? maxTokens,  double? temperature,  int runToken,  List<BenchmarkRequest> requests,  List<BenchmarkSample> samples,  bool isRunning,  Duration elapsed,  double frozenAggregate)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String prompt,  int batchSize,  int? maxTokens,  double? temperature,  String model,  int runToken,  List<BenchmarkRequest> requests,  List<BenchmarkSample> samples,  bool isRunning,  Duration elapsed,  double frozenAggregate)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _BenchmarkRun() when $default != null:
-return $default(_that.prompt,_that.batchSize,_that.maxTokens,_that.temperature,_that.runToken,_that.requests,_that.samples,_that.isRunning,_that.elapsed,_that.frozenAggregate);case _:
+return $default(_that.prompt,_that.batchSize,_that.maxTokens,_that.temperature,_that.model,_that.runToken,_that.requests,_that.samples,_that.isRunning,_that.elapsed,_that.frozenAggregate);case _:
   return orElse();
 
 }
@@ -479,10 +489,10 @@ return $default(_that.prompt,_that.batchSize,_that.maxTokens,_that.temperature,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String prompt,  int batchSize,  int? maxTokens,  double? temperature,  int runToken,  List<BenchmarkRequest> requests,  List<BenchmarkSample> samples,  bool isRunning,  Duration elapsed,  double frozenAggregate)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String prompt,  int batchSize,  int? maxTokens,  double? temperature,  String model,  int runToken,  List<BenchmarkRequest> requests,  List<BenchmarkSample> samples,  bool isRunning,  Duration elapsed,  double frozenAggregate)  $default,) {final _that = this;
 switch (_that) {
 case _BenchmarkRun():
-return $default(_that.prompt,_that.batchSize,_that.maxTokens,_that.temperature,_that.runToken,_that.requests,_that.samples,_that.isRunning,_that.elapsed,_that.frozenAggregate);case _:
+return $default(_that.prompt,_that.batchSize,_that.maxTokens,_that.temperature,_that.model,_that.runToken,_that.requests,_that.samples,_that.isRunning,_that.elapsed,_that.frozenAggregate);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -499,10 +509,10 @@ return $default(_that.prompt,_that.batchSize,_that.maxTokens,_that.temperature,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String prompt,  int batchSize,  int? maxTokens,  double? temperature,  int runToken,  List<BenchmarkRequest> requests,  List<BenchmarkSample> samples,  bool isRunning,  Duration elapsed,  double frozenAggregate)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String prompt,  int batchSize,  int? maxTokens,  double? temperature,  String model,  int runToken,  List<BenchmarkRequest> requests,  List<BenchmarkSample> samples,  bool isRunning,  Duration elapsed,  double frozenAggregate)?  $default,) {final _that = this;
 switch (_that) {
 case _BenchmarkRun() when $default != null:
-return $default(_that.prompt,_that.batchSize,_that.maxTokens,_that.temperature,_that.runToken,_that.requests,_that.samples,_that.isRunning,_that.elapsed,_that.frozenAggregate);case _:
+return $default(_that.prompt,_that.batchSize,_that.maxTokens,_that.temperature,_that.model,_that.runToken,_that.requests,_that.samples,_that.isRunning,_that.elapsed,_that.frozenAggregate);case _:
   return null;
 
 }
@@ -514,7 +524,7 @@ return $default(_that.prompt,_that.batchSize,_that.maxTokens,_that.temperature,_
 
 
 class _BenchmarkRun extends BenchmarkRun {
-  const _BenchmarkRun({required this.prompt, required this.batchSize, this.maxTokens, this.temperature, this.runToken = 0, final  List<BenchmarkRequest> requests = const <BenchmarkRequest>[], final  List<BenchmarkSample> samples = const <BenchmarkSample>[], this.isRunning = false, this.elapsed = Duration.zero, this.frozenAggregate = 0.0}): _requests = requests,_samples = samples,super._();
+  const _BenchmarkRun({required this.prompt, required this.batchSize, this.maxTokens, this.temperature, this.model = '', this.runToken = 0, final  List<BenchmarkRequest> requests = const <BenchmarkRequest>[], final  List<BenchmarkSample> samples = const <BenchmarkSample>[], this.isRunning = false, this.elapsed = Duration.zero, this.frozenAggregate = 0.0}): _requests = requests,_samples = samples,super._();
   
 
 @override final  String prompt;
@@ -524,6 +534,9 @@ class _BenchmarkRun extends BenchmarkRun {
 @override final  int? maxTokens;
 /// Sampling temperature. Null means the server's default.
 @override final  double? temperature;
+/// Model name sent with each request (vLLM requires the real one; llmd
+/// ignores it). Empty = send `zml_model`.
+@override@JsonKey() final  String model;
 /// Bumped each time a new batch is started. Chats opened from a request
 /// key their seed to this, so they reset when the run they came from is
 /// replaced.
@@ -561,16 +574,16 @@ _$BenchmarkRunCopyWith<_BenchmarkRun> get copyWith => __$BenchmarkRunCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkRun&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&(identical(other.maxTokens, maxTokens) || other.maxTokens == maxTokens)&&(identical(other.temperature, temperature) || other.temperature == temperature)&&(identical(other.runToken, runToken) || other.runToken == runToken)&&const DeepCollectionEquality().equals(other._requests, _requests)&&const DeepCollectionEquality().equals(other._samples, _samples)&&(identical(other.isRunning, isRunning) || other.isRunning == isRunning)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.frozenAggregate, frozenAggregate) || other.frozenAggregate == frozenAggregate));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkRun&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&(identical(other.maxTokens, maxTokens) || other.maxTokens == maxTokens)&&(identical(other.temperature, temperature) || other.temperature == temperature)&&(identical(other.model, model) || other.model == model)&&(identical(other.runToken, runToken) || other.runToken == runToken)&&const DeepCollectionEquality().equals(other._requests, _requests)&&const DeepCollectionEquality().equals(other._samples, _samples)&&(identical(other.isRunning, isRunning) || other.isRunning == isRunning)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.frozenAggregate, frozenAggregate) || other.frozenAggregate == frozenAggregate));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,prompt,batchSize,maxTokens,temperature,runToken,const DeepCollectionEquality().hash(_requests),const DeepCollectionEquality().hash(_samples),isRunning,elapsed,frozenAggregate);
+int get hashCode => Object.hash(runtimeType,prompt,batchSize,maxTokens,temperature,model,runToken,const DeepCollectionEquality().hash(_requests),const DeepCollectionEquality().hash(_samples),isRunning,elapsed,frozenAggregate);
 
 @override
 String toString() {
-  return 'BenchmarkRun(prompt: $prompt, batchSize: $batchSize, maxTokens: $maxTokens, temperature: $temperature, runToken: $runToken, requests: $requests, samples: $samples, isRunning: $isRunning, elapsed: $elapsed, frozenAggregate: $frozenAggregate)';
+  return 'BenchmarkRun(prompt: $prompt, batchSize: $batchSize, maxTokens: $maxTokens, temperature: $temperature, model: $model, runToken: $runToken, requests: $requests, samples: $samples, isRunning: $isRunning, elapsed: $elapsed, frozenAggregate: $frozenAggregate)';
 }
 
 
@@ -581,7 +594,7 @@ abstract mixin class _$BenchmarkRunCopyWith<$Res> implements $BenchmarkRunCopyWi
   factory _$BenchmarkRunCopyWith(_BenchmarkRun value, $Res Function(_BenchmarkRun) _then) = __$BenchmarkRunCopyWithImpl;
 @override @useResult
 $Res call({
- String prompt, int batchSize, int? maxTokens, double? temperature, int runToken, List<BenchmarkRequest> requests, List<BenchmarkSample> samples, bool isRunning, Duration elapsed, double frozenAggregate
+ String prompt, int batchSize, int? maxTokens, double? temperature, String model, int runToken, List<BenchmarkRequest> requests, List<BenchmarkSample> samples, bool isRunning, Duration elapsed, double frozenAggregate
 });
 
 
@@ -598,13 +611,14 @@ class __$BenchmarkRunCopyWithImpl<$Res>
 
 /// Create a copy of BenchmarkRun
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? prompt = null,Object? batchSize = null,Object? maxTokens = freezed,Object? temperature = freezed,Object? runToken = null,Object? requests = null,Object? samples = null,Object? isRunning = null,Object? elapsed = null,Object? frozenAggregate = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? prompt = null,Object? batchSize = null,Object? maxTokens = freezed,Object? temperature = freezed,Object? model = null,Object? runToken = null,Object? requests = null,Object? samples = null,Object? isRunning = null,Object? elapsed = null,Object? frozenAggregate = null,}) {
   return _then(_BenchmarkRun(
 prompt: null == prompt ? _self.prompt : prompt // ignore: cast_nullable_to_non_nullable
 as String,batchSize: null == batchSize ? _self.batchSize : batchSize // ignore: cast_nullable_to_non_nullable
 as int,maxTokens: freezed == maxTokens ? _self.maxTokens : maxTokens // ignore: cast_nullable_to_non_nullable
 as int?,temperature: freezed == temperature ? _self.temperature : temperature // ignore: cast_nullable_to_non_nullable
-as double?,runToken: null == runToken ? _self.runToken : runToken // ignore: cast_nullable_to_non_nullable
+as double?,model: null == model ? _self.model : model // ignore: cast_nullable_to_non_nullable
+as String,runToken: null == runToken ? _self.runToken : runToken // ignore: cast_nullable_to_non_nullable
 as int,requests: null == requests ? _self._requests : requests // ignore: cast_nullable_to_non_nullable
 as List<BenchmarkRequest>,samples: null == samples ? _self._samples : samples // ignore: cast_nullable_to_non_nullable
 as List<BenchmarkSample>,isRunning: null == isRunning ? _self.isRunning : isRunning // ignore: cast_nullable_to_non_nullable

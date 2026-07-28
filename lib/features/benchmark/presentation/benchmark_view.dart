@@ -60,6 +60,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
   late final TextEditingController _batch;
   late final TextEditingController _maxTokens;
   late final TextEditingController _temperature;
+  late final TextEditingController _model;
   _BenchView _view = _BenchView.grid;
 
   @override
@@ -74,6 +75,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
     _maxTokens = TextEditingController(text: run.maxTokens?.toString() ?? '');
     _temperature =
         TextEditingController(text: run.temperature?.toString() ?? '');
+    _model = TextEditingController(text: run.model);
   }
 
   @override
@@ -82,6 +84,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
     _batch.dispose();
     _maxTokens.dispose();
     _temperature.dispose();
+    _model.dispose();
     super.dispose();
   }
 
@@ -126,6 +129,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
           batch: _batch,
           maxTokens: _maxTokens,
           temperature: _temperature,
+          model: _model,
           running: run.isRunning,
           onSend: _send,
           onCancel: _controller.cancel,
@@ -139,6 +143,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
               _controller.setMaxTokens(int.tryParse(v.trim())),
           onTemperatureChanged: (v) =>
               _controller.setTemperature(double.tryParse(v.trim())),
+          onModelChanged: _controller.setModel,
         ),
         const SizedBox(height: AppSpacing.lg),
         _AggregateBar(
@@ -197,6 +202,7 @@ class _Controls extends StatelessWidget {
     required this.batch,
     required this.maxTokens,
     required this.temperature,
+    required this.model,
     required this.running,
     required this.onSend,
     required this.onCancel,
@@ -205,12 +211,14 @@ class _Controls extends StatelessWidget {
     required this.onBatchChanged,
     required this.onMaxTokensChanged,
     required this.onTemperatureChanged,
+    required this.onModelChanged,
   });
 
   final TextEditingController prompt;
   final TextEditingController batch;
   final TextEditingController maxTokens;
   final TextEditingController temperature;
+  final TextEditingController model;
   final bool running;
   final VoidCallback onSend;
   final VoidCallback onCancel;
@@ -219,6 +227,7 @@ class _Controls extends StatelessWidget {
   final ValueChanged<String> onBatchChanged;
   final ValueChanged<String> onMaxTokensChanged;
   final ValueChanged<String> onTemperatureChanged;
+  final ValueChanged<String> onModelChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -227,24 +236,17 @@ class _Controls extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // The prompt gets a full line of its own; the settings live below.
-        Row(
-          children: [
-            Expanded(
-              child: AppTextField(
-                controller: prompt,
-                prefix: '>',
-                mono: true,
-                onChanged: onPromptChanged,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            AppIconButton(
-              icon: AppIcons.fullscreen,
-              size: 15,
-              padding: const EdgeInsets.all(9),
-              onPressed: onExpandPrompt,
-            ),
-          ],
+        AppTextField(
+          controller: prompt,
+          prefix: '>',
+          mono: true,
+          onChanged: onPromptChanged,
+          suffix: AppIconButton(
+            icon: AppIcons.fullscreen,
+            size: 15,
+            padding: const EdgeInsets.all(6),
+            onPressed: onExpandPrompt,
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Row(
@@ -273,7 +275,19 @@ class _Controls extends StatelessWidget {
               controller: temperature,
               onChanged: onTemperatureChanged,
             ),
-            const Spacer(),
+            const SizedBox(width: AppSpacing.lg),
+            // Takes the row's slack (a model name can be a long path). Empty
+            // sends `zml_model` — llmd ignores the name, vLLM requires a real
+            // one.
+            Expanded(
+              child: _Setting(
+                label: 'Model',
+                placeholder: 'zml_model',
+                controller: model,
+                onChanged: onModelChanged,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.lg),
             AppButton(
               label: 'Send batch',
               icon: AppIcons.send,
@@ -298,37 +312,41 @@ class _Controls extends StatelessWidget {
   }
 }
 
-/// A labeled numeric setting in the controls row.
+/// A labeled setting in the controls row.
 class _Setting extends StatelessWidget {
   const _Setting({
     required this.label,
-    required this.width,
     required this.controller,
     required this.onChanged,
+    this.width,
     this.placeholder,
   });
 
   final String label;
-  final double width;
+
+  /// Fixed field width. Null fills the available space — for that the
+  /// `_Setting` itself has to be in an [Expanded].
+  final double? width;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final String? placeholder;
 
   @override
   Widget build(BuildContext context) {
+    final field = AppTextField(
+      controller: controller,
+      mono: true,
+      placeholder: placeholder,
+      onChanged: onChanged,
+    );
     return Row(
       children: [
         Text(label, style: context.text.smallMuted),
         const SizedBox(width: AppSpacing.sm),
-        SizedBox(
-          width: width,
-          child: AppTextField(
-            controller: controller,
-            mono: true,
-            placeholder: placeholder,
-            onChanged: onChanged,
-          ),
-        ),
+        if (width == null)
+          Expanded(child: field)
+        else
+          SizedBox(width: width, child: field),
       ],
     );
   }

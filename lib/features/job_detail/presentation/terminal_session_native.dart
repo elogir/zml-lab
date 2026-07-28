@@ -80,6 +80,15 @@ class TerminalSession {
   /// look like a user-initiated exit.
   VoidCallback? onExit;
 
+  /// Writes raw input straight to the PTY, bypassing flterm's key encoder.
+  /// Used for the Option-as-Meta fix: send `ESC`+letter for Option+letter,
+  /// which macOS would otherwise compose into a glyph (∫, ƒ, …).
+  void sendInput(String data) {
+    try {
+      _pty?.write(Uint8List.fromList(utf8.encode(data)));
+    } catch (_) {}
+  }
+
   /// Sends SIGINT to the process without tearing down the controller, so its
   /// final output stays on screen. Used to kill a job gracefully (llmd shuts
   /// its server down cleanly on SIGINT) while keeping the terminal pane visible.

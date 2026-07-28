@@ -9,6 +9,12 @@ import 'benchmark_controller.dart';
 
 part 'benchmark_chat_controller.g.dart';
 
+/// Strips the `Exception: ` wrapper off streamChat's already-clean message.
+String _cleanError(Object e) {
+  final s = e.toString();
+  return s.startsWith('Exception: ') ? s.substring('Exception: '.length) : s;
+}
+
 /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
 /// Seeded (per job + request) from the clicked benchmark request; each [send]
 /// appends the user's prompt and streams a single reply from
@@ -81,6 +87,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
     ttftMs: r.ttftMs,
     latencyMs: r.latencyMs,
     finishReason: r.finishReason,
+    error: r.status == BenchmarkRequestStatus.failed ? r.error : null,
   );
 
   /// Folds the live batch request into the seed reply while it's streaming.
@@ -137,7 +144,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
     var usageTokens = 0;
     String? finishReason;
 
-    void write({required bool streaming, bool failed = false}) {
+    void write({required bool streaming, String? error}) {
       final tokens = usageTokens > 0 ? usageTokens : chunkTokens;
       final now = DateTime.now();
       final decodeMs = firstTokenAt == null
@@ -148,12 +155,11 @@ class BenchmarkChatController extends _$BenchmarkChatController {
       final tps = (tokens > 1 && decodeMs > 0 && (!streaming || decodeMs >= 50))
           ? (tokens - 1) / (decodeMs / 1000.0)
           : 0.0;
-      final text = buffer.toString();
       _setTurn(
         replyIndex,
         ChatTurn(
           fromUser: false,
-          text: text.isEmpty && failed ? '(request failed)' : text,
+          text: buffer.toString(),
           reasoning: reasoning.toString(),
           streaming: streaming,
           tokens: tokens,
@@ -161,6 +167,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
           ttftMs: firstTokenAt?.difference(start).inMilliseconds,
           latencyMs: streaming ? null : now.difference(start).inMilliseconds,
           finishReason: finishReason,
+          error: error,
         ),
       );
     }
@@ -174,6 +181,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
           messages,
           maxTokens: run.maxTokens,
           temperature: run.temperature,
+          model: run.model,
         ).listen(
           (tok) {
             final content = tok.content;
@@ -197,7 +205,8 @@ class BenchmarkChatController extends _$BenchmarkChatController {
             if (tok.finishReason != null) finishReason = tok.finishReason;
             write(streaming: true);
           },
-          onError: (_) => write(streaming: false, failed: true),
+          onError: (Object e) =>
+              write(streaming: false, error: _cleanError(e)),
           onDone: () => write(streaming: false),
           cancelOnError: true,
         );

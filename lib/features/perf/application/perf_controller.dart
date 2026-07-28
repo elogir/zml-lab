@@ -373,6 +373,7 @@ class PerfController extends _$PerfController {
       requestsPerSecond: acc.requestsPerSecond,
       maxSeq: acc.maxSeq,
       errorCount: acc.errorCount,
+      errorSample: acc.firstError,
       cancelled: _cancelRequested,
       stats: acc.statRows(),
       series: acc.series(includeLast: true),

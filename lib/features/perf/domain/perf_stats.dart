@@ -81,10 +81,16 @@ class PerfAccumulator {
   /// First-seen bucket per request, for the cumulative request count.
   final Map<String, int> _firstBucket = {};
 
+  String? _firstError;
+
   int get eventCount => _events;
   int get errorCount => _errors;
   int get requestCount => _requests.length;
   int get maxSeq => _maxSeq;
+
+  /// The first error message the benchmarker reported (its CSV `error`
+  /// column), for showing a representative reason alongside the error count.
+  String? get firstError => _firstError;
 
   /// Events/second over the run so far (the tool's tokens_per_second).
   double get liveTokensPerSecond {
@@ -106,7 +112,10 @@ class PerfAccumulator {
 
   void _add(PerfEvent e) {
     _events++;
-    if (e.isError) _errors++;
+    if (e.isError) {
+      _errors++;
+      _firstError ??= e.error;
+    }
     if (e.seq > _maxSeq) _maxSeq = e.seq;
     if (e.server.isNotEmpty) server = e.server;
     _minRequestTsNs = math.min(

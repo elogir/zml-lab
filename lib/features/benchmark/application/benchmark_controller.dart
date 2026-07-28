@@ -24,9 +24,17 @@ class _Progress {
   int chunkTokens = 0; // fallback token count (content + reasoning deltas)
   int usageTokens = 0; // exact count from the server's usage, when present
   String? finishReason; // the server's finish_reason, once the reply ends
+  String? error; // why it failed, when it did
   BenchmarkRequestStatus status = BenchmarkRequestStatus.streaming;
 
   int get tokens => usageTokens > 0 ? usageTokens : chunkTokens;
+}
+
+/// Strips the `Exception: ` wrapper off the message streamChat throws, which
+/// is already a clean, human string (see describeIoError).
+String _cleanError(Object e) {
+  final s = e.toString();
+  return s.startsWith('Exception: ') ? s.substring('Exception: '.length) : s;
 }
 
 /// Drives a real benchmark run: fires [batchSize] concurrent streaming requests
@@ -63,10 +71,14 @@ class BenchmarkController extends _$BenchmarkController {
       batchSize: s.benchBatchSize,
       maxTokens: s.benchMaxTokens,
       temperature: s.benchTemperature,
+      model: s.benchModel,
     );
   }
 
   void setPrompt(String prompt) => state = state.copyWith(prompt: prompt);
+
+  /// Empty = send `zml_model` (the server-agnostic default).
+  void setModel(String model) => state = state.copyWith(model: model.trim());
 
   void setBatchSize(int size) =>
       state = state.copyWith(batchSize: size < 1 ? 1 : size);
@@ -119,9 +131,11 @@ class BenchmarkController extends _$BenchmarkController {
             messages,
             maxTokens: state.maxTokens,
             temperature: state.temperature,
+            model: state.model,
           ).listen(
             (tok) => _onToken(p, tok),
-            onError: (_) => _finish(p, failed: true),
+            onError: (Object e) =>
+                _finish(p, failed: true, error: _cleanError(e)),
             onDone: () => _finish(p, failed: false),
             cancelOnError: true,
           );
@@ -204,10 +218,11 @@ class BenchmarkController extends _$BenchmarkController {
     });
   }
 
-  void _finish(_Progress p, {required bool failed}) {
+  void _finish(_Progress p, {required bool failed, String? error}) {
     if (p.status.isTerminal) return;
     p.status =
         failed ? BenchmarkRequestStatus.failed : BenchmarkRequestStatus.done;
+    if (failed) p.error = error;
     p.endAt = DateTime.now();
     _flush(); // reflect the completion (and the aggregate freeze) immediately
   }
@@ -247,6 +262,7 @@ class BenchmarkController extends _$BenchmarkController {
               ? (p.endAt ?? now).difference(p.start).inMilliseconds
               : null,
           finishReason: p.finishReason,
+          error: p.error,
         ),
       );
     }
@@ -280,10 +296,13 @@ class BenchmarkController extends _$BenchmarkController {
           .where((r) => r.status == BenchmarkRequestStatus.streaming)
           .toList();
       final liveTps = streaming.fold(0.0, (sum, r) => sum + r.tokensPerSecond);
-      // Average over only the still-running requests, so a request that has
-      // already finished doesn't drag the per-request rate down (same reason
-      // the aggregate freezes at the first completion).
-      final avgTps = streaming.isEmpty ? 0.0 : liveTps / streaming.length;
+      // Average over only the requests that have actually started decoding — a
+      // request still in its prefill (no first token yet, so a 0 rate) is NOT
+      // counted, or it would drag the per-request average down for exactly as
+      // long as prefill takes. This is the same definition as the headline
+      // AVG/REQ (meanRequestTps filters rate > 0); a finished request is
+      // already excluded since only still-streaming ones are considered.
+      final avgTps = meanRequestTps(streaming);
       final totalTokens = requests.fold(0, (sum, r) => sum + r.tokens);
       _samples.add(BenchmarkSample(
         elapsedMs: elapsedMs,

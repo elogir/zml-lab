@@ -40,7 +40,8 @@ class PerfReportView extends StatelessWidget {
               icon: AppIcons.warning,
               text:
                   '${r.errorCount} request${r.errorCount == 1 ? '' : 's'} '
-                  'errored during the run.',
+                  'errored during the run'
+                  '${r.errorSample != null ? ': ${r.errorSample}' : '.'}',
               danger: true,
             ),
             const SizedBox(height: AppSpacing.md),

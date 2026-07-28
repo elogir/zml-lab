@@ -22,6 +22,9 @@ abstract class ChatTurn with _$ChatTurn {
 
     /// The server's `finish_reason` for the reply, once one arrived.
     String? finishReason,
+
+    /// Why the reply failed, when it did — shown in place of the (empty) text.
+    String? error,
   }) = _ChatTurn;
 
   /// Whether the reply was cut off by a token limit (see

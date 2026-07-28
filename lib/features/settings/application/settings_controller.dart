@@ -38,6 +38,12 @@ class SettingsController extends _$SettingsController {
             SettingsLimits.maxTerminalFont,
           ) ??
           def.terminalFontSize,
+      terminalOptionAsMeta:
+          switch (raw['terminalOptionAsMeta']) {
+            'true' => true,
+            'false' => false,
+            _ => def.terminalOptionAsMeta,
+          },
       portRangeStart:
           i('portRangeStart')?.clamp(
             SettingsLimits.minPort,
@@ -63,6 +69,7 @@ class SettingsController extends _$SettingsController {
       },
       benchMaxTokens: i('benchMaxTokens'),
       benchTemperature: d('benchTemperature')?.clamp(0.0, 2.0),
+      benchModel: raw['benchModel'] ?? def.benchModel,
       globalEnv: raw['globalEnv'] == null
           ? def.globalEnv
           : decodeEnv(raw['globalEnv']!),
@@ -96,6 +103,11 @@ class SettingsController extends _$SettingsController {
     );
     state = state.copyWith(terminalFontSize: v);
     _repo.put('terminalFontSize', '$v');
+  }
+
+  void setTerminalOptionAsMeta(bool value) {
+    state = state.copyWith(terminalOptionAsMeta: value);
+    _repo.put('terminalOptionAsMeta', '$value');
   }
 
   void setPortRangeStart(int port) {
@@ -142,6 +154,13 @@ class SettingsController extends _$SettingsController {
     v == null
         ? _repo.remove('benchTemperature')
         : _repo.put('benchTemperature', '$v');
+  }
+
+  /// Empty = send `zml_model` in benchmark requests.
+  void setBenchModel(String model) {
+    final v = model.trim();
+    state = state.copyWith(benchModel: v);
+    v.isEmpty ? _repo.remove('benchModel') : _repo.put('benchModel', v);
   }
 
   /// Replace the global env vars applied to every launch. Empty entries are
