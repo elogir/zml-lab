@@ -146,32 +146,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
           onModelChanged: _controller.setModel,
         ),
         const SizedBox(height: AppSpacing.lg),
-        _AggregateBar(
-          run: run,
-          onSave: run.requests.isNotEmpty && !run.isRunning
-              ? _saveBenchmark
-              : null,
-          // The grid/charts toggle rides on the right of the bar, past the
-          // streaming indicator / Save button.
-          trailing: run.requests.isEmpty
-              ? null
-              : SegmentedControl<_BenchView>(
-                  value: _view,
-                  onChanged: (v) => setState(() => _view = v),
-                  options: const [
-                    SegmentOption(
-                      value: _BenchView.grid,
-                      label: 'Grid',
-                      icon: AppIcons.grid,
-                    ),
-                    SegmentOption(
-                      value: _BenchView.charts,
-                      label: 'Charts',
-                      icon: AppIcons.chart,
-                    ),
-                  ],
-                ),
-        ),
+        _AggregateBar(run: run),
         // Truncation callout — some replies were cut off by a token limit
         // rather than finishing, so the numbers describe clipped responses.
         if (!run.isRunning && run.truncatedCount > 0) ...[
@@ -191,6 +166,17 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
                   port: widget.port,
                 ),
         ),
+        // Nothing has run yet: no view to switch, nothing to save or clear —
+        // so the footer stays out of the way entirely.
+        if (run.requests.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.md),
+          _FooterBar(
+            view: _view,
+            onView: (v) => setState(() => _view = v),
+            onSave: run.isRunning ? null : _saveBenchmark,
+            onClear: run.isRunning ? null : _controller.clear,
+          ),
+        ],
       ],
     );
   }
@@ -395,16 +381,13 @@ class _TruncationNotice extends StatelessWidget {
   }
 }
 
+/// The run's headline numbers. Nothing but stats and the live indicator rides
+/// here — the actions and the view switcher live in the [_FooterBar], so a
+/// narrow window squeezes neither.
 class _AggregateBar extends StatelessWidget {
-  const _AggregateBar({required this.run, this.onSave, this.trailing});
+  const _AggregateBar({required this.run});
 
   final BenchmarkRun run;
-
-  /// Non-null when the current run can be saved (finished, non-empty).
-  final VoidCallback? onSave;
-
-  /// Pinned to the far right of the bar (the grid/charts toggle).
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -416,59 +399,122 @@ class _AggregateBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _Stat(
-            label: 'AGGREGATE',
-            value: run.aggregateTokensPerSecond.toStringAsFixed(1),
-            unit: 'tok/s',
-            // Green only while the reading is still live (all requests at full
-            // concurrency). Once it freezes at the first completion it turns
-            // neutral, signalling a locked-in result rather than a live number.
-            valueColor: run.isRunning && !run.aggregateFrozen
-                ? c.statusRunning
-                : null,
-          ),
-          const SizedBox(width: AppSpacing.xxl),
-          _Stat(
-            label: 'AVG / REQ',
-            value: run.averageTokensPerSecond.toStringAsFixed(1),
-            unit: 'tok/s',
-          ),
-          const SizedBox(width: AppSpacing.xxl),
-          _Stat(
-            label: 'COMPLETED',
-            value: '${run.completed}',
-            // Denominator is the batch actually in flight, not the (editable)
-            // batch-size setting — so tweaking the field for the next run
-            // doesn't skew the current run's count.
-            unit: '/${run.requests.isEmpty ? run.batchSize : run.requests.length}',
-          ),
-          const SizedBox(width: AppSpacing.xxl),
-          _Stat(
-            label: 'MEDIAN TTFT',
-            value: '${run.medianTtftMs}',
-            unit: 'ms',
-          ),
-          const SizedBox(width: AppSpacing.xxl),
-          _Stat(
-            label: 'ELAPSED',
-            value: (run.elapsed.inMilliseconds / 1000).toStringAsFixed(1),
-            unit: 's',
-          ),
-          const Spacer(),
-          if (run.isRunning)
-            _StreamingPill()
-          else if (onSave != null)
-            AppButton(
-              label: 'Save',
-              icon: AppIcons.save,
-              onPressed: onSave,
+          // The stats scroll instead of squeezing the actions off the right:
+          // on a narrow window Save and the grid/charts toggle have to stay
+          // reachable, and the leftmost stats are the ones worth reading.
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _Stat(
+                    label: 'AGGREGATE',
+                    value: run.aggregateTokensPerSecond.toStringAsFixed(1),
+                    unit: 'tok/s',
+                    // Green only while the reading is still live (all requests at full
+                    // concurrency). Once it freezes at the first completion it turns
+                    // neutral, signalling a locked-in result rather than a live number.
+                    valueColor: run.isRunning && !run.aggregateFrozen
+                        ? c.statusRunning
+                        : null,
+                  ),
+                  const SizedBox(width: AppSpacing.xxl),
+                  _Stat(
+                    label: 'AVG / REQ',
+                    value: run.averageTokensPerSecond.toStringAsFixed(1),
+                    unit: 'tok/s',
+                  ),
+                  const SizedBox(width: AppSpacing.xxl),
+                  _Stat(
+                    label: 'COMPLETED',
+                    value: '${run.completed}',
+                    // Denominator is the batch actually in flight, not the (editable)
+                    // batch-size setting — so tweaking the field for the next run
+                    // doesn't skew the current run's count.
+                    unit:
+                        '/${run.requests.isEmpty ? run.batchSize : run.requests.length}',
+                  ),
+                  const SizedBox(width: AppSpacing.xxl),
+                  _Stat(
+                    label: 'MEDIAN TTFT',
+                    value: '${run.medianTtftMs}',
+                    unit: 'ms',
+                  ),
+                  const SizedBox(width: AppSpacing.xxl),
+                  _Stat(
+                    label: 'ELAPSED',
+                    value: (run.elapsed.inMilliseconds / 1000)
+                        .toStringAsFixed(1),
+                    unit: 's',
+                  ),
+                  // Keeps the last stat off the pill when scrolled to the end.
+                  const SizedBox(width: AppSpacing.lg),
+                ],
+              ),
             ),
-          if (trailing != null) ...[
-            const SizedBox(width: AppSpacing.md),
-            trailing!,
-          ],
+          ),
+          if (run.isRunning) _StreamingPill(),
         ],
       ),
+    );
+  }
+}
+
+/// Footer under the results: the view switcher on the left, the run's actions
+/// on the right. Bare — no panel — so it costs a row of buttons in height and
+/// nothing else.
+class _FooterBar extends StatelessWidget {
+  const _FooterBar({
+    required this.view,
+    required this.onView,
+    this.onSave,
+    this.onClear,
+  });
+
+  final _BenchView view;
+  final ValueChanged<_BenchView> onView;
+
+  /// Null while the batch is still in flight — a run is saved once it settles.
+  final VoidCallback? onSave;
+
+  /// Null while the batch is still in flight (Cancel covers that case).
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SegmentedControl<_BenchView>(
+          value: view,
+          onChanged: onView,
+          options: const [
+            SegmentOption(
+              value: _BenchView.grid,
+              label: 'Grid',
+              icon: AppIcons.grid,
+            ),
+            SegmentOption(
+              value: _BenchView.charts,
+              label: 'Charts',
+              icon: AppIcons.chart,
+            ),
+          ],
+        ),
+        const Spacer(),
+        // Ghost, and left of Save: discarding the run is the secondary action
+        // next to keeping it.
+        if (onClear != null)
+          AppButton(
+            label: 'Clear',
+            icon: AppIcons.delete,
+            variant: AppButtonVariant.ghost,
+            onPressed: onClear,
+          ),
+        if (onSave != null) ...[
+          const SizedBox(width: AppSpacing.sm),
+          AppButton(label: 'Save', icon: AppIcons.save, onPressed: onSave),
+        ],
+      ],
     );
   }
 }
@@ -566,9 +612,7 @@ class _Grid extends StatelessWidget {
             ((constraints.maxWidth + _spacing) / (_minCardWidth + _spacing))
                 .floor()
                 .clamp(1, 2);
-        final columns = fits > run.requests.length
-            ? run.requests.length
-            : fits;
+        final columns = fits > run.requests.length ? run.requests.length : fits;
         return GridView.builder(
           padding: EdgeInsets.zero,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -611,8 +655,10 @@ class _EmptyState extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Set a batch size and send requests to ',
-                  style: context.text.smallMuted),
+              Text(
+                'Set a batch size and send requests to ',
+                style: context.text.smallMuted,
+              ),
               Text(endpoint, style: context.text.monoSmall),
             ],
           ),

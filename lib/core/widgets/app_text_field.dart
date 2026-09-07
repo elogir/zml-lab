@@ -24,6 +24,7 @@ class AppTextField extends StatefulWidget {
     this.expands = false,
     this.autofocus = false,
     this.dense = false,
+    this.obscureText = false,
   });
 
   final TextEditingController? controller;
@@ -49,6 +50,11 @@ class AppTextField extends StatefulWidget {
   /// Tight vertical padding, for inline edits (e.g. renaming a title in
   /// place) where the regular field height would push the layout around.
   final bool dense;
+
+  /// Render every character as a bullet — the text stays editable and the
+  /// controller still holds the real value. Single-line fields only (Flutter
+  /// asserts on the combination); ignored on a multiline/expanding field.
+  final bool obscureText;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -136,6 +142,7 @@ class _AppTextFieldState extends State<AppTextField> {
                   minLines: widget.expands ? null : widget.minLines,
                   maxLines: widget.expands ? null : widget.maxLines,
                   expands: widget.expands,
+                  obscureText: widget.obscureText && !multiline,
                   textAlignVertical: widget.expands
                       ? TextAlignVertical.top
                       : null,

@@ -178,6 +178,28 @@ class BenchmarkController extends _$BenchmarkController {
     );
   }
 
+  /// Drops the run's results — back to the empty state, ready for a fresh
+  /// batch. The parameters (prompt, batch size, max tokens, temperature,
+  /// model) are deliberately kept: clearing is about the numbers on screen,
+  /// not the setup that produced them.
+  ///
+  /// Aborts a live run first, and bumps [BenchmarkRun.runToken] so any chat
+  /// opened from a request in the cleared batch resets instead of mirroring a
+  /// request that no longer exists.
+  void clear() {
+    _teardown();
+    _samples.clear();
+    _samplesSnapshot = const [];
+    state = state.copyWith(
+      isRunning: false,
+      runToken: state.runToken + 1,
+      requests: const [],
+      samples: const [],
+      elapsed: Duration.zero,
+      frozenAggregate: 0,
+    );
+  }
+
   double _liveAggregate() => state.requests
       .where((r) => r.status == BenchmarkRequestStatus.streaming)
       .fold(0.0, (sum, r) => sum + r.tokensPerSecond);

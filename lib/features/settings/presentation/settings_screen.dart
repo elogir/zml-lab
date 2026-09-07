@@ -182,6 +182,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ],
                     ),
                   ),
+                  _SettingRow(
+                    title: 'Blur host',
+                    description:
+                        'Mask the address in the Benchmark tab\'s target bar, '
+                        'for screenshots and screen-sharing. Requests still '
+                        'go to the real host.',
+                    control: SegmentedControl<bool>(
+                      value: s.blurHost,
+                      onChanged: _controller.setBlurHost,
+                      options: const [
+                        SegmentOption(value: true, label: 'On'),
+                        SegmentOption(value: false, label: 'Off'),
+                      ],
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
