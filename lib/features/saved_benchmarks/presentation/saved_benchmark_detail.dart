@@ -315,36 +315,40 @@ class _Stats extends StatelessWidget {
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
       ),
-      child: Row(
-        children: [
-          _Stat(
-            label: 'AGGREGATE',
-            value: b.aggregateTokensPerSecond.toStringAsFixed(1),
-            unit: 'tok/s',
-          ),
-          const SizedBox(width: AppSpacing.xxl),
-          _Stat(
-            label: 'AVG / REQ',
-            value: b.averageTokensPerSecond.toStringAsFixed(1),
-            unit: 'tok/s',
-          ),
-          const SizedBox(width: AppSpacing.xxl),
-          _Stat(label: 'BATCH', value: '${b.batchSize}', unit: ''),
-          const SizedBox(width: AppSpacing.xxl),
-          _Stat(
-            label: 'COMPLETED',
-            value: '${b.completed}',
-            unit: '/${b.batchSize}',
-          ),
-          const SizedBox(width: AppSpacing.xxl),
-          _Stat(label: 'MEDIAN TTFT', value: '${b.medianTtftMs}', unit: 'ms'),
-          const SizedBox(width: AppSpacing.xxl),
-          _Stat(
-            label: 'ELAPSED',
-            value: (b.elapsedMs / 1000).toStringAsFixed(1),
-            unit: 's',
-          ),
-        ],
+      // Scrolls rather than clipping its last stats on a narrow window.
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _Stat(
+              label: 'AGGREGATE',
+              value: b.aggregateTokensPerSecond.toStringAsFixed(1),
+              unit: 'tok/s',
+            ),
+            const SizedBox(width: AppSpacing.xxl),
+            _Stat(
+              label: 'AVG / REQ',
+              value: b.averageTokensPerSecond.toStringAsFixed(1),
+              unit: 'tok/s',
+            ),
+            const SizedBox(width: AppSpacing.xxl),
+            _Stat(label: 'BATCH', value: '${b.batchSize}', unit: ''),
+            const SizedBox(width: AppSpacing.xxl),
+            _Stat(
+              label: 'COMPLETED',
+              value: '${b.completed}',
+              unit: '/${b.batchSize}',
+            ),
+            const SizedBox(width: AppSpacing.xxl),
+            _Stat(label: 'MEDIAN TTFT', value: '${b.medianTtftMs}', unit: 'ms'),
+            const SizedBox(width: AppSpacing.xxl),
+            _Stat(
+              label: 'ELAPSED',
+              value: (b.elapsedMs / 1000).toStringAsFixed(1),
+              unit: 's',
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -45,6 +45,11 @@ abstract class AppSettings with _$AppSettings {
     /// Option+F/B jump words in zsh) instead of macOS composing a glyph (ƒ, ∫).
     @Default(true) bool terminalOptionAsMeta,
 
+    /// Mask the address in the Benchmark tab's target bar — for screenshots
+    /// and screen-sharing. Display only: the real host is still what gets
+    /// dialled, and nothing is masked on the way into saved runs.
+    @Default(false) bool blurHost,
+
     /// The range `findFreePort` scans when pre-filling a new job's port.
     @Default(8000) int portRangeStart,
     @Default(8100) int portRangeEnd,

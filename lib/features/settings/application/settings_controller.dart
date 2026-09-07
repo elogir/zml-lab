@@ -44,6 +44,12 @@ class SettingsController extends _$SettingsController {
             'false' => false,
             _ => def.terminalOptionAsMeta,
           },
+      blurHost:
+          switch (raw['blurHost']) {
+            'true' => true,
+            'false' => false,
+            _ => def.blurHost,
+          },
       portRangeStart:
           i('portRangeStart')?.clamp(
             SettingsLimits.minPort,
@@ -108,6 +114,11 @@ class SettingsController extends _$SettingsController {
   void setTerminalOptionAsMeta(bool value) {
     state = state.copyWith(terminalOptionAsMeta: value);
     _repo.put('terminalOptionAsMeta', '$value');
+  }
+
+  void setBlurHost(bool value) {
+    state = state.copyWith(blurHost: value);
+    _repo.put('blurHost', '$value');
   }
 
   void setPortRangeStart(int port) {

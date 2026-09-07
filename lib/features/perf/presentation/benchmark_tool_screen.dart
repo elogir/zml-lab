@@ -10,13 +10,18 @@ import '../../../models/machine.dart';
 import '../../benchmark/presentation/benchmark_view.dart';
 import '../../job_detail/application/terminal_fullscreen.dart';
 import '../../machines/application/machines_providers.dart';
+import '../../settings/application/settings_controller.dart';
+import '../application/benchmark_target.dart';
 import 'perf_view.dart';
+
+/// Bullets in place of an address, when the Blur host setting is on. Matches
+/// what a [AppTextField] with `obscureText` shows, so the read-only slot and
+/// the editable field look the same while masked.
+String maskHost(String host) => '•' * host.trim().length;
 
 /// A stable, job-independent id so the ad-hoc benchmark/perf controllers keep
 /// their state (kept alive) across visits and tool switches.
 const _adhocJobId = 'adhoc';
-
-enum _Tool { benchmark, perf }
 
 /// A standalone tab that points the two benchmarking tools — the chat/throughput
 /// grid and the perf load generator — at any endpoint, with no launched job
@@ -31,16 +36,19 @@ class BenchmarkToolScreen extends ConsumerStatefulWidget {
 }
 
 class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
-  _Tool _tool = _Tool.benchmark;
-  final _host = TextEditingController(text: '127.0.0.1');
-  final _port = TextEditingController(text: '8000');
+  // The target itself lives in a keep-alive provider (it has to survive this
+  // screen being rebuilt on every visit); these only mirror its text into the
+  // fields, seeded once and written straight back on edit.
+  late final TextEditingController _host;
+  late final TextEditingController _port;
 
-  /// The picked machine's friendly name (shown in reports); falls back to the
-  /// raw host when the endpoint was typed by hand.
-  String _machineName = '127.0.0.1';
-
-  /// The selected saved machine, or null for a custom (hand-typed) host.
-  String? _selectedMachineId;
+  @override
+  void initState() {
+    super.initState();
+    final target = ref.read(benchmarkTargetControllerProvider);
+    _host = TextEditingController(text: target.hostText);
+    _port = TextEditingController(text: target.portText);
+  }
 
   @override
   void dispose() {
@@ -49,51 +57,45 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
     super.dispose();
   }
 
-  String get _hostValue {
-    final h = _host.text.trim();
-    return h.isEmpty ? '127.0.0.1' : h;
-  }
+  BenchmarkTargetController get _target =>
+      ref.read(benchmarkTargetControllerProvider.notifier);
 
-  int get _portValue => int.tryParse(_port.text.trim()) ?? 8000;
-
-  String get _machineLabel =>
-      _selectedMachineId != null ? _machineName : _hostValue;
-
-  void _selectMachine(Machine m) {
-    setState(() {
-      _selectedMachineId = m.id;
-      _machineName = m.name;
-      _host.text = m.isLocal ? '127.0.0.1' : m.address;
-    });
-  }
-
-  /// Switch to a hand-typed host (deselects any machine).
-  void _selectCustom() => setState(() => _selectedMachineId = null);
-
-  void _setTool(_Tool tool) {
+  void _setTool(BenchmarkTool tool) {
     // The chat grid has no full-window mode; make sure the shell chrome comes
     // back when leaving perf.
-    if (tool != _Tool.perf) {
+    if (tool != BenchmarkTool.perf) {
       ref.read(terminalFullscreenProvider.notifier).exit();
     }
-    setState(() => _tool = tool);
+    _target.setTool(tool);
   }
 
   @override
   Widget build(BuildContext context) {
-    final fullscreen =
-        _tool == _Tool.perf && ref.watch(terminalFullscreenProvider);
-    final host = _hostValue;
-    final port = _portValue;
-    final endpoint = '$_machineLabel:$port';
+    // The host can move without the field being touched — picking a machine, or
+    // that machine's address being edited on the Machines screen — so mirror it
+    // back in. Typing can't be clobbered: every keystroke writes straight
+    // through, so the field and the state already agree.
+    ref.listen(benchmarkTargetControllerProvider.select((t) => t.hostText), (
+      _,
+      hostText,
+    ) {
+      if (_host.text != hostText) _host.text = hostText;
+    });
 
-    final body = _tool == _Tool.benchmark
+    final target = ref.watch(benchmarkTargetControllerProvider);
+    final fullscreen =
+        target.tool == BenchmarkTool.perf && ref.watch(terminalFullscreenProvider);
+    final host = target.host;
+    final port = target.port;
+    final endpoint = target.endpoint;
+
+    final body = target.tool == BenchmarkTool.benchmark
         ? BenchmarkView(
             jobId: _adhocJobId,
             jobName: endpoint,
             jobDescription: '',
             jobCommand: '',
-            machineName: _machineLabel,
+            machineName: target.label,
             endpoint: endpoint,
             host: host,
             port: port,
@@ -103,7 +105,7 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
             jobName: endpoint,
             jobDescription: '',
             jobCommand: '',
-            machineName: _machineLabel,
+            machineName: target.label,
             host: host,
             port: port,
           );
@@ -120,17 +122,17 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
           ScreenHeader(
             title: 'Benchmark',
             subtitle: 'Point the tools at any endpoint — no job needed.',
-            trailing: SegmentedControl<_Tool>(
-              value: _tool,
+            trailing: SegmentedControl<BenchmarkTool>(
+              value: target.tool,
               onChanged: _setTool,
               options: const [
                 SegmentOption(
-                  value: _Tool.benchmark,
+                  value: BenchmarkTool.benchmark,
                   label: 'Benchmark',
                   icon: AppIcons.benchmark,
                 ),
                 SegmentOption(
-                  value: _Tool.perf,
+                  value: BenchmarkTool.perf,
                   label: 'Perf',
                   icon: AppIcons.perf,
                 ),
@@ -141,11 +143,11 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
           _EndpointBar(
             host: _host,
             port: _port,
-            selectedMachineId: _selectedMachineId,
-            onSelectMachine: _selectMachine,
-            onSelectCustom: _selectCustom,
-            onHostEdited: () => setState(() {}),
-            onPortEdited: () => setState(() {}),
+            selectedMachineId: target.machineId,
+            onSelectMachine: _target.selectMachine,
+            onSelectCustom: _target.selectCustom,
+            onHostEdited: _target.setHostText,
+            onPortEdited: _target.setPortText,
           ),
           const SizedBox(height: AppSpacing.lg),
           Expanded(child: body),
@@ -174,13 +176,16 @@ class _EndpointBar extends ConsumerWidget {
   final String? selectedMachineId;
   final ValueChanged<Machine> onSelectMachine;
   final VoidCallback onSelectCustom;
-  final VoidCallback onHostEdited;
-  final VoidCallback onPortEdited;
+  final ValueChanged<String> onHostEdited;
+  final ValueChanged<String> onPortEdited;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final machines = ref.watch(machinesStreamProvider).value ?? const [];
+    final blurHost = ref.watch(
+      settingsControllerProvider.select((s) => s.blurHost),
+    );
     final custom = selectedMachineId == null;
     final selected = machines.firstWhereOrNull(
       (m) => m.id == selectedMachineId,
@@ -201,6 +206,7 @@ class _EndpointBar extends ConsumerWidget {
             selectedMachineId: selectedMachineId,
             onSelectMachine: onSelectMachine,
             onSelectCustom: onSelectCustom,
+            blurHost: blurHost,
           ),
           const SizedBox(width: AppSpacing.md),
           Container(width: 1, height: 20, color: c.borderMuted),
@@ -209,16 +215,18 @@ class _EndpointBar extends ConsumerWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: custom
-                // Custom: type any host.
+                // Custom: type any host. Still editable while masked — the
+                // controller holds the real value either way.
                 ? AppTextField(
                     controller: host,
                     mono: true,
                     dense: true,
-                    onChanged: (_) => onHostEdited(),
+                    obscureText: blurHost,
+                    onChanged: onHostEdited,
                   )
                 // A machine sets the host; show it read-only.
                 : Text(
-                    host.text,
+                    blurHost ? maskHost(host.text) : host.text,
                     style: context.text.mono.copyWith(color: c.textSecondary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -233,7 +241,7 @@ class _EndpointBar extends ConsumerWidget {
               controller: port,
               mono: true,
               dense: true,
-              onChanged: (_) => onPortEdited(),
+              onChanged: onPortEdited,
             ),
           ),
         ],
@@ -252,6 +260,7 @@ class _MachineDropdown extends StatefulWidget {
     required this.selectedMachineId,
     required this.onSelectMachine,
     required this.onSelectCustom,
+    required this.blurHost,
   });
 
   final List<Machine> machines;
@@ -260,6 +269,10 @@ class _MachineDropdown extends StatefulWidget {
   final String? selectedMachineId;
   final ValueChanged<Machine> onSelectMachine;
   final VoidCallback onSelectCustom;
+
+  /// Mask the addresses listed under each machine name — leaving them readable
+  /// here would undo the masking one click away.
+  final bool blurHost;
 
   @override
   State<_MachineDropdown> createState() => _MachineDropdownState();
@@ -272,6 +285,13 @@ class _MachineDropdownState extends State<_MachineDropdown> {
   String _query = '';
 
   static const _width = 300.0;
+
+  /// The address shown under a machine's name in the list, masked when the
+  /// Blur host setting is on.
+  String _addressLabel(Machine m) {
+    final address = m.isLocal ? '127.0.0.1' : m.address;
+    return widget.blurHost ? maskHost(address) : address;
+  }
 
   @override
   void dispose() {
@@ -403,7 +423,7 @@ class _MachineDropdownState extends State<_MachineDropdown> {
                             _MenuRow(
                               icon: AppIcons.machines,
                               title: m.name,
-                              subtitle: m.isLocal ? '127.0.0.1' : m.address,
+                              subtitle: _addressLabel(m),
                               selected: m.id == widget.selectedMachineId,
                               onTap: () {
                                 widget.onSelectMachine(m);
