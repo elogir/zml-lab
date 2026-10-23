@@ -68,7 +68,7 @@ abstract class _$AppFullscreen extends $Notifier<FullscreenSurface?> {
   FullscreenSurface? build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<FullscreenSurface?, FullscreenSurface?>;
     final element =
         ref.element
@@ -78,6 +78,6 @@ abstract class _$AppFullscreen extends $Notifier<FullscreenSurface?> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

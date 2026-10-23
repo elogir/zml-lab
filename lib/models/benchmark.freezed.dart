@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'benchmark.dart';
@@ -9,6 +9,7 @@ part of 'benchmark.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -31,16 +32,21 @@ $BenchmarkRequestCopyWith<BenchmarkRequest> get copyWith => _$BenchmarkRequestCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkRequest&&(identical(other.index, index) || other.index == index)&&(identical(other.status, status) || other.status == status)&&(identical(other.text, text) || other.text == text)&&(identical(other.reasoning, reasoning) || other.reasoning == reasoning)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason)&&(identical(other.error, error) || other.error == error));
+  final _this = this as BenchmarkRequest;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkRequest&&(identical(other.index, _this.index) || other.index == _this.index)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.text, _this.text) || other.text == _this.text)&&(identical(other.reasoning, _this.reasoning) || other.reasoning == _this.reasoning)&&(identical(other.tokens, _this.tokens) || other.tokens == _this.tokens)&&(identical(other.tokensPerSecond, _this.tokensPerSecond) || other.tokensPerSecond == _this.tokensPerSecond)&&(identical(other.ttftMs, _this.ttftMs) || other.ttftMs == _this.ttftMs)&&(identical(other.latencyMs, _this.latencyMs) || other.latencyMs == _this.latencyMs)&&(identical(other.finishReason, _this.finishReason) || other.finishReason == _this.finishReason)&&(identical(other.error, _this.error) || other.error == _this.error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,index,status,text,reasoning,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason,error);
+int get hashCode {
+  final _this = this as BenchmarkRequest;
+  return Object.hash(runtimeType,_this.index,_this.status,_this.text,_this.reasoning,_this.tokens,_this.tokensPerSecond,_this.ttftMs,_this.latencyMs,_this.finishReason,_this.error);
+}
 
 @override
 String toString() {
-  return 'BenchmarkRequest(index: $index, status: $status, text: $text, reasoning: $reasoning, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason, error: $error)';
+  final _this = this as BenchmarkRequest;
+  return 'BenchmarkRequest(index: ${_this.index}, status: ${_this.status}, text: ${_this.text}, reasoning: ${_this.reasoning}, tokens: ${_this.tokens}, tokensPerSecond: ${_this.tokensPerSecond}, ttftMs: ${_this.ttftMs}, latencyMs: ${_this.latencyMs}, finishReason: ${_this.finishReason}, error: ${_this.error})';
 }
 
 
@@ -69,7 +75,7 @@ class _$BenchmarkRequestCopyWithImpl<$Res>
 /// Create a copy of BenchmarkRequest
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? index = null,Object? status = null,Object? text = null,Object? reasoning = null,Object? tokens = null,Object? tokensPerSecond = null,Object? ttftMs = freezed,Object? latencyMs = freezed,Object? finishReason = freezed,Object? error = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(BenchmarkRequest(
 index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
 as int,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as BenchmarkRequestStatus,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
@@ -251,16 +257,18 @@ _$BenchmarkRequestCopyWith<_BenchmarkRequest> get copyWith => __$BenchmarkReques
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkRequest&&(identical(other.index, index) || other.index == index)&&(identical(other.status, status) || other.status == status)&&(identical(other.text, text) || other.text == text)&&(identical(other.reasoning, reasoning) || other.reasoning == reasoning)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason)&&(identical(other.error, error) || other.error == error));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkRequest&&(identical(other.index, index) || other.index == index)&&(identical(other.status, status) || other.status == status)&&(identical(other.text, text) || other.text == text)&&(identical(other.reasoning, reasoning) || other.reasoning == reasoning)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,index,status,text,reasoning,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason,error);
+int get hashCode {
+    return Object.hash(runtimeType,index,status,text,reasoning,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason,error);
+}
 
 @override
 String toString() {
-  return 'BenchmarkRequest(index: $index, status: $status, text: $text, reasoning: $reasoning, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason, error: $error)';
+    return 'BenchmarkRequest(index: $index, status: $status, text: $text, reasoning: $reasoning, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason, error: $error)';
 }
 
 
@@ -319,10 +327,7 @@ mixin _$BenchmarkRun {
 /// key their seed to this, so they reset when the run they came from is
 /// replaced.
  int get runToken; List<BenchmarkRequest> get requests;/// Throughput samples over the run, for the charts (see [BenchmarkSample]).
- List<BenchmarkSample> get samples; bool get isRunning; Duration get elapsed;// The aggregate throughput captured at full concurrency (see
-// [aggregateTokensPerSecond]). 0 until the first request finishes, then
-// held static for the rest of the run and after.
- double get frozenAggregate;
+ List<BenchmarkSample> get samples; bool get isRunning; Duration get elapsed; double get frozenAggregate;
 /// Create a copy of BenchmarkRun
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -333,16 +338,21 @@ $BenchmarkRunCopyWith<BenchmarkRun> get copyWith => _$BenchmarkRunCopyWithImpl<B
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkRun&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&(identical(other.maxTokens, maxTokens) || other.maxTokens == maxTokens)&&(identical(other.temperature, temperature) || other.temperature == temperature)&&(identical(other.model, model) || other.model == model)&&(identical(other.runToken, runToken) || other.runToken == runToken)&&const DeepCollectionEquality().equals(other.requests, requests)&&const DeepCollectionEquality().equals(other.samples, samples)&&(identical(other.isRunning, isRunning) || other.isRunning == isRunning)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.frozenAggregate, frozenAggregate) || other.frozenAggregate == frozenAggregate));
+  final _this = this as BenchmarkRun;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkRun&&(identical(other.prompt, _this.prompt) || other.prompt == _this.prompt)&&(identical(other.batchSize, _this.batchSize) || other.batchSize == _this.batchSize)&&(identical(other.maxTokens, _this.maxTokens) || other.maxTokens == _this.maxTokens)&&(identical(other.temperature, _this.temperature) || other.temperature == _this.temperature)&&(identical(other.model, _this.model) || other.model == _this.model)&&(identical(other.runToken, _this.runToken) || other.runToken == _this.runToken)&&const DeepCollectionEquality().equals(other.requests, _this.requests)&&const DeepCollectionEquality().equals(other.samples, _this.samples)&&(identical(other.isRunning, _this.isRunning) || other.isRunning == _this.isRunning)&&(identical(other.elapsed, _this.elapsed) || other.elapsed == _this.elapsed)&&(identical(other.frozenAggregate, _this.frozenAggregate) || other.frozenAggregate == _this.frozenAggregate));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,prompt,batchSize,maxTokens,temperature,model,runToken,const DeepCollectionEquality().hash(requests),const DeepCollectionEquality().hash(samples),isRunning,elapsed,frozenAggregate);
+int get hashCode {
+  final _this = this as BenchmarkRun;
+  return Object.hash(runtimeType,_this.prompt,_this.batchSize,_this.maxTokens,_this.temperature,_this.model,_this.runToken,const DeepCollectionEquality().hash(_this.requests),const DeepCollectionEquality().hash(_this.samples),_this.isRunning,_this.elapsed,_this.frozenAggregate);
+}
 
 @override
 String toString() {
-  return 'BenchmarkRun(prompt: $prompt, batchSize: $batchSize, maxTokens: $maxTokens, temperature: $temperature, model: $model, runToken: $runToken, requests: $requests, samples: $samples, isRunning: $isRunning, elapsed: $elapsed, frozenAggregate: $frozenAggregate)';
+  final _this = this as BenchmarkRun;
+  return 'BenchmarkRun(prompt: ${_this.prompt}, batchSize: ${_this.batchSize}, maxTokens: ${_this.maxTokens}, temperature: ${_this.temperature}, model: ${_this.model}, runToken: ${_this.runToken}, requests: ${_this.requests}, samples: ${_this.samples}, isRunning: ${_this.isRunning}, elapsed: ${_this.elapsed}, frozenAggregate: ${_this.frozenAggregate})';
 }
 
 
@@ -371,7 +381,7 @@ class _$BenchmarkRunCopyWithImpl<$Res>
 /// Create a copy of BenchmarkRun
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? prompt = null,Object? batchSize = null,Object? maxTokens = freezed,Object? temperature = freezed,Object? model = null,Object? runToken = null,Object? requests = null,Object? samples = null,Object? isRunning = null,Object? elapsed = null,Object? frozenAggregate = null,}) {
-  return _then(_self.copyWith(
+  return _then(BenchmarkRun(
 prompt: null == prompt ? _self.prompt : prompt // ignore: cast_nullable_to_non_nullable
 as String,batchSize: null == batchSize ? _self.batchSize : batchSize // ignore: cast_nullable_to_non_nullable
 as int,maxTokens: freezed == maxTokens ? _self.maxTokens : maxTokens // ignore: cast_nullable_to_non_nullable
@@ -524,7 +534,7 @@ return $default(_that.prompt,_that.batchSize,_that.maxTokens,_that.temperature,_
 
 
 class _BenchmarkRun extends BenchmarkRun {
-  const _BenchmarkRun({required this.prompt, required this.batchSize, this.maxTokens, this.temperature, this.model = '', this.runToken = 0, final  List<BenchmarkRequest> requests = const <BenchmarkRequest>[], final  List<BenchmarkSample> samples = const <BenchmarkSample>[], this.isRunning = false, this.elapsed = Duration.zero, this.frozenAggregate = 0.0}): _requests = requests,_samples = samples,super._();
+  const _BenchmarkRun({required this.prompt, required this.batchSize, this.maxTokens, this.temperature, this.model = '', this.runToken = 0,  List<BenchmarkRequest> requests = const <BenchmarkRequest>[],  List<BenchmarkSample> samples = const <BenchmarkSample>[], this.isRunning = false, this.elapsed = Duration.zero, this.frozenAggregate = 0.0}): _requests = requests,_samples = samples,super._();
   
 
 @override final  String prompt;
@@ -559,9 +569,6 @@ class _BenchmarkRun extends BenchmarkRun {
 
 @override@JsonKey() final  bool isRunning;
 @override@JsonKey() final  Duration elapsed;
-// The aggregate throughput captured at full concurrency (see
-// [aggregateTokensPerSecond]). 0 until the first request finishes, then
-// held static for the rest of the run and after.
 @override@JsonKey() final  double frozenAggregate;
 
 /// Create a copy of BenchmarkRun
@@ -574,16 +581,18 @@ _$BenchmarkRunCopyWith<_BenchmarkRun> get copyWith => __$BenchmarkRunCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkRun&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&(identical(other.maxTokens, maxTokens) || other.maxTokens == maxTokens)&&(identical(other.temperature, temperature) || other.temperature == temperature)&&(identical(other.model, model) || other.model == model)&&(identical(other.runToken, runToken) || other.runToken == runToken)&&const DeepCollectionEquality().equals(other._requests, _requests)&&const DeepCollectionEquality().equals(other._samples, _samples)&&(identical(other.isRunning, isRunning) || other.isRunning == isRunning)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.frozenAggregate, frozenAggregate) || other.frozenAggregate == frozenAggregate));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkRun&&(identical(other.prompt, prompt) || other.prompt == prompt)&&(identical(other.batchSize, batchSize) || other.batchSize == batchSize)&&(identical(other.maxTokens, maxTokens) || other.maxTokens == maxTokens)&&(identical(other.temperature, temperature) || other.temperature == temperature)&&(identical(other.model, model) || other.model == model)&&(identical(other.runToken, runToken) || other.runToken == runToken)&&const DeepCollectionEquality().equals(other.requests, _requests)&&const DeepCollectionEquality().equals(other.samples, _samples)&&(identical(other.isRunning, isRunning) || other.isRunning == isRunning)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.frozenAggregate, frozenAggregate) || other.frozenAggregate == frozenAggregate));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,prompt,batchSize,maxTokens,temperature,model,runToken,const DeepCollectionEquality().hash(_requests),const DeepCollectionEquality().hash(_samples),isRunning,elapsed,frozenAggregate);
+int get hashCode {
+    return Object.hash(runtimeType,prompt,batchSize,maxTokens,temperature,model,runToken,const DeepCollectionEquality().hash(_requests),const DeepCollectionEquality().hash(_samples),isRunning,elapsed,frozenAggregate);
+}
 
 @override
 String toString() {
-  return 'BenchmarkRun(prompt: $prompt, batchSize: $batchSize, maxTokens: $maxTokens, temperature: $temperature, model: $model, runToken: $runToken, requests: $requests, samples: $samples, isRunning: $isRunning, elapsed: $elapsed, frozenAggregate: $frozenAggregate)';
+    return 'BenchmarkRun(prompt: $prompt, batchSize: $batchSize, maxTokens: $maxTokens, temperature: $temperature, model: $model, runToken: $runToken, requests: $requests, samples: $samples, isRunning: $isRunning, elapsed: $elapsed, frozenAggregate: $frozenAggregate)';
 }
 
 

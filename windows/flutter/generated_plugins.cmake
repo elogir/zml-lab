@@ -5,7 +5,6 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   flutter_inappwebview_windows
   screen_retriever_windows
-  sqlite3_flutter_libs
   window_manager
 )
 

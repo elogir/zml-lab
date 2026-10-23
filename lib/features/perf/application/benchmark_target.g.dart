@@ -69,7 +69,7 @@ abstract class _$BenchmarkTargetController extends $Notifier<BenchmarkTarget> {
   BenchmarkTarget build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<BenchmarkTarget, BenchmarkTarget>;
     final element =
         ref.element
@@ -79,6 +79,6 @@ abstract class _$BenchmarkTargetController extends $Notifier<BenchmarkTarget> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

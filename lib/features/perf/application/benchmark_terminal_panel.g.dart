@@ -60,7 +60,7 @@ abstract class _$BenchmarkTerminalPanelController
   BenchmarkTerminalPanel build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref as $Ref<BenchmarkTerminalPanel, BenchmarkTerminalPanel>;
     final element =
@@ -71,6 +71,6 @@ abstract class _$BenchmarkTerminalPanelController
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

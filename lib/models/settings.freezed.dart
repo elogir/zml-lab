@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'settings.dart';
@@ -9,6 +9,7 @@ part of 'settings.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -20,13 +21,11 @@ mixin _$AppSettings {
  bool get terminalOptionAsMeta;/// Mask the address in the Benchmark tab's target bar — for screenshots
 /// and screen-sharing. Display only: the real host is still what gets
 /// dialled, and nothing is masked on the way into saved runs.
- bool get blurHost;// Defaults the benchmark tool starts with.
- String get benchPrompt; int get benchBatchSize;/// Null = unlimited (the server stops at EOS or its max seqlen).
+ bool get blurHost; String get benchPrompt; int get benchBatchSize;/// Null = unlimited (the server stops at EOS or its max seqlen).
  int? get benchMaxTokens;/// Null = the server's default temperature.
  double? get benchTemperature;/// Model name sent in benchmark requests (vLLM requires the real one;
 /// llmd ignores it). Empty = send `zml_model`.
- String get benchModel;// Perf benchmark (Go benchmarker) integration.
- String get perfToolDir; String get perfDatasetPath;/// A duckdb command the "Copy results" button pipes the run's raw event
+ String get benchModel; String get perfToolDir; String get perfDatasetPath;/// A duckdb command the "Copy results" button pipes the run's raw event
 /// CSV through (run in the tool dir). Empty = copy the app's own render.
  String get perfDuckdbCommand;/// Last-used perf run parameters — the form remembers them so nothing has
 /// to be re-entered between runs.
@@ -41,16 +40,21 @@ $AppSettingsCopyWith<AppSettings> get copyWith => _$AppSettingsCopyWithImpl<AppS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSettings&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.terminalFontSize, terminalFontSize) || other.terminalFontSize == terminalFontSize)&&(identical(other.terminalOptionAsMeta, terminalOptionAsMeta) || other.terminalOptionAsMeta == terminalOptionAsMeta)&&(identical(other.blurHost, blurHost) || other.blurHost == blurHost)&&(identical(other.benchPrompt, benchPrompt) || other.benchPrompt == benchPrompt)&&(identical(other.benchBatchSize, benchBatchSize) || other.benchBatchSize == benchBatchSize)&&(identical(other.benchMaxTokens, benchMaxTokens) || other.benchMaxTokens == benchMaxTokens)&&(identical(other.benchTemperature, benchTemperature) || other.benchTemperature == benchTemperature)&&(identical(other.benchModel, benchModel) || other.benchModel == benchModel)&&(identical(other.perfToolDir, perfToolDir) || other.perfToolDir == perfToolDir)&&(identical(other.perfDatasetPath, perfDatasetPath) || other.perfDatasetPath == perfDatasetPath)&&(identical(other.perfDuckdbCommand, perfDuckdbCommand) || other.perfDuckdbCommand == perfDuckdbCommand)&&(identical(other.perfParams, perfParams) || other.perfParams == perfParams));
+  final _this = this as AppSettings;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSettings&&(identical(other.themeMode, _this.themeMode) || other.themeMode == _this.themeMode)&&(identical(other.terminalFontSize, _this.terminalFontSize) || other.terminalFontSize == _this.terminalFontSize)&&(identical(other.terminalOptionAsMeta, _this.terminalOptionAsMeta) || other.terminalOptionAsMeta == _this.terminalOptionAsMeta)&&(identical(other.blurHost, _this.blurHost) || other.blurHost == _this.blurHost)&&(identical(other.benchPrompt, _this.benchPrompt) || other.benchPrompt == _this.benchPrompt)&&(identical(other.benchBatchSize, _this.benchBatchSize) || other.benchBatchSize == _this.benchBatchSize)&&(identical(other.benchMaxTokens, _this.benchMaxTokens) || other.benchMaxTokens == _this.benchMaxTokens)&&(identical(other.benchTemperature, _this.benchTemperature) || other.benchTemperature == _this.benchTemperature)&&(identical(other.benchModel, _this.benchModel) || other.benchModel == _this.benchModel)&&(identical(other.perfToolDir, _this.perfToolDir) || other.perfToolDir == _this.perfToolDir)&&(identical(other.perfDatasetPath, _this.perfDatasetPath) || other.perfDatasetPath == _this.perfDatasetPath)&&(identical(other.perfDuckdbCommand, _this.perfDuckdbCommand) || other.perfDuckdbCommand == _this.perfDuckdbCommand)&&(identical(other.perfParams, _this.perfParams) || other.perfParams == _this.perfParams));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,themeMode,terminalFontSize,terminalOptionAsMeta,blurHost,benchPrompt,benchBatchSize,benchMaxTokens,benchTemperature,benchModel,perfToolDir,perfDatasetPath,perfDuckdbCommand,perfParams);
+int get hashCode {
+  final _this = this as AppSettings;
+  return Object.hash(runtimeType,_this.themeMode,_this.terminalFontSize,_this.terminalOptionAsMeta,_this.blurHost,_this.benchPrompt,_this.benchBatchSize,_this.benchMaxTokens,_this.benchTemperature,_this.benchModel,_this.perfToolDir,_this.perfDatasetPath,_this.perfDuckdbCommand,_this.perfParams);
+}
 
 @override
 String toString() {
-  return 'AppSettings(themeMode: $themeMode, terminalFontSize: $terminalFontSize, terminalOptionAsMeta: $terminalOptionAsMeta, blurHost: $blurHost, benchPrompt: $benchPrompt, benchBatchSize: $benchBatchSize, benchMaxTokens: $benchMaxTokens, benchTemperature: $benchTemperature, benchModel: $benchModel, perfToolDir: $perfToolDir, perfDatasetPath: $perfDatasetPath, perfDuckdbCommand: $perfDuckdbCommand, perfParams: $perfParams)';
+  final _this = this as AppSettings;
+  return 'AppSettings(themeMode: ${_this.themeMode}, terminalFontSize: ${_this.terminalFontSize}, terminalOptionAsMeta: ${_this.terminalOptionAsMeta}, blurHost: ${_this.blurHost}, benchPrompt: ${_this.benchPrompt}, benchBatchSize: ${_this.benchBatchSize}, benchMaxTokens: ${_this.benchMaxTokens}, benchTemperature: ${_this.benchTemperature}, benchModel: ${_this.benchModel}, perfToolDir: ${_this.perfToolDir}, perfDatasetPath: ${_this.perfDatasetPath}, perfDuckdbCommand: ${_this.perfDuckdbCommand}, perfParams: ${_this.perfParams})';
 }
 
 
@@ -79,7 +83,7 @@ class _$AppSettingsCopyWithImpl<$Res>
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? themeMode = null,Object? terminalFontSize = null,Object? terminalOptionAsMeta = null,Object? blurHost = null,Object? benchPrompt = null,Object? benchBatchSize = null,Object? benchMaxTokens = freezed,Object? benchTemperature = freezed,Object? benchModel = null,Object? perfToolDir = null,Object? perfDatasetPath = null,Object? perfDuckdbCommand = null,Object? perfParams = null,}) {
-  return _then(_self.copyWith(
+  return _then(AppSettings(
 themeMode: null == themeMode ? _self.themeMode : themeMode // ignore: cast_nullable_to_non_nullable
 as AppThemeMode,terminalFontSize: null == terminalFontSize ? _self.terminalFontSize : terminalFontSize // ignore: cast_nullable_to_non_nullable
 as double,terminalOptionAsMeta: null == terminalOptionAsMeta ? _self.terminalOptionAsMeta : terminalOptionAsMeta // ignore: cast_nullable_to_non_nullable
@@ -247,7 +251,6 @@ class _AppSettings implements AppSettings {
 /// and screen-sharing. Display only: the real host is still what gets
 /// dialled, and nothing is masked on the way into saved runs.
 @override@JsonKey() final  bool blurHost;
-// Defaults the benchmark tool starts with.
 @override@JsonKey() final  String benchPrompt;
 @override@JsonKey() final  int benchBatchSize;
 /// Null = unlimited (the server stops at EOS or its max seqlen).
@@ -257,7 +260,6 @@ class _AppSettings implements AppSettings {
 /// Model name sent in benchmark requests (vLLM requires the real one;
 /// llmd ignores it). Empty = send `zml_model`.
 @override@JsonKey() final  String benchModel;
-// Perf benchmark (Go benchmarker) integration.
 @override@JsonKey() final  String perfToolDir;
 @override@JsonKey() final  String perfDatasetPath;
 /// A duckdb command the "Copy results" button pipes the run's raw event
@@ -277,16 +279,18 @@ _$AppSettingsCopyWith<_AppSettings> get copyWith => __$AppSettingsCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSettings&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.terminalFontSize, terminalFontSize) || other.terminalFontSize == terminalFontSize)&&(identical(other.terminalOptionAsMeta, terminalOptionAsMeta) || other.terminalOptionAsMeta == terminalOptionAsMeta)&&(identical(other.blurHost, blurHost) || other.blurHost == blurHost)&&(identical(other.benchPrompt, benchPrompt) || other.benchPrompt == benchPrompt)&&(identical(other.benchBatchSize, benchBatchSize) || other.benchBatchSize == benchBatchSize)&&(identical(other.benchMaxTokens, benchMaxTokens) || other.benchMaxTokens == benchMaxTokens)&&(identical(other.benchTemperature, benchTemperature) || other.benchTemperature == benchTemperature)&&(identical(other.benchModel, benchModel) || other.benchModel == benchModel)&&(identical(other.perfToolDir, perfToolDir) || other.perfToolDir == perfToolDir)&&(identical(other.perfDatasetPath, perfDatasetPath) || other.perfDatasetPath == perfDatasetPath)&&(identical(other.perfDuckdbCommand, perfDuckdbCommand) || other.perfDuckdbCommand == perfDuckdbCommand)&&(identical(other.perfParams, perfParams) || other.perfParams == perfParams));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSettings&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.terminalFontSize, terminalFontSize) || other.terminalFontSize == terminalFontSize)&&(identical(other.terminalOptionAsMeta, terminalOptionAsMeta) || other.terminalOptionAsMeta == terminalOptionAsMeta)&&(identical(other.blurHost, blurHost) || other.blurHost == blurHost)&&(identical(other.benchPrompt, benchPrompt) || other.benchPrompt == benchPrompt)&&(identical(other.benchBatchSize, benchBatchSize) || other.benchBatchSize == benchBatchSize)&&(identical(other.benchMaxTokens, benchMaxTokens) || other.benchMaxTokens == benchMaxTokens)&&(identical(other.benchTemperature, benchTemperature) || other.benchTemperature == benchTemperature)&&(identical(other.benchModel, benchModel) || other.benchModel == benchModel)&&(identical(other.perfToolDir, perfToolDir) || other.perfToolDir == perfToolDir)&&(identical(other.perfDatasetPath, perfDatasetPath) || other.perfDatasetPath == perfDatasetPath)&&(identical(other.perfDuckdbCommand, perfDuckdbCommand) || other.perfDuckdbCommand == perfDuckdbCommand)&&(identical(other.perfParams, perfParams) || other.perfParams == perfParams));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,themeMode,terminalFontSize,terminalOptionAsMeta,blurHost,benchPrompt,benchBatchSize,benchMaxTokens,benchTemperature,benchModel,perfToolDir,perfDatasetPath,perfDuckdbCommand,perfParams);
+int get hashCode {
+    return Object.hash(runtimeType,themeMode,terminalFontSize,terminalOptionAsMeta,blurHost,benchPrompt,benchBatchSize,benchMaxTokens,benchTemperature,benchModel,perfToolDir,perfDatasetPath,perfDuckdbCommand,perfParams);
+}
 
 @override
 String toString() {
-  return 'AppSettings(themeMode: $themeMode, terminalFontSize: $terminalFontSize, terminalOptionAsMeta: $terminalOptionAsMeta, blurHost: $blurHost, benchPrompt: $benchPrompt, benchBatchSize: $benchBatchSize, benchMaxTokens: $benchMaxTokens, benchTemperature: $benchTemperature, benchModel: $benchModel, perfToolDir: $perfToolDir, perfDatasetPath: $perfDatasetPath, perfDuckdbCommand: $perfDuckdbCommand, perfParams: $perfParams)';
+    return 'AppSettings(themeMode: $themeMode, terminalFontSize: $terminalFontSize, terminalOptionAsMeta: $terminalOptionAsMeta, blurHost: $blurHost, benchPrompt: $benchPrompt, benchBatchSize: $benchBatchSize, benchMaxTokens: $benchMaxTokens, benchTemperature: $benchTemperature, benchModel: $benchModel, perfToolDir: $perfToolDir, perfDatasetPath: $perfDatasetPath, perfDuckdbCommand: $perfDuckdbCommand, perfParams: $perfParams)';
 }
 
 

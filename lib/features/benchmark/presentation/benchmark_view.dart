@@ -235,67 +235,93 @@ class _Controls extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: [
-            _Setting(
-              label: 'Batch',
-              width: 52,
-              controller: batch,
-              onChanged: onBatchChanged,
-            ),
-            const SizedBox(width: AppSpacing.lg),
-            // Empty = no cap: the server generates until EOS or its max seqlen.
-            _Setting(
-              label: 'Max tokens',
-              width: 64,
-              placeholder: '∞',
-              controller: maxTokens,
-              onChanged: onMaxTokensChanged,
-            ),
-            const SizedBox(width: AppSpacing.lg),
-            // Empty = the server's default temperature.
-            _Setting(
-              label: 'Temp',
-              width: 60,
-              placeholder: 'auto',
-              controller: temperature,
-              onChanged: onTemperatureChanged,
-            ),
-            const SizedBox(width: AppSpacing.lg),
-            // Takes the row's slack (a model name can be a long path). Empty
-            // sends `zml_model` — llmd ignores the name, vLLM requires a real
-            // one.
-            Expanded(
-              child: _Setting(
-                label: 'Model',
-                placeholder: 'zml_model',
-                controller: model,
-                onChanged: onModelChanged,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final numbers = [
+              _Setting(
+                label: 'Batch',
+                width: 52,
+                controller: batch,
+                onChanged: onBatchChanged,
               ),
-            ),
-            const SizedBox(width: AppSpacing.lg),
-            AppButton(
-              label: 'Send batch',
-              icon: AppIcons.send,
-              variant: AppButtonVariant.primary,
-              onPressed: onSend,
-            ),
-            if (running) ...[
-              const SizedBox(width: AppSpacing.sm),
-              AppIconButton(
-                icon: AppIcons.kill,
-                size: 15,
-                color: c.statusFailed,
-                hoverColor: c.statusFailed,
-                padding: const EdgeInsets.all(9),
-                onPressed: onCancel,
+              const SizedBox(width: AppSpacing.lg),
+              // Empty = no cap: the server generates until EOS or its max
+              // seqlen.
+              _Setting(
+                label: 'Max tokens',
+                width: 64,
+                placeholder: '∞',
+                controller: maxTokens,
+                onChanged: onMaxTokensChanged,
               ),
-            ],
-          ],
+              const SizedBox(width: AppSpacing.lg),
+              // Empty = the server's default temperature.
+              _Setting(
+                label: 'Temp',
+                width: 60,
+                placeholder: 'auto',
+                controller: temperature,
+                onChanged: onTemperatureChanged,
+              ),
+            ];
+            final send = [
+              // Takes the row's slack (a model name can be a long path).
+              // Empty sends `zml_model` — llmd ignores the name, vLLM
+              // requires a real one.
+              Expanded(
+                child: _Setting(
+                  label: 'Model',
+                  placeholder: 'zml_model',
+                  controller: model,
+                  onChanged: onModelChanged,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              AppButton(
+                label: 'Send batch',
+                icon: AppIcons.send,
+                variant: AppButtonVariant.primary,
+                onPressed: onSend,
+              ),
+              if (running) ...[
+                const SizedBox(width: AppSpacing.sm),
+                AppIconButton(
+                  icon: AppIcons.kill,
+                  size: 15,
+                  color: c.statusFailed,
+                  hoverColor: c.statusFailed,
+                  padding: const EdgeInsets.all(9),
+                  onPressed: onCancel,
+                ),
+              ],
+            ];
+            // Beside the terminal panel the tools can get narrow: the model
+            // field and Send drop to their own line rather than overflow.
+            if (constraints.maxWidth >= _oneLineWidth) {
+              return Row(
+                children: [
+                  ...numbers,
+                  const SizedBox(width: AppSpacing.lg),
+                  ...send,
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(mainAxisSize: MainAxisSize.min, children: numbers),
+                const SizedBox(height: AppSpacing.sm),
+                Row(children: send),
+              ],
+            );
+          },
         ),
       ],
     );
   }
+
+  /// Below this the controls row splits in two.
+  static const _oneLineWidth = 640.0;
 }
 
 /// A labeled setting in the controls row.

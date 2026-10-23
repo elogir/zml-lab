@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'benchmark_chat.dart';
@@ -9,6 +9,7 @@ part of 'benchmark_chat.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -28,16 +29,21 @@ $ChatTurnCopyWith<ChatTurn> get copyWith => _$ChatTurnCopyWithImpl<ChatTurn>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChatTurn&&(identical(other.fromUser, fromUser) || other.fromUser == fromUser)&&(identical(other.text, text) || other.text == text)&&(identical(other.reasoning, reasoning) || other.reasoning == reasoning)&&(identical(other.streaming, streaming) || other.streaming == streaming)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason)&&(identical(other.error, error) || other.error == error));
+  final _this = this as ChatTurn;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChatTurn&&(identical(other.fromUser, _this.fromUser) || other.fromUser == _this.fromUser)&&(identical(other.text, _this.text) || other.text == _this.text)&&(identical(other.reasoning, _this.reasoning) || other.reasoning == _this.reasoning)&&(identical(other.streaming, _this.streaming) || other.streaming == _this.streaming)&&(identical(other.tokens, _this.tokens) || other.tokens == _this.tokens)&&(identical(other.tokensPerSecond, _this.tokensPerSecond) || other.tokensPerSecond == _this.tokensPerSecond)&&(identical(other.ttftMs, _this.ttftMs) || other.ttftMs == _this.ttftMs)&&(identical(other.latencyMs, _this.latencyMs) || other.latencyMs == _this.latencyMs)&&(identical(other.finishReason, _this.finishReason) || other.finishReason == _this.finishReason)&&(identical(other.error, _this.error) || other.error == _this.error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,fromUser,text,reasoning,streaming,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason,error);
+int get hashCode {
+  final _this = this as ChatTurn;
+  return Object.hash(runtimeType,_this.fromUser,_this.text,_this.reasoning,_this.streaming,_this.tokens,_this.tokensPerSecond,_this.ttftMs,_this.latencyMs,_this.finishReason,_this.error);
+}
 
 @override
 String toString() {
-  return 'ChatTurn(fromUser: $fromUser, text: $text, reasoning: $reasoning, streaming: $streaming, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason, error: $error)';
+  final _this = this as ChatTurn;
+  return 'ChatTurn(fromUser: ${_this.fromUser}, text: ${_this.text}, reasoning: ${_this.reasoning}, streaming: ${_this.streaming}, tokens: ${_this.tokens}, tokensPerSecond: ${_this.tokensPerSecond}, ttftMs: ${_this.ttftMs}, latencyMs: ${_this.latencyMs}, finishReason: ${_this.finishReason}, error: ${_this.error})';
 }
 
 
@@ -66,7 +72,7 @@ class _$ChatTurnCopyWithImpl<$Res>
 /// Create a copy of ChatTurn
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? fromUser = null,Object? text = null,Object? reasoning = null,Object? streaming = null,Object? tokens = null,Object? tokensPerSecond = null,Object? ttftMs = freezed,Object? latencyMs = freezed,Object? finishReason = freezed,Object? error = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(ChatTurn(
 fromUser: null == fromUser ? _self.fromUser : fromUser // ignore: cast_nullable_to_non_nullable
 as bool,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
 as String,reasoning: null == reasoning ? _self.reasoning : reasoning // ignore: cast_nullable_to_non_nullable
@@ -245,16 +251,18 @@ _$ChatTurnCopyWith<_ChatTurn> get copyWith => __$ChatTurnCopyWithImpl<_ChatTurn>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChatTurn&&(identical(other.fromUser, fromUser) || other.fromUser == fromUser)&&(identical(other.text, text) || other.text == text)&&(identical(other.reasoning, reasoning) || other.reasoning == reasoning)&&(identical(other.streaming, streaming) || other.streaming == streaming)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason)&&(identical(other.error, error) || other.error == error));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChatTurn&&(identical(other.fromUser, fromUser) || other.fromUser == fromUser)&&(identical(other.text, text) || other.text == text)&&(identical(other.reasoning, reasoning) || other.reasoning == reasoning)&&(identical(other.streaming, streaming) || other.streaming == streaming)&&(identical(other.tokens, tokens) || other.tokens == tokens)&&(identical(other.tokensPerSecond, tokensPerSecond) || other.tokensPerSecond == tokensPerSecond)&&(identical(other.ttftMs, ttftMs) || other.ttftMs == ttftMs)&&(identical(other.latencyMs, latencyMs) || other.latencyMs == latencyMs)&&(identical(other.finishReason, finishReason) || other.finishReason == finishReason)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,fromUser,text,reasoning,streaming,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason,error);
+int get hashCode {
+    return Object.hash(runtimeType,fromUser,text,reasoning,streaming,tokens,tokensPerSecond,ttftMs,latencyMs,finishReason,error);
+}
 
 @override
 String toString() {
-  return 'ChatTurn(fromUser: $fromUser, text: $text, reasoning: $reasoning, streaming: $streaming, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason, error: $error)';
+    return 'ChatTurn(fromUser: $fromUser, text: $text, reasoning: $reasoning, streaming: $streaming, tokens: $tokens, tokensPerSecond: $tokensPerSecond, ttftMs: $ttftMs, latencyMs: $latencyMs, finishReason: $finishReason, error: $error)';
 }
 
 
@@ -315,16 +323,21 @@ $BenchmarkChatCopyWith<BenchmarkChat> get copyWith => _$BenchmarkChatCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkChat&&const DeepCollectionEquality().equals(other.turns, turns));
+  final _this = this as BenchmarkChat;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BenchmarkChat&&const DeepCollectionEquality().equals(other.turns, _this.turns));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(turns));
+int get hashCode {
+  final _this = this as BenchmarkChat;
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.turns));
+}
 
 @override
 String toString() {
-  return 'BenchmarkChat(turns: $turns)';
+  final _this = this as BenchmarkChat;
+  return 'BenchmarkChat(turns: ${_this.turns})';
 }
 
 
@@ -353,7 +366,7 @@ class _$BenchmarkChatCopyWithImpl<$Res>
 /// Create a copy of BenchmarkChat
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? turns = null,}) {
-  return _then(_self.copyWith(
+  return _then(BenchmarkChat(
 turns: null == turns ? _self.turns : turns // ignore: cast_nullable_to_non_nullable
 as List<ChatTurn>,
   ));
@@ -496,7 +509,7 @@ return $default(_that.turns);case _:
 
 
 class _BenchmarkChat extends BenchmarkChat {
-  const _BenchmarkChat({final  List<ChatTurn> turns = const <ChatTurn>[]}): _turns = turns,super._();
+  const _BenchmarkChat({ List<ChatTurn> turns = const <ChatTurn>[]}): _turns = turns,super._();
   
 
  final  List<ChatTurn> _turns;
@@ -517,16 +530,18 @@ _$BenchmarkChatCopyWith<_BenchmarkChat> get copyWith => __$BenchmarkChatCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkChat&&const DeepCollectionEquality().equals(other._turns, _turns));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _BenchmarkChat&&const DeepCollectionEquality().equals(other.turns, _turns));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_turns));
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_turns));
+}
 
 @override
 String toString() {
-  return 'BenchmarkChat(turns: $turns)';
+    return 'BenchmarkChat(turns: $turns)';
 }
 
 

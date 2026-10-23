@@ -51,11 +51,9 @@ dev_dependencies:
   flutter_lints:
 
   build_runner:
-  custom_lint:
 
-  # riverpod codegen + lints
+  # riverpod codegen
   riverpod_generator:
-  riverpod_lint:
 
   # freezed / json codegen
   freezed:

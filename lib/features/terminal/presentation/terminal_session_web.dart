@@ -3,10 +3,9 @@ import 'dart:async';
 import 'package:flterm/flterm.dart';
 import 'package:flutter/widgets.dart';
 
-/// Web stub: no PTY. The controller exists (flterm supports web) but no process
-/// is attached, so the pane shows a placeholder instead of a live terminal.
-/// Mirrors the native API so the multiplexer and the job executor compile on
-/// both platforms (execution itself is native-only).
+/// Web stub: no PTY, so the pane shows a placeholder instead of a live
+/// terminal. Mirrors the native API so the multiplexer compiles on both
+/// platforms (execution itself is native-only).
 class TerminalSession {
   TerminalSession({
     this.runCommand,
@@ -20,14 +19,18 @@ class TerminalSession {
   final String? runCommand;
   final String? initialCommand;
 
-  final TerminalController controller = TerminalController();
+  // Created only if something asks for it: the web pane never renders a
+  // TerminalView, and building a controller needs the wasm VT engine, which
+  // may have failed to load.
+  TerminalController? _controller;
+  TerminalController get controller => _controller ??= TerminalController();
   late final FocusNode focusNode;
 
   bool get isLive => false;
   int? get pid => null;
 
   // No PTY on web, so the process never runs, exits or sets a title. These
-  // mirror the native API so the multiplexer's and executor's wiring compiles.
+  // mirror the native API so the multiplexer's wiring compiles.
   bool get hasExited => false;
   int? get exitCode => null;
   Future<int> get whenExited => Completer<int>().future; // never completes
@@ -43,6 +46,6 @@ class TerminalSession {
 
   void dispose() {
     focusNode.dispose();
-    controller.dispose();
+    _controller?.dispose();
   }
 }

@@ -161,7 +161,7 @@ abstract class _$BenchmarkChatController extends $Notifier<BenchmarkChat> {
   BenchmarkChat build(String jobId, int index, String host, int port);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<BenchmarkChat, BenchmarkChat>;
     final element =
         ref.element
@@ -171,7 +171,7 @@ abstract class _$BenchmarkChatController extends $Notifier<BenchmarkChat> {
               Object?,
               Object?
             >;
-    element.handleCreate(
+    return element.handleCreate(
       ref,
       () => build(_$args.$1, _$args.$2, _$args.$3, _$args.$4),
     );

@@ -74,7 +74,15 @@ class AppMarkdown extends StatelessWidget {
             data,
             style: base,
             codeBuilder: _codeBlock,
-            highlightBuilder: _inlineCode,
+            // Inline `code`: a subtle mono chip.
+            inlineCodeStyle: InlineCodeStyle(
+              fontFamily: AppTypography.monoFamily,
+              fontSizeFactor: 0.96,
+              backgroundColor: c.surfaceSelected,
+              borderWidth: 0,
+              borderRadius: const Radius.circular(4),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            ),
           ),
         ),
       ),
@@ -116,26 +124,6 @@ class AppMarkdown extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  /// Inline `code`: a subtle mono chip.
-  Widget _inlineCode(BuildContext context, String text, TextStyle style) {
-    final c = context.colors;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-      decoration: BoxDecoration(
-        color: c.surfaceSelected,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        text,
-        style: style.copyWith(
-          fontFamily: AppTypography.monoFamily,
-          fontSize: (style.fontSize ?? 13) - 0.5,
-          height: 1.35,
-        ),
       ),
     );
   }

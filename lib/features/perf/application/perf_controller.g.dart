@@ -119,7 +119,7 @@ abstract class _$PerfController extends $Notifier<PerfRun> {
   PerfRun build(String jobId);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<PerfRun, PerfRun>;
     final element =
         ref.element
@@ -129,6 +129,6 @@ abstract class _$PerfController extends $Notifier<PerfRun> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(ref, () => build(_$args));
   }
 }

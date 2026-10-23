@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'machine.dart';
@@ -9,6 +9,7 @@ part of 'machine.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $MachineCopyWith<Machine> get copyWith => _$MachineCopyWithImpl<Machine>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Machine&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.address, address) || other.address == address)&&(identical(other.sshPort, sshPort) || other.sshPort == sshPort)&&(identical(other.user, user) || other.user == user)&&(identical(other.sshKey, sshKey) || other.sshKey == sshKey)&&(identical(other.vendor, vendor) || other.vendor == vendor)&&(identical(other.gpus, gpus) || other.gpus == gpus)&&(identical(other.memory, memory) || other.memory == memory)&&(identical(other.online, online) || other.online == online));
+  final _this = this as Machine;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Machine&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.address, _this.address) || other.address == _this.address)&&(identical(other.sshPort, _this.sshPort) || other.sshPort == _this.sshPort)&&(identical(other.user, _this.user) || other.user == _this.user)&&(identical(other.sshKey, _this.sshKey) || other.sshKey == _this.sshKey)&&(identical(other.vendor, _this.vendor) || other.vendor == _this.vendor)&&(identical(other.gpus, _this.gpus) || other.gpus == _this.gpus)&&(identical(other.memory, _this.memory) || other.memory == _this.memory)&&(identical(other.online, _this.online) || other.online == _this.online));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,address,sshPort,user,sshKey,vendor,gpus,memory,online);
+int get hashCode {
+  final _this = this as Machine;
+  return Object.hash(runtimeType,_this.id,_this.name,_this.address,_this.sshPort,_this.user,_this.sshKey,_this.vendor,_this.gpus,_this.memory,_this.online);
+}
 
 @override
 String toString() {
-  return 'Machine(id: $id, name: $name, address: $address, sshPort: $sshPort, user: $user, sshKey: $sshKey, vendor: $vendor, gpus: $gpus, memory: $memory, online: $online)';
+  final _this = this as Machine;
+  return 'Machine(id: ${_this.id}, name: ${_this.name}, address: ${_this.address}, sshPort: ${_this.sshPort}, user: ${_this.user}, sshKey: ${_this.sshKey}, vendor: ${_this.vendor}, gpus: ${_this.gpus}, memory: ${_this.memory}, online: ${_this.online})';
 }
 
 
@@ -66,7 +72,7 @@ class _$MachineCopyWithImpl<$Res>
 /// Create a copy of Machine
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? address = null,Object? sshPort = null,Object? user = freezed,Object? sshKey = freezed,Object? vendor = freezed,Object? gpus = freezed,Object? memory = freezed,Object? online = null,}) {
-  return _then(_self.copyWith(
+  return _then(Machine(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,address: null == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
@@ -245,16 +251,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Machine&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.address, address) || other.address == address)&&(identical(other.sshPort, sshPort) || other.sshPort == sshPort)&&(identical(other.user, user) || other.user == user)&&(identical(other.sshKey, sshKey) || other.sshKey == sshKey)&&(identical(other.vendor, vendor) || other.vendor == vendor)&&(identical(other.gpus, gpus) || other.gpus == gpus)&&(identical(other.memory, memory) || other.memory == memory)&&(identical(other.online, online) || other.online == online));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Machine&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.address, address) || other.address == address)&&(identical(other.sshPort, sshPort) || other.sshPort == sshPort)&&(identical(other.user, user) || other.user == user)&&(identical(other.sshKey, sshKey) || other.sshKey == sshKey)&&(identical(other.vendor, vendor) || other.vendor == vendor)&&(identical(other.gpus, gpus) || other.gpus == gpus)&&(identical(other.memory, memory) || other.memory == memory)&&(identical(other.online, online) || other.online == online));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,address,sshPort,user,sshKey,vendor,gpus,memory,online);
+int get hashCode {
+    return Object.hash(runtimeType,id,name,address,sshPort,user,sshKey,vendor,gpus,memory,online);
+}
 
 @override
 String toString() {
-  return 'Machine(id: $id, name: $name, address: $address, sshPort: $sshPort, user: $user, sshKey: $sshKey, vendor: $vendor, gpus: $gpus, memory: $memory, online: $online)';
+    return 'Machine(id: $id, name: $name, address: $address, sshPort: $sshPort, user: $user, sshKey: $sshKey, vendor: $vendor, gpus: $gpus, memory: $memory, online: $online)';
 }
 
 

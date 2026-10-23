@@ -11,21 +11,36 @@ List<RouteBase> get $appRoutes => [$appShellRoute];
 RouteBase get $appShellRoute => ShellRouteData.$route(
   factory: $AppShellRouteExtension._fromState,
   routes: [
-    GoRouteData.$route(path: '/', factory: $BenchmarkToolRoute._fromState),
+    GoRouteData.$route(
+      path: '/',
+      hasOverriddenOnExit: false,
+      factory: $BenchmarkToolRoute._fromState,
+    ),
     GoRouteData.$route(
       path: '/benchmarks',
+      hasOverriddenOnExit: false,
       factory: $SavedBenchmarksRoute._fromState,
     ),
-    GoRouteData.$route(path: '/machines', factory: $MachinesRoute._fromState),
+    GoRouteData.$route(
+      path: '/machines',
+      hasOverriddenOnExit: false,
+      factory: $MachinesRoute._fromState,
+    ),
     GoRouteData.$route(
       path: '/machines/new',
+      hasOverriddenOnExit: false,
       factory: $AddMachineRoute._fromState,
     ),
     GoRouteData.$route(
       path: '/machines/:id/edit',
+      hasOverriddenOnExit: false,
       factory: $EditMachineRoute._fromState,
     ),
-    GoRouteData.$route(path: '/settings', factory: $SettingsRoute._fromState),
+    GoRouteData.$route(
+      path: '/settings',
+      hasOverriddenOnExit: false,
+      factory: $SettingsRoute._fromState,
+    ),
   ],
 );
 
