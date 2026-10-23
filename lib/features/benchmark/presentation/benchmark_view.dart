@@ -138,7 +138,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
             ),
           );
 
-    return Column(
+    final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Controls(
@@ -196,7 +196,18 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
         ],
       ],
     );
+    // A short window can't fit the controls, stats and a usable grid: below
+    // a minimum the whole view scrolls instead of overflowing.
+    return LayoutBuilder(
+      builder: (context, constraints) => constraints.maxHeight >= _minHeight
+          ? content
+          : SingleChildScrollView(
+              child: SizedBox(height: _minHeight, child: content),
+            ),
+    );
   }
+
+  static const _minHeight = 560.0;
 }
 
 class _Controls extends StatelessWidget {
@@ -265,8 +276,21 @@ class _Controls extends StatelessWidget {
                   label: 'Batch',
                   controller: batch,
                   onChanged: onBatchChanged,
+                  presets: const [
+                    '1',
+                    '2',
+                    '4',
+                    '8',
+                    '16',
+                    '32',
+                    '64',
+                    '128',
+                    '256',
+                    '512',
+                    '1024',
+                  ],
                 ),
-                80,
+                104,
               ),
               const SizedBox(width: AppSpacing.md),
               // Empty = no cap: the server generates until EOS or its max
@@ -321,9 +345,17 @@ class _Controls extends StatelessWidget {
                 ],
               ],
             );
+            final modelField = AppTextField(
+              controller: model,
+              mono: true,
+              placeholder: 'zml_model',
+              onChanged: onModelChanged,
+            );
             final send = Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: wide
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('Model', style: context.text.smallMuted),
@@ -335,18 +367,17 @@ class _Controls extends StatelessWidget {
                   Stack(
                     children: [
                       Row(
+                        mainAxisSize: wide
+                            ? MainAxisSize.min
+                            : MainAxisSize.max,
                         children: [
-                          // Takes the row's slack (a model name can be a
-                          // long path). Empty sends `zml_model` — llmd
-                          // ignores the name, vLLM requires a real one.
-                          Expanded(
-                            child: AppTextField(
-                              controller: model,
-                              mono: true,
-                              placeholder: 'zml_model',
-                              onChanged: onModelChanged,
-                            ),
-                          ),
+                          // Empty sends `zml_model` — llmd ignores the name,
+                          // vLLM requires a real one. Compact when there's
+                          // room (long names scroll inside the field).
+                          if (wide)
+                            SizedBox(width: 240, child: modelField)
+                          else
+                            Expanded(child: modelField),
                           const SizedBox(width: AppSpacing.md),
                           Visibility.maintain(
                             visible: false,
@@ -395,42 +426,176 @@ class _Controls extends StatelessWidget {
   static const _oneLineWidth = 600.0;
 }
 
-/// A labeled setting in the controls row.
 /// A labelled field, label above — the parent sizes it (a fixed-width box on
-/// the one-line layout, an equal share of the row when stacked).
-class _Setting extends StatelessWidget {
+/// the one-line layout, an equal share of the row when stacked). With
+/// [presets], a ▾ in the field opens a list of common values; typing any
+/// value still works.
+class _Setting extends StatefulWidget {
   const _Setting({
     required this.label,
     required this.controller,
     required this.onChanged,
     this.placeholder,
+    this.presets,
   });
 
   final String label;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final String? placeholder;
+  final List<String>? presets;
+
+  @override
+  State<_Setting> createState() => _SettingState();
+}
+
+class _SettingState extends State<_Setting> {
+  final _link = LayerLink();
+  final _menu = OverlayPortalController();
+
+  void _pick(String value) {
+    widget.controller.text = value;
+    widget.onChanged(value);
+    _menu.hide();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final presets = widget.presets;
+    Widget field = AppTextField(
+      controller: widget.controller,
+      mono: true,
+      placeholder: widget.placeholder,
+      onChanged: widget.onChanged,
+      suffix: presets == null
+          ? null
+          : AppIconButton(
+              icon: AppIcons.chevronDown,
+              size: 13,
+              padding: const EdgeInsets.all(2),
+              onPressed: () => _menu.isShowing ? _menu.hide() : _menu.show(),
+            ),
+    );
+    if (presets != null) {
+      field = CompositedTransformTarget(
+        link: _link,
+        child: OverlayPortal(
+          controller: _menu,
+          overlayChildBuilder: (context) => Stack(
+            children: [
+              // Tap outside to dismiss.
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _menu.hide,
+                ),
+              ),
+              CompositedTransformFollower(
+                link: _link,
+                targetAnchor: Alignment.bottomLeft,
+                followerAnchor: Alignment.topLeft,
+                offset: const Offset(0, 4),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints.tightFor(
+                      width: 120,
+                    ).copyWith(maxHeight: 320),
+                    child: AppPanel(
+                      color: c.surface,
+                      padding: const EdgeInsets.all(AppSpacing.xs),
+                      child: ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: widget.controller,
+                        builder: (context, value, _) => SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              for (final p in presets)
+                                _PresetRow(
+                                  value: p,
+                                  selected: value.text.trim() == p,
+                                  onTap: () => _pick(p),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          child: field,
+        ),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          label,
+          widget.label,
           style: context.text.smallMuted,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 6),
-        AppTextField(
-          controller: controller,
-          mono: true,
-          placeholder: placeholder,
-          onChanged: onChanged,
-        ),
+        field,
       ],
+    );
+  }
+}
+
+/// One value in a [_Setting]'s preset list.
+class _PresetRow extends StatelessWidget {
+  const _PresetRow({
+    required this.value,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String value;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return HoverRegion(
+      onTap: onTap,
+      builder: (context, hovered) => Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: 5,
+        ),
+        decoration: BoxDecoration(
+          color: selected
+              ? c.accent.withValues(alpha: 0.12)
+              : (hovered ? c.surfaceHover : null),
+          borderRadius: AppRadius.smAll,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                value,
+                style: context.text.mono.copyWith(
+                  color: selected ? c.accent : c.textPrimary,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            SizedBox(
+              width: 12,
+              child: selected
+                  ? Icon(AppIcons.check, size: 12, color: c.accent)
+                  : null,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
