@@ -14,6 +14,7 @@ class AppButton extends StatelessWidget {
     this.icon,
     this.variant = AppButtonVariant.secondary,
     this.dense = false,
+    this.fill = false,
   });
 
   final String label;
@@ -22,6 +23,10 @@ class AppButton extends StatelessWidget {
   final AppButtonVariant variant;
   final bool dense;
 
+  /// Fill the size the parent gives (tight constraints) with the label
+  /// centred, instead of hugging the label.
+  final bool fill;
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -29,9 +34,7 @@ class AppButton extends StatelessWidget {
 
     return HoverRegion(
       onTap: onPressed,
-      cursor: enabled
-          ? SystemMouseCursors.click
-          : SystemMouseCursors.basic,
+      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
       builder: (context, hovered) {
         final h = hovered && enabled;
         final (bg, fg, border) = switch (variant) {
@@ -55,6 +58,7 @@ class AppButton extends StatelessWidget {
         return Opacity(
           opacity: enabled ? 1 : 0.45,
           child: Container(
+            alignment: fill ? Alignment.center : null,
             padding: EdgeInsets.symmetric(
               horizontal: dense ? 10 : 14,
               vertical: dense ? 6 : 9,

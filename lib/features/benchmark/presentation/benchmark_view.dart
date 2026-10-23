@@ -315,21 +315,25 @@ class _Controls extends StatelessWidget {
             2,
           ),
         ];
-        // Send (and Cancel while running) at exactly the field's height.
+        // Send and Stop at exactly the field's height, in one footprint that
+        // never changes: Stop shows beside Send while a run is going; idle,
+        // Send covers Stop's space too, so nothing shifts when a run starts.
         // Stretched only where a height is given (the pinned copy).
-        Widget actions({required bool stretch}) => Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: stretch
-              ? CrossAxisAlignment.stretch
-              : CrossAxisAlignment.center,
-          children: [
-            AppButton(
-              label: 'Send batch',
-              icon: AppIcons.send,
-              variant: AppButtonVariant.primary,
-              onPressed: onSend,
-            ),
-            if (running) ...[
+        Widget sendButton({bool fill = false}) => AppButton(
+          label: 'Send batch',
+          icon: AppIcons.send,
+          variant: AppButtonVariant.primary,
+          fill: fill,
+          onPressed: onSend,
+        );
+        Widget actions({required bool stretch}) {
+          final both = Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: stretch
+                ? CrossAxisAlignment.stretch
+                : CrossAxisAlignment.center,
+            children: [
+              sendButton(),
               const SizedBox(width: AppSpacing.sm),
               Center(
                 child: AppIconButton(
@@ -342,72 +346,79 @@ class _Controls extends StatelessWidget {
                 ),
               ),
             ],
-          ],
-        );
+          );
+          // The hidden sizing copy always reserves both.
+          if (running || !stretch) return both;
+          return Stack(
+            children: [
+              Visibility.maintain(visible: false, child: both),
+              Positioned.fill(child: sendButton(fill: true)),
+            ],
+          );
+        }
+
         final modelField = AppTextField(
           controller: model,
           mono: true,
           placeholder: 'zml_model',
           onChanged: onModelChanged,
         );
-        final send = Expanded(
-          flex: wide ? 5 : 1,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
+        Widget labelled(String label, Widget field) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: context.text.smallMuted),
+            const SizedBox(height: 6),
+            field,
+          ],
+        );
+        // [field] with Send (and Cancel) beside it at exactly its height:
+        // the field row sets the height (a hidden copy of the actions
+        // reserves their width) and the real actions are pinned over that
+        // slot. Exact in one pass — the text field's intrinsic height
+        // overstates it.
+        Widget withActions(String label, Widget field) => labelled(
+          label,
+          Stack(
             children: [
-              Text('Model', style: context.text.smallMuted),
-              const SizedBox(height: 6),
-              // The field row sets the height (a hidden copy of the
-              // actions reserves their width); the real actions are then
-              // pinned over that slot at the same height. Exact in one
-              // pass — the text field's intrinsic height overstates it.
-              Stack(
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      // Empty sends `zml_model` — llmd ignores the name,
-                      // vLLM requires a real one.
-                      Expanded(child: modelField),
-                      const SizedBox(width: AppSpacing.md),
-                      Visibility.maintain(
-                        visible: false,
-                        child: actions(stretch: false),
-                      ),
-                    ],
-                  ),
-                  Positioned(
-                    top: 0,
-                    bottom: 0,
-                    right: 0,
-                    child: actions(stretch: true),
+                  Expanded(child: field),
+                  const SizedBox(width: AppSpacing.md),
+                  Visibility.maintain(
+                    visible: false,
+                    child: actions(stretch: false),
                   ),
                 ],
+              ),
+              Positioned(
+                top: 0,
+                bottom: 0,
+                right: 0,
+                child: actions(stretch: true),
               ),
             ],
           ),
         );
+        // Empty model sends `zml_model` — llmd ignores the name, vLLM
+        // requires a real one.
+        final send = Expanded(
+          flex: wide ? 5 : 1,
+          child: withActions('Model', modelField),
+        );
         // Labels sit above their fields, so fields line up and the
         // button aligns with them at the bottom.
         if (oneRow) {
+          // Settings first (Batch at the left edge, under Target), then the
+          // prompt right before Send.
           return Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Expanded(
-                flex: 7,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text('Prompt', style: context.text.smallMuted),
-                    const SizedBox(height: 6),
-                    promptField,
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
               ...numbers,
               const SizedBox(width: AppSpacing.md),
-              send,
+              Expanded(flex: 3, child: labelled('Model', modelField)),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(flex: 8, child: withActions('Prompt', promptField)),
             ],
           );
         }

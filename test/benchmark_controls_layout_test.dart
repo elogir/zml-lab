@@ -56,13 +56,18 @@ void main() {
       );
       expect(tester.takeException(), isNull);
 
-      // Fields in order: prompt, batch, max tokens, temp, model.
-      final fields = find.byType(AppTextField);
+      // Fields by what they are (their order changes with the layout).
+      Finder field(bool Function(AppTextField f) test) =>
+          find.byWidgetPredicate((w) => w is AppTextField && test(w)).first;
       Rect rect(Finder f) => tester.getRect(f);
-      final batch = rect(fields.at(1));
-      final maxTokens = rect(fields.at(2));
-      final temp = rect(fields.at(3));
-      final model = rect(fields.at(4));
+      final batchField = field(
+        (f) => f.prefix == null && f.placeholder == null && f.suffix != null,
+      );
+      final batch = rect(batchField);
+      final maxTokens = rect(field((f) => f.placeholder == '∞'));
+      final temp = rect(field((f) => f.placeholder == 'auto'));
+      final model = rect(field((f) => f.placeholder == 'zml_model'));
+      final prompt = rect(field((f) => f.prefix == '>'));
       // The visible button (the first is a hidden copy reserving its width).
       final send = rect(find.widgetWithText(AppButton, 'Send batch').last);
 
@@ -74,7 +79,6 @@ void main() {
       expect(send.top, closeTo(model.top, 0.01));
       expect(send.height, closeTo(model.height, 0.01));
       // Very wide: the prompt joins the settings' line at the same height.
-      final prompt = rect(fields.at(0));
       if (width >= 1150) {
         expect(prompt.top, closeTo(batch.top, 0.01));
         expect(prompt.height, closeTo(batch.height, 0.01));
@@ -83,7 +87,11 @@ void main() {
       }
       // No trailing gap: Send ends where the row ends (the settings fill it).
       expect(send.right, closeTo(width, 1));
-      expect(send.left - model.right, lessThan(20));
+      // Send follows the prompt on the one-row layout, the model otherwise;
+      // Batch always starts the settings at the left edge.
+      final beforeSend = width >= 1150 ? prompt : model;
+      expect(send.left - beforeSend.right, lessThan(20));
+      expect(batch.left, closeTo(0, 1));
       // Room for a 4-digit batch size beside the dropdown segment (128 px
       // on one line; an equal share of the row when stacked).
       expect(batch.width, greaterThanOrEqualTo(width >= 600 ? 128 : 100));
@@ -114,16 +122,13 @@ void main() {
       // The dropdown segment (the field's right end, full height) opens the
       // presets; picking one fills the field. Tapped near its bottom edge, so
       // this also checks the whole segment is the target.
-      await tester.ensureVisible(fields.at(1));
-      final field = tester.getRect(fields.at(1));
-      await tester.tapAt(Offset(field.right - 8, field.bottom - 4));
+      await tester.ensureVisible(batchField);
+      final b = tester.getRect(batchField);
+      await tester.tapAt(Offset(b.right - 8, b.bottom - 4));
       await tester.pumpAndSettle();
       await tester.tap(find.text('1024').last);
       await tester.pumpAndSettle();
-      expect(
-        tester.widget<AppTextField>(fields.at(1)).controller!.text,
-        '1024',
-      );
+      expect(tester.widget<AppTextField>(batchField).controller!.text, '1024');
       expect(find.text('512'), findsNothing); // the menu closed
     });
   }
