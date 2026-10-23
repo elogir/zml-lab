@@ -160,4 +160,48 @@ void main() {
     expect(custom.chat.apiKey, isNull);
     expect(custom.chat.selfHosted, isTrue);
   });
+
+  test('a custom host can be a URL, with a key', () async {
+    final keys = _MemoryKeys();
+    final db = AppDatabase(NativeDatabase.memory());
+    final container = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        apiKeyStoreProvider.overrideWithValue(keys),
+      ],
+    );
+    addTearDown(() async {
+      container.dispose();
+      await db.close();
+    });
+    final target = container.read(benchmarkTargetControllerProvider.notifier);
+    BenchmarkTarget read() => container.read(benchmarkTargetControllerProvider);
+
+    // A plain host keeps host + port, self-hosted.
+    expect(read().customIsUrl, isFalse);
+    expect(read().chat.selfHosted, isTrue);
+
+    // A URL carries its own port and path.
+    target.setHostText('https://api.openai.com/v1');
+    expect(read().customIsUrl, isTrue);
+    expect(
+      read().chat.chatCompletions.toString(),
+      'https://api.openai.com/v1/chat/completions',
+    );
+    expect(read().host, 'api.openai.com');
+    expect(read().port, 443);
+    // No key: treated as a server of ours.
+    expect(read().chat.selfHosted, isTrue);
+
+    // A key makes it a hosted API, and is kept in the key store.
+    target.setCustomKey('sk-test');
+    expect(read().chat.apiKey, 'sk-test');
+    expect(read().chat.selfHosted, isFalse);
+    expect(keys.keys[BenchmarkTargetController.customKeyId], 'sk-test');
+
+    // Clearing it removes it from the store.
+    target.setCustomKey('');
+    expect(read().chat.apiKey, isNull);
+    expect(keys.keys, isEmpty);
+  });
 }

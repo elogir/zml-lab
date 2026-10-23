@@ -28,6 +28,7 @@ class BenchmarkTarget {
     this.endpointName = '',
     this.baseUrl = '',
     this.apiKey,
+    this.customKey = '',
   });
 
   static const defaultHost = '127.0.0.1';
@@ -52,12 +53,35 @@ class BenchmarkTarget {
   /// The endpoint's key, loaded from the Keychain when it's selected.
   final String? apiKey;
 
+  /// The key typed for a custom host (kept in the Keychain too).
+  final String customKey;
+
   bool get isEndpoint => endpointId != null;
 
+  /// A custom host typed as a full URL (`https://…/v1`): it carries its own
+  /// scheme, port and path, so the port field doesn't apply.
+  bool get customIsUrl =>
+      !isEndpoint &&
+      machineId == null &&
+      (hostText.contains('://') || hostText.trim().contains('/'));
+
   /// Where requests go.
-  ChatEndpoint get chat => isEndpoint
-      ? ChatEndpoint(Uri.parse(baseUrl), apiKey: apiKey)
-      : ChatEndpoint.hostPort(_typedHost, _typedPort);
+  ChatEndpoint get chat {
+    if (isEndpoint) return ChatEndpoint(Uri.parse(baseUrl), apiKey: apiKey);
+    final key = machineId == null && customKey.trim().isNotEmpty
+        ? customKey.trim()
+        : null;
+    final url = customIsUrl ? ChatEndpoint.parseBaseUrl(hostText) : null;
+    if (url != null) {
+      // With a key it's taken for a hosted API (no vLLM-only options, and big
+      // batches ask first); without one, a server of ours.
+      return ChatEndpoint(url, apiKey: key, selfHosted: key == null);
+    }
+    final hp = ChatEndpoint.hostPort(_typedHost, _typedPort);
+    return key == null
+        ? hp
+        : ChatEndpoint(hp.baseUrl, apiKey: key, selfHosted: false);
+  }
 
   String get _typedHost {
     final h = hostText.trim();
@@ -67,16 +91,19 @@ class BenchmarkTarget {
   int get _typedPort => int.tryParse(portText.trim()) ?? defaultPort;
 
   /// Host and port (the perf tool takes only these).
-  String get host => isEndpoint ? chat.host : _typedHost;
-  int get port => isEndpoint ? chat.port : _typedPort;
+  String get host => isEndpoint || customIsUrl ? chat.host : _typedHost;
+  int get port => isEndpoint || customIsUrl ? chat.port : _typedPort;
 
   /// How the target reads in the UI and in saved runs/reports.
   String get label => isEndpoint
       ? endpointName
       : machineId != null
       ? machineName
+      : customIsUrl
+      ? chat.host
       : _typedHost;
-  String get endpoint => isEndpoint ? chat.host : '$label:$port';
+  String get endpoint =>
+      isEndpoint || customIsUrl ? chat.host : '$label:$port';
 
   static const _unset = Object();
 
@@ -90,6 +117,7 @@ class BenchmarkTarget {
     String? endpointName,
     String? baseUrl,
     Object? apiKey = _unset,
+    String? customKey,
   }) {
     return BenchmarkTarget(
       tool: tool ?? this.tool,
@@ -105,6 +133,7 @@ class BenchmarkTarget {
       endpointName: endpointName ?? this.endpointName,
       baseUrl: baseUrl ?? this.baseUrl,
       apiKey: identical(apiKey, _unset) ? this.apiKey : apiKey as String?,
+      customKey: customKey ?? this.customKey,
     );
   }
 }
@@ -122,7 +151,16 @@ class BenchmarkTargetController extends _$BenchmarkTargetController {
     // editing it elsewhere has to move the target with it.
     ref.listen(machineMapProvider, (_, machines) => _syncMachine(machines));
     ref.listen(endpointMapProvider, (_, map) => _syncEndpoint(map));
+    _loadCustomKey();
     return const BenchmarkTarget();
+  }
+
+  /// The custom host's key is kept in the Keychain under this id.
+  static const customKeyId = 'custom-host';
+
+  Future<void> _loadCustomKey() async {
+    final key = await ref.read(apiKeyStoreProvider).read(customKeyId);
+    if (key != null && ref.mounted) state = state.copyWith(customKey: key);
   }
 
   /// Re-read the selected machine's address/name after any machine edit.
@@ -191,4 +229,12 @@ class BenchmarkTargetController extends _$BenchmarkTargetController {
   void setHostText(String value) => state = state.copyWith(hostText: value);
 
   void setPortText(String value) => state = state.copyWith(portText: value);
+
+  /// The custom host's API key; empty clears it.
+  void setCustomKey(String value) {
+    state = state.copyWith(customKey: value);
+    final keys = ref.read(apiKeyStoreProvider);
+    final v = value.trim();
+    v.isEmpty ? keys.delete(customKeyId) : keys.write(customKeyId, v);
+  }
 }

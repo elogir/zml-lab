@@ -51,6 +51,7 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
   // fields, seeded once and written straight back on edit.
   late final TextEditingController _host;
   late final TextEditingController _port;
+  late final TextEditingController _key;
 
   // Moves the terminal between the split and fullscreen layouts without
   // remounting it (a remount would churn its panes' focus and views).
@@ -62,12 +63,14 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
     final target = ref.read(benchmarkTargetControllerProvider);
     _host = TextEditingController(text: target.hostText);
     _port = TextEditingController(text: target.portText);
+    _key = TextEditingController(text: target.customKey);
   }
 
   @override
   void dispose() {
     _host.dispose();
     _port.dispose();
+    _key.dispose();
     super.dispose();
   }
 
@@ -109,6 +112,13 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
       hostText,
     ) {
       if (_host.text != hostText) _host.text = hostText;
+    });
+    // The saved custom key arrives from the Keychain after the first frame.
+    ref.listen(benchmarkTargetControllerProvider.select((t) => t.customKey), (
+      _,
+      key,
+    ) {
+      if (_key.text != key) _key.text = key;
     });
 
     final target = ref.watch(benchmarkTargetControllerProvider);
@@ -167,6 +177,7 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
         _EndpointBar(
           host: _host,
           port: _port,
+          apiKey: _key,
           selectedMachineId: target.machineId,
           target: target,
           onSelectMachine: _target.selectMachine,
@@ -176,6 +187,7 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
           onSelectCustom: _target.selectCustom,
           onHostEdited: _target.setHostText,
           onPortEdited: _target.setPortText,
+          onKeyEdited: _target.setCustomKey,
         ),
         const SizedBox(height: AppSpacing.lg),
         Expanded(child: body),
@@ -439,6 +451,8 @@ class _EndpointBar extends ConsumerWidget {
     required this.onSelectCustom,
     required this.onHostEdited,
     required this.onPortEdited,
+    required this.apiKey,
+    required this.onKeyEdited,
   });
 
   final TextEditingController host;
@@ -452,6 +466,10 @@ class _EndpointBar extends ConsumerWidget {
   final VoidCallback onSelectCustom;
   final ValueChanged<String> onHostEdited;
   final ValueChanged<String> onPortEdited;
+
+  /// The custom host's key (sent as Bearer when set).
+  final TextEditingController apiKey;
+  final ValueChanged<String> onKeyEdited;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -526,6 +544,17 @@ class _EndpointBar extends ConsumerWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           );
+    // A custom host may be typed as a full URL (`https://…/v1`); then it
+    // carries its own port, and a key field fills the rest of the bar.
+    final showPort = !target.customIsUrl;
+    final keyField = AppTextField(
+      controller: apiKey,
+      mono: true,
+      dense: true,
+      obscureText: true,
+      placeholder: 'API key (optional)',
+      onChanged: onKeyEdited,
+    );
     final portField = SizedBox(
       width: 68,
       child: AppTextField(
@@ -565,10 +594,18 @@ class _EndpointBar extends ConsumerWidget {
                   label('host'),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(flex: 3, child: hostField),
-                  const SizedBox(width: AppSpacing.lg),
-                  label('port'),
-                  const SizedBox(width: AppSpacing.sm),
-                  portField,
+                  if (showPort) ...[
+                    const SizedBox(width: AppSpacing.lg),
+                    label('port'),
+                    const SizedBox(width: AppSpacing.sm),
+                    portField,
+                  ],
+                  if (custom) ...[
+                    const SizedBox(width: AppSpacing.lg),
+                    label('key'),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(flex: 2, child: keyField),
+                  ],
                 ],
               ],
             );
@@ -597,17 +634,29 @@ class _EndpointBar extends ConsumerWidget {
                     keyBadge,
                   ],
                 )
-              else
+              else ...[
                 Row(
                   children: [
                     labelled('host'),
                     Expanded(child: hostField),
-                    const SizedBox(width: AppSpacing.md),
-                    label('port'),
-                    const SizedBox(width: AppSpacing.sm),
-                    portField,
+                    if (showPort) ...[
+                      const SizedBox(width: AppSpacing.md),
+                      label('port'),
+                      const SizedBox(width: AppSpacing.sm),
+                      portField,
+                    ],
                   ],
                 ),
+                if (custom) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      labelled('key'),
+                      Expanded(child: keyField),
+                    ],
+                  ),
+                ],
+              ],
             ],
           );
         },
