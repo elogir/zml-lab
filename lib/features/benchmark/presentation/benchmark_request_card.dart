@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/util/markdown_tail.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/benchmark.dart';
 import 'reasoning_view.dart';
@@ -15,14 +16,13 @@ Color benchmarkStatusColor(BenchmarkRequestStatus status, AppColors c) =>
 
 /// One streaming request in the benchmark grid.
 class BenchmarkRequestCard extends StatelessWidget {
-  const BenchmarkRequestCard({
-    super.key,
-    required this.request,
-    this.onExpand,
-  });
+  const BenchmarkRequestCard({super.key, required this.request, this.onExpand});
 
   final BenchmarkRequest request;
   final VoidCallback? onExpand;
+
+  /// How much of the reply the card renders — several times what fits.
+  static const _previewChars = 1500;
 
   @override
   Widget build(BuildContext context) {
@@ -102,6 +102,9 @@ class BenchmarkRequestCard extends StatelessWidget {
                   // content slides up and the newest streamed text stays in
                   // view; the min-height box keeps a short reply top-aligned
                   // (a reversed viewport would otherwise bottom-align it).
+                  // Only the tail is rendered — the card shows a few lines,
+                  // and parsing whole long replies every frame across a big
+                  // batch froze the app. The full text is in the focus view.
                   : LayoutBuilder(
                       builder: (context, cons) => SingleChildScrollView(
                         reverse: true,
@@ -115,10 +118,22 @@ class BenchmarkRequestCard extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (request.reasoning.isNotEmpty)
-                                  ReasoningView(request.reasoning, dense: true),
+                                // Thinking sits above the answer, so once the
+                                // answer fills the card it's out of view.
+                                if (request.reasoning.isNotEmpty &&
+                                    request.text.length < _previewChars)
+                                  ReasoningView(
+                                    markdownTail(
+                                      request.reasoning,
+                                      maxChars: _previewChars,
+                                    ),
+                                    dense: true,
+                                  ),
                                 AppMarkdown(
-                                  request.text,
+                                  markdownTail(
+                                    request.text,
+                                    maxChars: _previewChars,
+                                  ),
                                   style: context.text.small.copyWith(
                                     color: c.textSecondary,
                                     height: 1.5,

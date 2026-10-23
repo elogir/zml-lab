@@ -27,6 +27,19 @@ class _Progress {
   String? error; // why it failed, when it did
   BenchmarkRequestStatus status = BenchmarkRequestStatus.streaming;
 
+  /// Set by every token / completion; cleared by the flush that folds it in.
+  bool dirty = true;
+
+  // The buffers' contents as of the last flush, re-read only when they grew —
+  // copying every reply's whole text on every flush adds up fast in a batch
+  // of hundreds of long replies.
+  String text = '';
+  String reasoningText = '';
+
+  /// What the last flush published. A settled request with nothing new is
+  /// re-published as this same object, so nothing downstream sees a change.
+  BenchmarkRequest? published;
+
   int get tokens => usageTokens > 0 ? usageTokens : chunkTokens;
 }
 
@@ -52,6 +65,8 @@ class BenchmarkController extends _$BenchmarkController {
   DateTime? _startAt;
   List<_Progress> _progs = [];
   bool _flushScheduled = false;
+  Timer? _flushDelay;
+  DateTime _lastFlush = DateTime.fromMillisecondsSinceEpoch(0);
 
   // Throughput time-series. Appended on a ~250ms cadence (flush runs per-frame,
   // far too often to sample every time); the snapshot is a stable reference so
@@ -75,6 +90,12 @@ class BenchmarkController extends _$BenchmarkController {
     );
   }
 
+  /// Every flush publishes a new run object, so identity is the right test —
+  /// the default `==` deep-compares every request's text on each flush.
+  @override
+  bool updateShouldNotify(BenchmarkRun previous, BenchmarkRun next) =>
+      !identical(previous, next);
+
   void setPrompt(String prompt) => state = state.copyWith(prompt: prompt);
 
   /// Empty = send `zml_model` (the server-agnostic default).
@@ -89,16 +110,16 @@ class BenchmarkController extends _$BenchmarkController {
   );
 
   /// Null = the server's default sampling temperature.
-  void setTemperature(double? temperature) => state = state.copyWith(
-    temperature: temperature?.clamp(0.0, 2.0),
-  );
+  void setTemperature(double? temperature) =>
+      state = state.copyWith(temperature: temperature?.clamp(0.0, 2.0));
 
   /// Fires the batch at `http://[host]:[port]/v1/chat/completions`.
   void start({required String host, required int port}) {
     _teardown();
     final n = state.batchSize;
-    final prompt =
-        state.prompt.trim().isEmpty ? defaultBenchmarkPrompt : state.prompt;
+    final prompt = state.prompt.trim().isEmpty
+        ? defaultBenchmarkPrompt
+        : state.prompt;
     final now = DateTime.now();
     _startAt = now;
     _progs = List.generate(n, (i) => _Progress(index: i + 1, start: now));
@@ -144,7 +165,10 @@ class BenchmarkController extends _$BenchmarkController {
 
     // Slow tick just keeps the live elapsed / tok-s readout advancing between
     // tokens; token *text* is flushed per-token (frame-coalesced) below.
-    _ticker = Timer.periodic(const Duration(milliseconds: 200), (_) => _flush());
+    _ticker = Timer.periodic(
+      const Duration(milliseconds: 200),
+      (_) => _flush(),
+    );
   }
 
   void cancel() {
@@ -160,14 +184,16 @@ class BenchmarkController extends _$BenchmarkController {
       if (!p.status.isTerminal) {
         p.status = BenchmarkRequestStatus.done;
         p.endAt = now;
+        p.dirty = true;
       }
     }
     state = state.copyWith(
       isRunning: false,
       // Lock the aggregate at whatever was live if we never hit a natural
       // first-completion (same reasoning as the freeze below).
-      frozenAggregate:
-          state.aggregateFrozen ? state.frozenAggregate : _liveAggregate(),
+      frozenAggregate: state.aggregateFrozen
+          ? state.frozenAggregate
+          : _liveAggregate(),
       elapsed: start != null ? now.difference(start) : state.elapsed,
       requests: [
         for (final r in state.requests)
@@ -225,28 +251,56 @@ class BenchmarkController extends _$BenchmarkController {
       p.usageTokens = tok.completionTokens!;
     }
     if (tok.finishReason != null) p.finishReason = tok.finishReason;
+    p.dirty = true;
     _scheduleFlush(); // show this token on the next frame
   }
 
-  /// Coalesces flushes to at most one per frame: a token shows up within a
-  /// frame of arriving (so it reads token-by-token, like the chat popup),
-  /// while a burst across many concurrent requests still rebuilds only once.
+  /// How often a running batch republishes. Per frame reads token-by-token
+  /// for a handful of requests; with hundreds, every flush rebuilds hundreds
+  /// of requests and the visible cards, so it backs off — the numbers stay
+  /// live and the text still streams, just in steps.
+  Duration get _flushInterval => switch (_progs.length) {
+    <= 32 => Duration.zero,
+    <= 128 => const Duration(milliseconds: 50),
+    <= 512 => const Duration(milliseconds: 100),
+    _ => const Duration(milliseconds: 200),
+  };
+
+  /// Coalesces flushes to at most one per frame (and per [_flushInterval]): a
+  /// token shows up within a frame of arriving, while a burst across many
+  /// concurrent requests still rebuilds only once.
   void _scheduleFlush() {
     if (_flushScheduled) return;
     _flushScheduled = true;
-    SchedulerBinding.instance.scheduleFrameCallback((_) {
+    final wait = _flushInterval - DateTime.now().difference(_lastFlush);
+    void onFrame() => SchedulerBinding.instance.scheduleFrameCallback((_) {
+      if (!_flushScheduled) return; // torn down meanwhile
       _flushScheduled = false;
       _flush();
     });
+    if (wait > Duration.zero) {
+      _flushDelay = Timer(wait, onFrame);
+    } else {
+      onFrame();
+    }
   }
 
   void _finish(_Progress p, {required bool failed, String? error}) {
     if (p.status.isTerminal) return;
-    p.status =
-        failed ? BenchmarkRequestStatus.failed : BenchmarkRequestStatus.done;
+    p.status = failed
+        ? BenchmarkRequestStatus.failed
+        : BenchmarkRequestStatus.done;
     if (failed) p.error = error;
     p.endAt = DateTime.now();
-    _flush(); // reflect the completion (and the aggregate freeze) immediately
+    p.dirty = true;
+    // The last one (and the first, which freezes the aggregate) shows at
+    // once; completions in between ride the regular cadence.
+    final settled = _progs.where((q) => q.status.isTerminal).length;
+    if (settled == 1 || settled == _progs.length) {
+      _flush();
+    } else {
+      _scheduleFlush();
+    }
   }
 
   /// Folds the scratch progress into immutable request state. Per-request tok/s
@@ -256,9 +310,21 @@ class BenchmarkController extends _$BenchmarkController {
     final start = _startAt;
     if (start == null) return;
     final now = DateTime.now();
+    _lastFlush = now;
 
     final requests = <BenchmarkRequest>[];
     for (final p in _progs) {
+      // Settled and untouched since: its numbers are fixed.
+      final published = p.published;
+      if (published != null && !p.dirty && p.status.isTerminal) {
+        requests.add(published);
+        continue;
+      }
+      if (p.buffer.length != p.text.length) p.text = p.buffer.toString();
+      if (p.reasoning.length != p.reasoningText.length) {
+        p.reasoningText = p.reasoning.toString();
+      }
+      p.dirty = false;
       final endRef = p.endAt ?? now;
       final decodeMs = p.firstTokenAt == null
           ? 0
@@ -272,11 +338,11 @@ class BenchmarkController extends _$BenchmarkController {
           ? (p.tokens - 1) / (decodeMs / 1000.0)
           : 0.0;
       requests.add(
-        BenchmarkRequest(
+        p.published = BenchmarkRequest(
           index: p.index,
           status: p.status,
-          text: p.buffer.toString(),
-          reasoning: p.reasoning.toString(),
+          text: p.text,
+          reasoning: p.reasoningText,
           tokens: p.tokens,
           tokensPerSecond: tps,
           ttftMs: p.firstTokenAt?.difference(p.start).inMilliseconds,
@@ -310,7 +376,8 @@ class BenchmarkController extends _$BenchmarkController {
     // and always once at the end so the tail is captured. tps here is the live
     // aggregate rate of the requests still streaming — the real instantaneous
     // throughput, which ramps up then decays as requests finish.
-    final dueForSample = _samples.isEmpty ||
+    final dueForSample =
+        _samples.isEmpty ||
         (elapsedMs - _samples.last.elapsedMs) >= _sampleIntervalMs ||
         !anyActive;
     if (dueForSample) {
@@ -326,12 +393,14 @@ class BenchmarkController extends _$BenchmarkController {
       // already excluded since only still-streaming ones are considered.
       final avgTps = meanRequestTps(streaming);
       final totalTokens = requests.fold(0, (sum, r) => sum + r.tokens);
-      _samples.add(BenchmarkSample(
-        elapsedMs: elapsedMs,
-        tps: liveTps,
-        avgTps: avgTps,
-        tokens: totalTokens,
-      ));
+      _samples.add(
+        BenchmarkSample(
+          elapsedMs: elapsedMs,
+          tps: liveTps,
+          avgTps: avgTps,
+          tokens: totalTokens,
+        ),
+      );
       _samplesSnapshot = List.unmodifiable(_samples);
     }
 
@@ -351,6 +420,7 @@ class BenchmarkController extends _$BenchmarkController {
     }
     _subs.clear();
     _ticker?.cancel();
+    _flushDelay?.cancel();
     _progs = [];
     // A pending frame-callback flush becomes a no-op ([_flush] returns on a
     // null start), so it can't set state on a disposed notifier.

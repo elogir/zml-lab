@@ -11,7 +11,12 @@ import '../theme/app_theme.dart';
 /// palette-mapped Material theme that never leaks outside this subtree. Code
 /// blocks and inline code get app-styled builders (mono, muted surfaces)
 /// instead of the package's Material defaults.
-class AppMarkdown extends StatelessWidget {
+///
+/// Parsing is the expensive part, so an unchanged [data] (same text, style
+/// and palette) reuses the previous subtree outright — a settled reply in a
+/// list that rebuilds per streamed token costs nothing — and the Material
+/// theme is only rebuilt when the style or palette changes.
+class AppMarkdown extends StatefulWidget {
   const AppMarkdown(this.data, {super.key, this.style});
 
   /// The markdown source — a model response, possibly still streaming.
@@ -21,9 +26,54 @@ class AppMarkdown extends StatelessWidget {
   final TextStyle? style;
 
   @override
+  State<AppMarkdown> createState() => _AppMarkdownState();
+}
+
+class _AppMarkdownState extends State<AppMarkdown> {
+  String? _data;
+  TextStyle? _base;
+  AppColors? _colors;
+  Widget? _child;
+  (ThemeData, GptMarkdownThemeData)? _themes;
+
+  @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final base = style ?? context.text.bodySecondary.copyWith(height: 1.55);
+    final base =
+        widget.style ?? context.text.bodySecondary.copyWith(height: 1.55);
+    final sameLook = identical(c, _colors) && base == _base;
+    if (sameLook && _child != null && widget.data == _data) return _child!;
+    if (!sameLook) _themes = _buildThemes(c, base);
+    _data = widget.data;
+    _base = base;
+    _colors = c;
+    final (theme, gptTheme) = _themes!;
+    return _child = Theme(
+      data: theme,
+      child: GptMarkdownTheme(
+        gptThemeData: gptTheme,
+        child: Material(
+          type: MaterialType.transparency,
+          child: GptMarkdown(
+            widget.data,
+            style: base,
+            codeBuilder: _codeBlock,
+            // Inline `code`: a subtle mono chip.
+            inlineCodeStyle: InlineCodeStyle(
+              fontFamily: AppTypography.monoFamily,
+              fontSizeFactor: 0.96,
+              backgroundColor: c.surfaceSelected,
+              borderWidth: 0,
+              borderRadius: const Radius.circular(4),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  (ThemeData, GptMarkdownThemeData) _buildThemes(AppColors c, TextStyle base) {
     final baseSize = base.fontSize ?? 13;
 
     TextStyle heading(double size) => base.copyWith(
@@ -47,44 +97,25 @@ class AppMarkdown extends StatelessWidget {
               error: c.statusFailed,
             );
 
-    return Theme(
-      data: ThemeData(
+    return (
+      ThemeData(
         colorScheme: scheme,
         textTheme: TextTheme(bodyMedium: base),
         dividerColor: c.borderMuted,
       ),
-      child: GptMarkdownTheme(
-        gptThemeData: GptMarkdownThemeData(
-          brightness: c.brightness,
-          highlightColor: c.surfaceSelected,
-          h1: heading(baseSize + 6),
-          h2: heading(baseSize + 4),
-          h3: heading(baseSize + 2),
-          h4: heading(baseSize + 1),
-          h5: heading(baseSize),
-          h6: heading(baseSize),
-          hrLineColor: c.borderMuted,
-          linkColor: c.accent,
-          linkHoverColor: c.accent,
-          autoAddDividerLineAfterH1: false,
-        ),
-        child: Material(
-          type: MaterialType.transparency,
-          child: GptMarkdown(
-            data,
-            style: base,
-            codeBuilder: _codeBlock,
-            // Inline `code`: a subtle mono chip.
-            inlineCodeStyle: InlineCodeStyle(
-              fontFamily: AppTypography.monoFamily,
-              fontSizeFactor: 0.96,
-              backgroundColor: c.surfaceSelected,
-              borderWidth: 0,
-              borderRadius: const Radius.circular(4),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-            ),
-          ),
-        ),
+      GptMarkdownThemeData(
+        brightness: c.brightness,
+        highlightColor: c.surfaceSelected,
+        h1: heading(baseSize + 6),
+        h2: heading(baseSize + 4),
+        h3: heading(baseSize + 2),
+        h4: heading(baseSize + 1),
+        h5: heading(baseSize),
+        h6: heading(baseSize),
+        hrLineColor: c.borderMuted,
+        linkColor: c.accent,
+        linkHoverColor: c.accent,
+        autoAddDividerLineAfterH1: false,
       ),
     );
   }

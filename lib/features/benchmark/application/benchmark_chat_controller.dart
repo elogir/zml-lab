@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/scheduler.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/execution/native_io.dart';
@@ -35,6 +36,15 @@ class BenchmarkChatController extends _$BenchmarkChatController {
   /// popup can be opened mid-run and the reply keeps streaming in. Cleared
   /// once the request settles or the user replays the prompt.
   bool _mirrorBatch = false;
+
+  /// Bumped per reply, so a frame-deferred write from a replaced (replayed)
+  /// reply can't land in the new one.
+  int _generation = 0;
+
+  /// Identity, not the default deep `==` over every turn's text.
+  @override
+  bool updateShouldNotify(BenchmarkChat previous, BenchmarkChat next) =>
+      !identical(previous, next);
 
   @override
   BenchmarkChat build(String jobId, int index, String host, int port) {
@@ -101,7 +111,10 @@ class BenchmarkChatController extends _$BenchmarkChatController {
   void send(String prompt) {
     if (prompt.trim().isEmpty || state.isStreaming) return;
     state = state.copyWith(
-      turns: [...state.turns, ChatTurn(fromUser: true, text: prompt)],
+      turns: [
+        ...state.turns,
+        ChatTurn(fromUser: true, text: prompt),
+      ],
     );
     _startReply();
   }
@@ -130,6 +143,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
     // the batch request must stop writing into it.
     _mirrorBatch = false;
     _sub?.cancel();
+    _generation++;
     final messages = _messages();
     final start = DateTime.now();
     final replyIndex = state.turns.length;
@@ -144,7 +158,17 @@ class BenchmarkChatController extends _$BenchmarkChatController {
     var usageTokens = 0;
     String? finishReason;
 
+    // Tokens arrive far faster than frames; publishing each one re-copied the
+    // whole reply and re-rendered it per token, so long replies crawled.
+    // Streaming updates are folded into one per frame; the final one is not.
+    var frameScheduled = false;
+    var generation = _generation;
+    String text = '', thinking = '';
+
     void write({required bool streaming, String? error}) {
+      if (generation != _generation) return; // a newer reply took over
+      if (buffer.length != text.length) text = buffer.toString();
+      if (reasoning.length != thinking.length) thinking = reasoning.toString();
       final tokens = usageTokens > 0 ? usageTokens : chunkTokens;
       final now = DateTime.now();
       final decodeMs = firstTokenAt == null
@@ -159,8 +183,8 @@ class BenchmarkChatController extends _$BenchmarkChatController {
         replyIndex,
         ChatTurn(
           fromUser: false,
-          text: buffer.toString(),
-          reasoning: reasoning.toString(),
+          text: text,
+          reasoning: thinking,
           streaming: streaming,
           tokens: tokens,
           tokensPerSecond: tps,
@@ -170,6 +194,22 @@ class BenchmarkChatController extends _$BenchmarkChatController {
           error: error,
         ),
       );
+    }
+
+    // Re-rendering the streaming reply costs more the longer it gets, so past
+    // a few pages it updates ~10×/s instead of every frame.
+    void scheduleWrite() {
+      if (frameScheduled) return;
+      frameScheduled = true;
+      void onFrame() => SchedulerBinding.instance.scheduleFrameCallback((_) {
+        frameScheduled = false;
+        write(streaming: true);
+      });
+      if (buffer.length > 8000) {
+        Timer(const Duration(milliseconds: 100), onFrame);
+      } else {
+        onFrame();
+      }
     }
 
     // Chat replies follow the run's settings, read fresh per send.
@@ -203,11 +243,18 @@ class BenchmarkChatController extends _$BenchmarkChatController {
               usageTokens = tok.completionTokens!;
             }
             if (tok.finishReason != null) finishReason = tok.finishReason;
-            write(streaming: true);
+            scheduleWrite();
           },
-          onError: (Object e) =>
-              write(streaming: false, error: _cleanError(e)),
-          onDone: () => write(streaming: false),
+          // A frame write still pending after these sees the reply settled
+          // and is dropped (generation bump), so it can't flip it back.
+          onError: (Object e) {
+            write(streaming: false, error: _cleanError(e));
+            generation = -1;
+          },
+          onDone: () {
+            write(streaming: false);
+            generation = -1;
+          },
           cancelOnError: true,
         );
   }
