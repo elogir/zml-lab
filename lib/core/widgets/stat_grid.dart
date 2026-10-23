@@ -2,20 +2,20 @@ import 'package:flutter/widgets.dart';
 
 import '../theme/app_theme.dart';
 
-/// Headline stats in equal-width columns: as many per row as fit at
-/// [minCellWidth], and when they wrap the later rows reuse the same columns —
-/// so a stat always sits under the one above it instead of drifting like
-/// wrapped text.
+/// Headline stats in fixed-width columns packed from the left: as many per
+/// row as fit, and when they wrap the later rows reuse the same columns — so
+/// a stat always sits under the one above it instead of drifting like wrapped
+/// text.
 class StatGrid extends StatelessWidget {
   const StatGrid({
     super.key,
     required this.children,
-    this.minCellWidth = 112,
+    this.cellWidth = 132,
     this.rowSpacing = AppSpacing.md,
   });
 
   final List<Widget> children;
-  final double minCellWidth;
+  final double cellWidth;
   final double rowSpacing;
 
   @override
@@ -24,12 +24,12 @@ class StatGrid extends StatelessWidget {
       builder: (context, constraints) {
         final n = children.length;
         if (n == 0) return const SizedBox.shrink();
-        final fit = (constraints.maxWidth / minCellWidth).floor().clamp(1, n);
+        final fit = (constraints.maxWidth / cellWidth).floor().clamp(1, n);
         // Balance the rows (5 stats in 3 + 2, not 4 + 1).
         final rows = (n / fit).ceil();
         final perRow = (n / rows).ceil();
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             for (var r = 0; r < rows; r++) ...[
@@ -37,15 +37,8 @@ class StatGrid extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (var col = 0; col < perRow; col++)
-                    Expanded(
-                      child: r * perRow + col < n
-                          ? Align(
-                              alignment: Alignment.topLeft,
-                              child: children[r * perRow + col],
-                            )
-                          : const SizedBox.shrink(),
-                    ),
+                  for (var i = r * perRow; i < n && i < (r + 1) * perRow; i++)
+                    SizedBox(width: cellWidth, child: children[i]),
                 ],
               ),
             ],

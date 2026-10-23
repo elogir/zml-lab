@@ -72,11 +72,9 @@ void main() {
       // Send is exactly as tall as the field beside it, on the same line.
       expect(send.top, closeTo(model.top, 0.01));
       expect(send.height, closeTo(model.height, 0.01));
-      // Wide: the model field stays compact, Send right after it.
-      if (width >= 600) {
-        expect(model.width, lessThanOrEqualTo(240));
-        expect(send.left - model.right, lessThan(20));
-      }
+      // No trailing gap: Send ends where the row ends (the settings fill it).
+      expect(send.right, closeTo(width, 1));
+      expect(send.left - model.right, lessThan(20));
       // Room for a 4-digit batch size beside the dropdown segment (128 px
       // on one line; an equal share of the row when stacked).
       expect(batch.width, greaterThanOrEqualTo(width >= 600 ? 128 : 100));
@@ -90,7 +88,11 @@ void main() {
         'MEDIAN TTFT',
         'ELAPSED',
       ].map((t) => tester.getRect(find.text(t))).toList();
-      final firstRow = stats.where((r) => r.top == stats.first.top);
+      final firstRow = stats.where((r) => r.top == stats.first.top).toList();
+      // Packed from the left at a fixed pitch, not spread across the bar.
+      if (firstRow.length > 1) {
+        expect(firstRow[1].left - firstRow[0].left, closeTo(132, 0.5));
+      }
       final columns = firstRow.map((r) => r.left).toList();
       for (final r in stats) {
         expect(

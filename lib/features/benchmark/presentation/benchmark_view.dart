@@ -266,10 +266,11 @@ class _Controls extends StatelessWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth >= _oneLineWidth;
-            // Fixed widths on one line; equal shares of the row when they
-            // stack, so the narrow layout is a clean grid either way.
-            Widget number(_Setting s, double width) =>
-                wide ? SizedBox(width: width, child: s) : Expanded(child: s);
+            // Shares of the row: on one line the settings fill it in
+            // proportion (Model + Send the biggest, so nothing balloons and
+            // no gap trails Send); stacked, the numbers split it equally.
+            Widget number(_Setting s, int flex) =>
+                Expanded(flex: wide ? flex : 1, child: s);
             final numbers = [
               number(
                 _Setting(
@@ -290,7 +291,7 @@ class _Controls extends StatelessWidget {
                     '1024',
                   ],
                 ),
-                128,
+                2,
               ),
               const SizedBox(width: AppSpacing.md),
               // Empty = no cap: the server generates until EOS or its max
@@ -302,7 +303,7 @@ class _Controls extends StatelessWidget {
                   controller: maxTokens,
                   onChanged: onMaxTokensChanged,
                 ),
-                96,
+                2,
               ),
               const SizedBox(width: AppSpacing.md),
               // Empty = the server's default temperature.
@@ -313,7 +314,7 @@ class _Controls extends StatelessWidget {
                   controller: temperature,
                   onChanged: onTemperatureChanged,
                 ),
-                80,
+                2,
               ),
             ];
             // Send (and Cancel while running) at exactly the field's height.
@@ -352,10 +353,9 @@ class _Controls extends StatelessWidget {
               onChanged: onModelChanged,
             );
             final send = Expanded(
+              flex: wide ? 5 : 1,
               child: Column(
-                crossAxisAlignment: wide
-                    ? CrossAxisAlignment.start
-                    : CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('Model', style: context.text.smallMuted),
@@ -367,17 +367,10 @@ class _Controls extends StatelessWidget {
                   Stack(
                     children: [
                       Row(
-                        mainAxisSize: wide
-                            ? MainAxisSize.min
-                            : MainAxisSize.max,
                         children: [
                           // Empty sends `zml_model` — llmd ignores the name,
-                          // vLLM requires a real one. Compact when there's
-                          // room (long names scroll inside the field).
-                          if (wide)
-                            SizedBox(width: 240, child: modelField)
-                          else
-                            Expanded(child: modelField),
+                          // vLLM requires a real one.
+                          Expanded(child: modelField),
                           const SizedBox(width: AppSpacing.md),
                           Visibility.maintain(
                             visible: false,
