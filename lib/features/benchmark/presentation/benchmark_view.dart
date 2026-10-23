@@ -490,8 +490,11 @@ class _SettingState extends State<_Setting> {
               onTap: () => _menu.isShowing ? _menu.hide() : _menu.show(),
               builder: (context, hovered) => Container(
                 decoration: BoxDecoration(
-                  color: hovered ? c.surfaceHover : c.surfaceSelected,
-                  border: Border(left: BorderSide(color: c.border)),
+                  // One step up from the field's own fill — the same tone
+                  // as the panels around it — so it reads as part of the
+                  // control, not a separate grey block.
+                  color: hovered ? c.surfaceHover : c.surface,
+                  border: Border(left: BorderSide(color: c.borderMuted)),
                   borderRadius: const BorderRadius.horizontal(
                     right: Radius.circular(7),
                   ),
