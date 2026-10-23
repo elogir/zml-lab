@@ -254,87 +254,135 @@ class _Controls extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         LayoutBuilder(
           builder: (context, constraints) {
+            final wide = constraints.maxWidth >= _oneLineWidth;
+            // Fixed widths on one line; equal shares of the row when they
+            // stack, so the narrow layout is a clean grid either way.
+            Widget number(_Setting s, double width) =>
+                wide ? SizedBox(width: width, child: s) : Expanded(child: s);
             final numbers = [
-              _Setting(
-                label: 'Batch',
-                width: 52,
-                controller: batch,
-                onChanged: onBatchChanged,
+              number(
+                _Setting(
+                  label: 'Batch',
+                  controller: batch,
+                  onChanged: onBatchChanged,
+                ),
+                80,
               ),
+              const SizedBox(width: AppSpacing.md),
               // Empty = no cap: the server generates until EOS or its max
               // seqlen.
-              _Setting(
-                label: 'Max tokens',
-                width: 64,
-                placeholder: '∞',
-                controller: maxTokens,
-                onChanged: onMaxTokensChanged,
+              number(
+                _Setting(
+                  label: 'Max tokens',
+                  placeholder: '∞',
+                  controller: maxTokens,
+                  onChanged: onMaxTokensChanged,
+                ),
+                96,
               ),
+              const SizedBox(width: AppSpacing.md),
               // Empty = the server's default temperature.
-              _Setting(
-                label: 'Temp',
-                width: 60,
-                placeholder: 'auto',
-                controller: temperature,
-                onChanged: onTemperatureChanged,
+              number(
+                _Setting(
+                  label: 'Temp',
+                  placeholder: 'auto',
+                  controller: temperature,
+                  onChanged: onTemperatureChanged,
+                ),
+                80,
               ),
             ];
-            final send = [
-              // Takes the row's slack (a model name can be a long path).
-              // Empty sends `zml_model` — llmd ignores the name, vLLM
-              // requires a real one.
-              Expanded(
-                child: _Setting(
-                  label: 'Model',
-                  placeholder: 'zml_model',
-                  controller: model,
-                  onChanged: onModelChanged,
+            // Send (and Cancel while running) at exactly the field's height.
+            // Stretched only where a height is given (the pinned copy).
+            Widget actions({required bool stretch}) => Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: stretch
+                  ? CrossAxisAlignment.stretch
+                  : CrossAxisAlignment.center,
+              children: [
+                AppButton(
+                  label: 'Send batch',
+                  icon: AppIcons.send,
+                  variant: AppButtonVariant.primary,
+                  onPressed: onSend,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              AppButton(
-                label: 'Send batch',
-                icon: AppIcons.send,
-                variant: AppButtonVariant.primary,
-                onPressed: onSend,
-              ),
-              if (running) ...[
-                const SizedBox(width: AppSpacing.sm),
-                AppIconButton(
-                  icon: AppIcons.kill,
-                  size: 15,
-                  color: c.statusFailed,
-                  hoverColor: c.statusFailed,
-                  padding: const EdgeInsets.all(9),
-                  onPressed: onCancel,
-                ),
+                if (running) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  Center(
+                    child: AppIconButton(
+                      icon: AppIcons.kill,
+                      size: 15,
+                      color: c.statusFailed,
+                      hoverColor: c.statusFailed,
+                      padding: const EdgeInsets.all(9),
+                      onPressed: onCancel,
+                    ),
+                  ),
+                ],
               ],
-            ];
-            // Beside the terminal panel the tools can get narrow: the model
-            // field and Send drop to their own line rather than overflow.
-            if (constraints.maxWidth >= _oneLineWidth) {
-              return Row(
+            );
+            final send = Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  for (final n in numbers) ...[
-                    n,
-                    const SizedBox(width: AppSpacing.lg),
-                  ],
-                  ...send,
+                  Text('Model', style: context.text.smallMuted),
+                  const SizedBox(height: 6),
+                  // The field row sets the height (a hidden copy of the
+                  // actions reserves their width); the real actions are then
+                  // pinned over that slot at the same height. Exact in one
+                  // pass — the text field's intrinsic height overstates it.
+                  Stack(
+                    children: [
+                      Row(
+                        children: [
+                          // Takes the row's slack (a model name can be a
+                          // long path). Empty sends `zml_model` — llmd
+                          // ignores the name, vLLM requires a real one.
+                          Expanded(
+                            child: AppTextField(
+                              controller: model,
+                              mono: true,
+                              placeholder: 'zml_model',
+                              onChanged: onModelChanged,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Visibility.maintain(
+                            visible: false,
+                            child: actions(stretch: false),
+                          ),
+                        ],
+                      ),
+                      Positioned(
+                        top: 0,
+                        bottom: 0,
+                        right: 0,
+                        child: actions(stretch: true),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+            // Labels sit above their fields, so fields line up and the
+            // button aligns with them at the bottom.
+            if (wide) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  ...numbers,
+                  const SizedBox(width: AppSpacing.md),
+                  send,
                 ],
               );
             }
             return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Wraps too: at the narrowest the three numbers don't fit
-                // on one line either.
-                Wrap(
-                  spacing: AppSpacing.lg,
-                  runSpacing: AppSpacing.sm,
-                  children: numbers,
-                ),
+                Row(children: numbers),
                 const SizedBox(height: AppSpacing.sm),
-                Row(children: send),
+                Row(children: [send]),
               ],
             );
           },
@@ -343,47 +391,45 @@ class _Controls extends StatelessWidget {
     );
   }
 
-  /// Below this the controls row splits in two.
-  static const _oneLineWidth = 640.0;
+  /// Below this the controls split into two rows.
+  static const _oneLineWidth = 600.0;
 }
 
 /// A labeled setting in the controls row.
+/// A labelled field, label above — the parent sizes it (a fixed-width box on
+/// the one-line layout, an equal share of the row when stacked).
 class _Setting extends StatelessWidget {
   const _Setting({
     required this.label,
     required this.controller,
     required this.onChanged,
-    this.width,
     this.placeholder,
   });
 
   final String label;
-
-  /// Fixed field width. Null fills the available space — for that the
-  /// `_Setting` itself has to be in an [Expanded].
-  final double? width;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final String? placeholder;
 
   @override
   Widget build(BuildContext context) {
-    final field = AppTextField(
-      controller: controller,
-      mono: true,
-      placeholder: placeholder,
-      onChanged: onChanged,
-    );
-    return Row(
-      // Fixed-width settings hug their content so they can sit in a Wrap.
-      mainAxisSize: width == null ? MainAxisSize.max : MainAxisSize.min,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: context.text.smallMuted),
-        const SizedBox(width: AppSpacing.sm),
-        if (width == null)
-          Expanded(child: field)
-        else
-          SizedBox(width: width, child: field),
+        Text(
+          label,
+          style: context.text.smallMuted,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 6),
+        AppTextField(
+          controller: controller,
+          mono: true,
+          placeholder: placeholder,
+          onChanged: onChanged,
+        ),
       ],
     );
   }
@@ -756,25 +802,28 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    // Scrolls and wraps rather than overflowing a short or narrow window.
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(AppIcons.benchmark, size: 26, color: c.textFaint),
-          const SizedBox(height: AppSpacing.md),
-          Text('No benchmark running', style: context.text.bodySecondary),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Set a batch size and send requests to ',
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(AppIcons.benchmark, size: 26, color: c.textFaint),
+            const SizedBox(height: AppSpacing.md),
+            Text('No benchmark running', style: context.text.bodySecondary),
+            const SizedBox(height: 4),
+            Text.rich(
+              TextSpan(
+                text: 'Set a batch size and send requests to ',
                 style: context.text.smallMuted,
+                children: [
+                  TextSpan(text: endpoint, style: context.text.monoSmall),
+                ],
               ),
-              Text(endpoint, style: context.text.monoSmall),
-            ],
-          ),
-        ],
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

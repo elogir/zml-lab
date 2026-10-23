@@ -440,89 +440,111 @@ class _EndpointBar extends ConsumerWidget {
     final selected = machines.firstWhereOrNull(
       (m) => m.id == selectedMachineId,
     );
-    final picker = [
-      Text('Target', style: context.text.smallMuted),
-      const SizedBox(width: AppSpacing.md),
-      _MachineDropdown(
-        machines: machines,
-        label: selected?.name ?? 'Custom host',
-        customSelected: custom,
-        selectedMachineId: selectedMachineId,
-        onSelectMachine: onSelectMachine,
-        onSelectCustom: onSelectCustom,
-        blurHost: blurHost,
+    Widget dropdown({double? width}) => _MachineDropdown(
+      width: width,
+      machines: machines,
+      label: selected?.name ?? 'Custom host',
+      customSelected: custom,
+      selectedMachineId: selectedMachineId,
+      onSelectMachine: onSelectMachine,
+      onSelectCustom: onSelectCustom,
+      blurHost: blurHost,
+    );
+    final hostField = custom
+        // Custom: type any host. Still editable while masked — the
+        // controller holds the real value either way.
+        ? AppTextField(
+            controller: host,
+            mono: true,
+            dense: true,
+            obscureText: blurHost,
+            onChanged: onHostEdited,
+          )
+        // A machine sets the host; show it read-only.
+        : Text(
+            blurHost ? maskHost(host.text) : host.text,
+            style: context.text.mono.copyWith(color: c.textSecondary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          );
+    final portField = SizedBox(
+      width: 68,
+      child: AppTextField(
+        controller: port,
+        mono: true,
+        dense: true,
+        onChanged: onPortEdited,
       ),
-    ];
-    final address = [
-      Text('host', style: context.text.smallMuted),
-      const SizedBox(width: AppSpacing.sm),
-      Expanded(
-        child: custom
-            // Custom: type any host. Still editable while masked — the
-            // controller holds the real value either way.
-            ? AppTextField(
-                controller: host,
-                mono: true,
-                dense: true,
-                obscureText: blurHost,
-                onChanged: onHostEdited,
-              )
-            // A machine sets the host; show it read-only.
-            : Text(
-                blurHost ? maskHost(host.text) : host.text,
-                style: context.text.mono.copyWith(color: c.textSecondary),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-      ),
-      const SizedBox(width: AppSpacing.lg),
-      Text('port', style: context.text.smallMuted),
-      const SizedBox(width: AppSpacing.sm),
-      SizedBox(
-        width: 68,
-        child: AppTextField(
-          controller: port,
-          mono: true,
-          dense: true,
-          onChanged: onPortEdited,
-        ),
-      ),
-    ];
+    );
+    Widget label(String text) => Text(text, style: context.text.smallMuted);
+
     return AppPanel(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
       ),
-      // Stack the picker over the address when the terminal leaves the tools
-      // too narrow for one line.
       child: LayoutBuilder(
-        builder: (context, constraints) => constraints.maxWidth < 460
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= 460) {
+            return Row(
+              children: [
+                label('Target'),
+                const SizedBox(width: AppSpacing.md),
+                dropdown(width: 160),
+                const SizedBox(width: AppSpacing.md),
+                Container(width: 1, height: 20, color: c.borderMuted),
+                const SizedBox(width: AppSpacing.md),
+                label('host'),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(child: hostField),
+                const SizedBox(width: AppSpacing.lg),
+                label('port'),
+                const SizedBox(width: AppSpacing.sm),
+                portField,
+              ],
+            );
+          }
+          // Too narrow for one line (the terminal is open beside the tools):
+          // two rows sharing a label column, so the picker and the host field
+          // start at the same x and end with the port field.
+          Widget labelled(String text) =>
+              SizedBox(width: _labelWidth, child: label(text));
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
                 children: [
-                  Row(children: picker),
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(children: address),
-                ],
-              )
-            : Row(
-                children: [
-                  ...picker,
-                  const SizedBox(width: AppSpacing.md),
-                  Container(width: 1, height: 20, color: c.borderMuted),
-                  const SizedBox(width: AppSpacing.md),
-                  ...address,
+                  labelled('Target'),
+                  Expanded(child: dropdown()),
                 ],
               ),
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  labelled('host'),
+                  Expanded(child: hostField),
+                  const SizedBox(width: AppSpacing.md),
+                  label('port'),
+                  const SizedBox(width: AppSpacing.sm),
+                  portField,
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
+
+  /// The stacked layout's label column ("Target" is the widest label).
+  static const _labelWidth = 52.0;
 }
 
 /// A dropdown button that opens a searchable list of machines (plus a Custom
 /// host entry) in an anchored overlay — scales past a handful of machines.
 class _MachineDropdown extends StatefulWidget {
   const _MachineDropdown({
+    this.width,
     required this.machines,
     required this.label,
     required this.customSelected,
@@ -532,6 +554,8 @@ class _MachineDropdown extends StatefulWidget {
     required this.blurHost,
   });
 
+  /// The button's width; null fills what the parent gives it.
+  final double? width;
   final List<Machine> machines;
   final String label;
   final bool customSelected;
@@ -587,7 +611,7 @@ class _MachineDropdownState extends State<_MachineDropdown> {
         child: HoverRegion(
           onTap: () => _menu.isShowing ? _close() : _open(),
           builder: (context, hovered) => Container(
-            width: 160,
+            width: widget.width,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: hovered ? c.surfaceHover : c.surfaceMuted,
