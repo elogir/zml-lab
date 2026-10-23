@@ -187,7 +187,7 @@ class BenchmarkController extends _$BenchmarkController {
           model: state.model,
           // Token-by-token for a small batch; coarser merges for a big one,
           // whose flushes back off anyway (see [_flushInterval]).
-          interval: Duration(milliseconds: n <= 32 ? 16 : 50),
+          interval: Duration(milliseconds: n <= 128 ? 16 : 33),
         ).listen(
           _onDeltas,
           // The worker itself failed (not one request): fail what's left.
@@ -296,15 +296,14 @@ class BenchmarkController extends _$BenchmarkController {
     firstOrLast ? _flush() : _scheduleFlush();
   }
 
-  /// How often a running batch republishes. Per frame reads token-by-token
-  /// for a handful of requests; with hundreds, every flush rebuilds hundreds
-  /// of requests and the visible cards, so it backs off — the numbers stay
-  /// live and the text still streams, just in steps.
+  /// How often a running batch republishes. Every frame up to 128 requests;
+  /// past that each flush walks hundreds of requests, so it backs off to
+  /// ~30/20 Hz — still reads as streaming. (Profiled at 1024 requests: the
+  /// UI isolate stayed ~4% busy at 200 ms, with plenty of room for this.)
   Duration get _flushInterval => switch (_progs.length) {
-    <= 32 => Duration.zero,
-    <= 128 => const Duration(milliseconds: 50),
-    <= 512 => const Duration(milliseconds: 100),
-    _ => const Duration(milliseconds: 200),
+    <= 128 => Duration.zero,
+    <= 512 => const Duration(milliseconds: 33),
+    _ => const Duration(milliseconds: 50),
   };
 
   /// Coalesces flushes to at most one per frame (and per [_flushInterval]): a
