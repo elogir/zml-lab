@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/execution/native_io.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/benchmark.dart';
@@ -26,8 +27,7 @@ class BenchmarkView extends ConsumerStatefulWidget {
     required this.jobCommand,
     required this.machineName,
     required this.endpoint,
-    required this.host,
-    required this.port,
+    required this.target,
   });
 
   final String jobId;
@@ -49,9 +49,8 @@ class BenchmarkView extends ConsumerStatefulWidget {
   /// Display label for the endpoint (e.g. `local:8001`).
   final String endpoint;
 
-  /// The real host + port the batch requests are sent to.
-  final String host;
-  final int port;
+  /// Where the batch requests actually go (URL and key).
+  final ChatEndpoint target;
 
   @override
   ConsumerState<BenchmarkView> createState() => _BenchmarkViewState();
@@ -94,7 +93,25 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
   BenchmarkController get _controller =>
       ref.read(benchmarkControllerProvider(widget.jobId).notifier);
 
-  void _send() => _controller.start(host: widget.host, port: widget.port);
+  /// Above this many requests, a hosted API (billed per request) asks first.
+  static const _confirmAbove = 16;
+
+  Future<void> _send() async {
+    final target = widget.target;
+    final batch = ref.read(benchmarkControllerProvider(widget.jobId)).batchSize;
+    if (!target.selfHosted && batch > _confirmAbove) {
+      final ok = await showConfirmDialog(
+        context,
+        title: 'Send $batch requests?',
+        message:
+            '${target.baseUrl.host} is a hosted API — a batch of $batch '
+            'requests may be billed per request and per token.',
+        confirmLabel: 'Send $batch',
+      );
+      if (!ok || !mounted) return;
+    }
+    _controller.start(endpoint: target);
+  }
 
   void _saveBenchmark() {
     final run = ref.read(benchmarkControllerProvider(widget.jobId));
@@ -176,12 +193,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
               ? _EmptyState(endpoint: widget.endpoint)
               : _view == _BenchView.charts
               ? BenchmarkCharts(samples: run.samples)
-              : _Grid(
-                  run: run,
-                  jobId: widget.jobId,
-                  host: widget.host,
-                  port: widget.port,
-                ),
+              : _Grid(run: run, jobId: widget.jobId, target: widget.target),
         ),
         // Nothing has run yet: no view to switch, nothing to save or clear —
         // so the footer stays out of the way entirely.
@@ -905,17 +917,11 @@ class _StreamingPill extends StatelessWidget {
 }
 
 class _Grid extends StatelessWidget {
-  const _Grid({
-    required this.run,
-    required this.jobId,
-    required this.host,
-    required this.port,
-  });
+  const _Grid({required this.run, required this.jobId, required this.target});
 
   final BenchmarkRun run;
   final String jobId;
-  final String host;
-  final int port;
+  final ChatEndpoint target;
 
   static const double _spacing = AppSpacing.md;
   static const double _minCardWidth = 280;
@@ -949,13 +955,8 @@ class _Grid extends StatelessWidget {
               index: request.index,
               child: BenchmarkRequestCard(
                 request: request,
-                onExpand: () => showBenchmarkFocus(
-                  context,
-                  jobId,
-                  request.index,
-                  host,
-                  port,
-                ),
+                onExpand: () =>
+                    showBenchmarkFocus(context, jobId, request.index, target),
               ),
             );
           },

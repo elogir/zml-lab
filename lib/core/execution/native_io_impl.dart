@@ -3,6 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'chat_endpoint.dart';
+
+export 'chat_endpoint.dart';
+
 /// One streamed chunk from a chat completion: a text [content] delta, a
 /// [reasoning] (thinking) delta for reasoning models — llmd routes `<think>`
 /// output to `delta.reasoning_content`, separate from content — the server's
@@ -16,8 +20,8 @@ typedef ChatToken = ({
   String? finishReason,
 });
 
-/// Streams a chat completion from `http://[host]:[port]/v1/chat/completions`
-/// (OpenAI-compatible SSE) for the given [messages] (`[{role, content}, …]`).
+/// Streams a chat completion from [endpoint]'s `/chat/completions`
+/// (OpenAI-compatible SSE, http or https, with its bearer key if any) for the given [messages] (`[{role, content}, …]`).
 /// Yields a [ChatToken] per `data:` event until `[DONE]`; cancel the
 /// subscription to abort (closes the socket). Throws on a failed connection —
 /// the caller marks that request failed.
@@ -27,8 +31,7 @@ typedef ChatToken = ({
 /// An empty [model] sends `zml_model` (llmd ignores the name; vLLM rejects a
 /// request whose model it doesn't serve, so it must be set for those).
 Stream<ChatToken> streamChat(
-  String host,
-  int port,
+  ChatEndpoint endpoint,
   List<Map<String, String>> messages, {
   int? maxTokens,
   double? temperature,
@@ -36,9 +39,13 @@ Stream<ChatToken> streamChat(
 }) async* {
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
   try {
-    final request = await client.post(host, port, '/v1/chat/completions');
+    final request = await client.postUrl(endpoint.chatCompletions);
     request.headers.contentType = ContentType.json;
     request.headers.set(HttpHeaders.acceptHeader, 'text/event-stream');
+    final key = endpoint.apiKey;
+    if (key != null && key.isNotEmpty) {
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $key');
+    }
     request.add(
       utf8.encode(
         jsonEncode({
@@ -49,7 +56,9 @@ Stream<ChatToken> streamChat(
           'stream': true,
           'stream_options': {
             'include_usage': true,
-            'continuous_usage_stats': true,
+            // Running token counts per chunk (vLLM, llmd). Hosted APIs like
+            // OpenAI reject it as an unknown argument.
+            if (endpoint.selfHosted) 'continuous_usage_stats': true,
           },
         }),
       ),
@@ -179,8 +188,7 @@ typedef ChatBatchDelta = ({
 /// rendering. Cancelling the subscription kills the isolate (closing every
 /// socket). The stream closes once every request has finished.
 Stream<List<ChatBatchDelta>> streamChatBatch(
-  String host,
-  int port,
+  ChatEndpoint endpoint,
   List<Map<String, String>> messages, {
   required int count,
   int? maxTokens,
@@ -205,8 +213,7 @@ Stream<List<ChatBatchDelta>> streamChatBatch(
       try {
         worker = await Isolate.spawn(_chatBatchWorker, (
           fromWorker.sendPort,
-          host,
-          port,
+          endpoint,
           messages,
           count,
           maxTokens,
@@ -275,8 +282,7 @@ class _BatchProgress {
 Future<void> _chatBatchWorker(
   (
     SendPort,
-    String,
-    int,
+    ChatEndpoint,
     List<Map<String, String>>,
     int,
     int?,
@@ -286,7 +292,7 @@ Future<void> _chatBatchWorker(
   )
   args,
 ) async {
-  final (out, host, port, messages, count, maxTokens, temperature, model, us) =
+  final (out, endpoint, messages, count, maxTokens, temperature, model, us) =
       args;
   final progress = [for (var i = 1; i <= count; i++) _BatchProgress(i)];
   var remaining = count;
@@ -324,8 +330,7 @@ Future<void> _chatBatchWorker(
       ..startUs = now()
       ..dirty = true;
     streamChat(
-      host,
-      port,
+      endpoint,
       messages,
       maxTokens: maxTokens,
       temperature: temperature,

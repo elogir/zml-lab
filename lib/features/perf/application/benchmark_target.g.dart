@@ -57,7 +57,7 @@ final class BenchmarkTargetControllerProvider
 }
 
 String _$benchmarkTargetControllerHash() =>
-    r'c281d7c235e4fdd40eaee284843d58ea79bb7ac7';
+    r'af1de3f800a2db86542bd288d9c994c8cf640726';
 
 /// Holds the ad-hoc Benchmark tab's target. Keep-alive because the screen is
 /// built from scratch on every visit — kept in the widget's State, the target

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zml_lab/core/execution/native_io.dart';
 import 'package:zml_lab/features/benchmark/application/benchmark_controller.dart';
 import 'package:zml_lab/models/benchmark.dart';
 
@@ -60,7 +61,7 @@ void main() {
       addTearDown(container.dispose);
       final provider = benchmarkControllerProvider('t');
       final controller = container.read(provider.notifier)..setBatchSize(batch);
-      controller.start(host: '127.0.0.1', port: server.port);
+      controller.start(endpoint: ChatEndpoint.hostPort('127.0.0.1', server.port));
 
       final deadline = DateTime.now().add(const Duration(seconds: 30));
       while (container.read(provider).isRunning &&
@@ -117,7 +118,7 @@ void main() {
       final provider = benchmarkControllerProvider('t');
       final controller = container.read(provider.notifier)
         ..setBatchSize(batch)
-        ..start(host: '127.0.0.1', port: server.port);
+        ..start(endpoint: ChatEndpoint.hostPort('127.0.0.1', server.port));
       await Future<void>.delayed(const Duration(milliseconds: 1500));
       controller.cancel();
 

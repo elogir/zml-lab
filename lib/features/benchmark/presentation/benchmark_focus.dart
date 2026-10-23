@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/execution/native_io.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/benchmark_chat.dart';
@@ -14,8 +15,7 @@ Future<void> showBenchmarkFocus(
   BuildContext context,
   String jobId,
   int index,
-  String host,
-  int port,
+  ChatEndpoint endpoint,
 ) {
   return Navigator.of(context, rootNavigator: true).push(
     PageRouteBuilder<void>(
@@ -25,7 +25,7 @@ Future<void> showBenchmarkFocus(
       barrierLabel: 'Close',
       transitionDuration: AppDurations.normal,
       pageBuilder: (context, _, _) =>
-          _ChatView(jobId: jobId, index: index, host: host, port: port),
+          _ChatView(jobId: jobId, index: index, endpoint: endpoint),
       transitionsBuilder: (context, anim, _, child) => FadeTransition(
         opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
         child: child,
@@ -38,14 +38,12 @@ class _ChatView extends ConsumerStatefulWidget {
   const _ChatView({
     required this.jobId,
     required this.index,
-    required this.host,
-    required this.port,
+    required this.endpoint,
   });
 
   final String jobId;
   final int index;
-  final String host;
-  final int port;
+  final ChatEndpoint endpoint;
 
   @override
   ConsumerState<_ChatView> createState() => _ChatViewState();
@@ -66,8 +64,7 @@ class _ChatViewState extends ConsumerState<_ChatView> {
     benchmarkChatControllerProvider(
       widget.jobId,
       widget.index,
-      widget.host,
-      widget.port,
+      widget.endpoint,
     ).notifier,
   );
 
@@ -92,20 +89,18 @@ class _ChatViewState extends ConsumerState<_ChatView> {
     final c = context.colors;
     final chat = ref.watch(
       benchmarkChatControllerProvider(
-      widget.jobId,
-      widget.index,
-      widget.host,
-      widget.port,
-    ),
+        widget.jobId,
+        widget.index,
+        widget.endpoint,
+      ),
     );
     // Follow the tail as tokens stream in.
     ref.listen(
       benchmarkChatControllerProvider(
-      widget.jobId,
-      widget.index,
-      widget.host,
-      widget.port,
-    ),
+        widget.jobId,
+        widget.index,
+        widget.endpoint,
+      ),
       (_, _) => _scrollToBottom(),
     );
 
@@ -131,7 +126,9 @@ class _ChatViewState extends ConsumerState<_ChatView> {
                     const SizedBox(width: AppSpacing.sm),
                     Text(
                       'request ${widget.index.toString().padLeft(2, '0')}',
-                      style: context.text.monoSmall.copyWith(color: c.textFaint),
+                      style: context.text.monoSmall.copyWith(
+                        color: c.textFaint,
+                      ),
                     ),
                     const Spacer(),
                     AppIconButton(

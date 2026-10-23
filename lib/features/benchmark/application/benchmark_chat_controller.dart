@@ -29,8 +29,7 @@ String _cleanError(Object e) {
 class BenchmarkChatController extends _$BenchmarkChatController {
   StreamSubscription<ChatToken>? _sub;
   late String _jobId;
-  late String _host;
-  late int _port;
+  late ChatEndpoint _endpoint;
 
   /// While true, the seed reply (turn 1) live-mirrors its batch request — the
   /// popup can be opened mid-run and the reply keeps streaming in. Cleared
@@ -58,10 +57,9 @@ class BenchmarkChatController extends _$BenchmarkChatController {
       !identical(previous, next);
 
   @override
-  BenchmarkChat build(String jobId, int index, String host, int port) {
+  BenchmarkChat build(String jobId, int index, ChatEndpoint endpoint) {
     _jobId = jobId;
-    _host = host;
-    _port = port;
+    _endpoint = endpoint;
     ref.onDispose(() => _sub?.cancel());
     // Seed the first turn from the request that was opened: its prompt and the
     // reply it already produced in the batch.
@@ -233,8 +231,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
     final run = ref.read(benchmarkControllerProvider(_jobId));
     _sub =
         streamChat(
-          _host,
-          _port,
+          _endpoint,
           messages,
           maxTokens: run.maxTokens,
           temperature: run.temperature,

@@ -1,6 +1,10 @@
 // Web stub: no dart:io, so chat streaming and health checks aren't available.
 // Benchmarking and machine probes are native-only.
 
+import 'chat_endpoint.dart';
+
+export 'chat_endpoint.dart';
+
 typedef ChatToken = ({
   String? content,
   String? reasoning,
@@ -9,8 +13,7 @@ typedef ChatToken = ({
 });
 
 Stream<ChatToken> streamChat(
-  String host,
-  int port,
+  ChatEndpoint endpoint,
   List<Map<String, String>> messages, {
   int? maxTokens,
   double? temperature,
@@ -35,8 +38,7 @@ typedef ChatBatchDelta = ({
 
 /// Every request ends at once with nothing streamed (no networking on web).
 Stream<List<ChatBatchDelta>> streamChatBatch(
-  String host,
-  int port,
+  ChatEndpoint endpoint,
   List<Map<String, String>> messages, {
   required int count,
   int? maxTokens,

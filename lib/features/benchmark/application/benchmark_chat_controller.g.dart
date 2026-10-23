@@ -43,7 +43,7 @@ final class BenchmarkChatControllerProvider
   /// replaces the request it was seeded from.
   BenchmarkChatControllerProvider._({
     required BenchmarkChatControllerFamily super.from,
-    required (String, int, String, int) super.argument,
+    required (String, int, ChatEndpoint) super.argument,
   }) : super(
          retry: null,
          name: r'benchmarkChatControllerProvider',
@@ -87,7 +87,7 @@ final class BenchmarkChatControllerProvider
 }
 
 String _$benchmarkChatControllerHash() =>
-    r'e6649e30cd857fa3d6e5b422412b9f00c5930331';
+    r'77edf71eb13eb274f99b2da91a10f81599cb8bf2';
 
 /// Drives a real chat with a job's endpoint inside the benchmark focus popup.
 /// Seeded (per job + request) from the clicked benchmark request; each [send]
@@ -106,7 +106,7 @@ final class BenchmarkChatControllerFamily extends $Family
           BenchmarkChat,
           BenchmarkChat,
           BenchmarkChat,
-          (String, int, String, int)
+          (String, int, ChatEndpoint)
         > {
   BenchmarkChatControllerFamily._()
     : super(
@@ -130,10 +130,9 @@ final class BenchmarkChatControllerFamily extends $Family
   BenchmarkChatControllerProvider call(
     String jobId,
     int index,
-    String host,
-    int port,
+    ChatEndpoint endpoint,
   ) => BenchmarkChatControllerProvider._(
-    argument: (jobId, index, host, port),
+    argument: (jobId, index, endpoint),
     from: this,
   );
 
@@ -152,13 +151,12 @@ final class BenchmarkChatControllerFamily extends $Family
 /// replaces the request it was seeded from.
 
 abstract class _$BenchmarkChatController extends $Notifier<BenchmarkChat> {
-  late final _$args = ref.$arg as (String, int, String, int);
+  late final _$args = ref.$arg as (String, int, ChatEndpoint);
   String get jobId => _$args.$1;
   int get index => _$args.$2;
-  String get host => _$args.$3;
-  int get port => _$args.$4;
+  ChatEndpoint get endpoint => _$args.$3;
 
-  BenchmarkChat build(String jobId, int index, String host, int port);
+  BenchmarkChat build(String jobId, int index, ChatEndpoint endpoint);
   @$mustCallSuper
   @override
   WhenComplete runBuild() {
@@ -173,7 +171,7 @@ abstract class _$BenchmarkChatController extends $Notifier<BenchmarkChat> {
             >;
     return element.handleCreate(
       ref,
-      () => build(_$args.$1, _$args.$2, _$args.$3, _$args.$4),
+      () => build(_$args.$1, _$args.$2, _$args.$3),
     );
   }
 }

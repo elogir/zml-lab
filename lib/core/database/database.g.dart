@@ -2644,6 +2644,367 @@ class SettingsCompanion extends UpdateCompanion<SettingRow> {
   }
 }
 
+class $ApiEndpointsTable extends ApiEndpoints
+    with TableInfo<$ApiEndpointsTable, ApiEndpointRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ApiEndpointsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _baseUrlMeta = const VerificationMeta(
+    'baseUrl',
+  );
+  @override
+  late final GeneratedColumn<String> baseUrl = GeneratedColumn<String>(
+    'base_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _hasApiKeyMeta = const VerificationMeta(
+    'hasApiKey',
+  );
+  @override
+  late final GeneratedColumn<bool> hasApiKey = GeneratedColumn<bool>(
+    'has_api_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("has_api_key" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    baseUrl,
+    hasApiKey,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'api_endpoints';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ApiEndpointRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('base_url')) {
+      context.handle(
+        _baseUrlMeta,
+        baseUrl.isAcceptableOrUnknown(data['base_url']!, _baseUrlMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_baseUrlMeta);
+    }
+    if (data.containsKey('has_api_key')) {
+      context.handle(
+        _hasApiKeyMeta,
+        hasApiKey.isAcceptableOrUnknown(data['has_api_key']!, _hasApiKeyMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ApiEndpointRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ApiEndpointRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      baseUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}base_url'],
+      )!,
+      hasApiKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}has_api_key'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ApiEndpointsTable createAlias(String alias) {
+    return $ApiEndpointsTable(attachedDatabase, alias);
+  }
+}
+
+class ApiEndpointRow extends DataClass implements Insertable<ApiEndpointRow> {
+  final String id;
+  final String name;
+  final String baseUrl;
+  final bool hasApiKey;
+  final DateTime createdAt;
+  const ApiEndpointRow({
+    required this.id,
+    required this.name,
+    required this.baseUrl,
+    required this.hasApiKey,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['base_url'] = Variable<String>(baseUrl);
+    map['has_api_key'] = Variable<bool>(hasApiKey);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  ApiEndpointsCompanion toCompanion(bool nullToAbsent) {
+    return ApiEndpointsCompanion(
+      id: Value(id),
+      name: Value(name),
+      baseUrl: Value(baseUrl),
+      hasApiKey: Value(hasApiKey),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ApiEndpointRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ApiEndpointRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      baseUrl: serializer.fromJson<String>(json['baseUrl']),
+      hasApiKey: serializer.fromJson<bool>(json['hasApiKey']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'baseUrl': serializer.toJson<String>(baseUrl),
+      'hasApiKey': serializer.toJson<bool>(hasApiKey),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  ApiEndpointRow copyWith({
+    String? id,
+    String? name,
+    String? baseUrl,
+    bool? hasApiKey,
+    DateTime? createdAt,
+  }) => ApiEndpointRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    baseUrl: baseUrl ?? this.baseUrl,
+    hasApiKey: hasApiKey ?? this.hasApiKey,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  ApiEndpointRow copyWithCompanion(ApiEndpointsCompanion data) {
+    return ApiEndpointRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      baseUrl: data.baseUrl.present ? data.baseUrl.value : this.baseUrl,
+      hasApiKey: data.hasApiKey.present ? data.hasApiKey.value : this.hasApiKey,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ApiEndpointRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('baseUrl: $baseUrl, ')
+          ..write('hasApiKey: $hasApiKey, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, baseUrl, hasApiKey, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ApiEndpointRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.baseUrl == this.baseUrl &&
+          other.hasApiKey == this.hasApiKey &&
+          other.createdAt == this.createdAt);
+}
+
+class ApiEndpointsCompanion extends UpdateCompanion<ApiEndpointRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> baseUrl;
+  final Value<bool> hasApiKey;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const ApiEndpointsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.baseUrl = const Value.absent(),
+    this.hasApiKey = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ApiEndpointsCompanion.insert({
+    required String id,
+    required String name,
+    required String baseUrl,
+    this.hasApiKey = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       baseUrl = Value(baseUrl),
+       createdAt = Value(createdAt);
+  static Insertable<ApiEndpointRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? baseUrl,
+    Expression<bool>? hasApiKey,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (baseUrl != null) 'base_url': baseUrl,
+      if (hasApiKey != null) 'has_api_key': hasApiKey,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ApiEndpointsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? baseUrl,
+    Value<bool>? hasApiKey,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return ApiEndpointsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      baseUrl: baseUrl ?? this.baseUrl,
+      hasApiKey: hasApiKey ?? this.hasApiKey,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (baseUrl.present) {
+      map['base_url'] = Variable<String>(baseUrl.value);
+    }
+    if (hasApiKey.present) {
+      map['has_api_key'] = Variable<bool>(hasApiKey.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ApiEndpointsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('baseUrl: $baseUrl, ')
+          ..write('hasApiKey: $hasApiKey, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2655,6 +3016,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $PerfReportsTable perfReports = $PerfReportsTable(this);
   late final $SettingsTable settings = $SettingsTable(this);
+  late final $ApiEndpointsTable apiEndpoints = $ApiEndpointsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2665,6 +3027,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     savedBenchmarks,
     perfReports,
     settings,
+    apiEndpoints,
   ];
 }
 
@@ -4056,6 +4419,215 @@ typedef $$SettingsTableProcessedTableManager =
       SettingRow,
       PrefetchHooks Function()
     >;
+typedef $$ApiEndpointsTableCreateCompanionBuilder =
+    ApiEndpointsCompanion Function({
+      required String id,
+      required String name,
+      required String baseUrl,
+      Value<bool> hasApiKey,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$ApiEndpointsTableUpdateCompanionBuilder =
+    ApiEndpointsCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> baseUrl,
+      Value<bool> hasApiKey,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$ApiEndpointsTableFilterComposer
+    extends Composer<_$AppDatabase, $ApiEndpointsTable> {
+  $$ApiEndpointsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get baseUrl => $composableBuilder(
+    column: $table.baseUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hasApiKey => $composableBuilder(
+    column: $table.hasApiKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ApiEndpointsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ApiEndpointsTable> {
+  $$ApiEndpointsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get baseUrl => $composableBuilder(
+    column: $table.baseUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get hasApiKey => $composableBuilder(
+    column: $table.hasApiKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ApiEndpointsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ApiEndpointsTable> {
+  $$ApiEndpointsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get baseUrl =>
+      $composableBuilder(column: $table.baseUrl, builder: (column) => column);
+
+  GeneratedColumn<bool> get hasApiKey =>
+      $composableBuilder(column: $table.hasApiKey, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$ApiEndpointsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ApiEndpointsTable,
+          ApiEndpointRow,
+          $$ApiEndpointsTableFilterComposer,
+          $$ApiEndpointsTableOrderingComposer,
+          $$ApiEndpointsTableAnnotationComposer,
+          $$ApiEndpointsTableCreateCompanionBuilder,
+          $$ApiEndpointsTableUpdateCompanionBuilder,
+          (
+            ApiEndpointRow,
+            BaseReferences<_$AppDatabase, $ApiEndpointsTable, ApiEndpointRow>,
+          ),
+          ApiEndpointRow,
+          PrefetchHooks Function()
+        > {
+  $$ApiEndpointsTableTableManager(_$AppDatabase db, $ApiEndpointsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ApiEndpointsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ApiEndpointsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ApiEndpointsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> baseUrl = const Value.absent(),
+                Value<bool> hasApiKey = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ApiEndpointsCompanion(
+                id: id,
+                name: name,
+                baseUrl: baseUrl,
+                hasApiKey: hasApiKey,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String baseUrl,
+                Value<bool> hasApiKey = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ApiEndpointsCompanion.insert(
+                id: id,
+                name: name,
+                baseUrl: baseUrl,
+                hasApiKey: hasApiKey,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ApiEndpointsTable, ApiEndpointRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ApiEndpointsTable,
+                    ApiEndpointRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ApiEndpointsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ApiEndpointsTable,
+      ApiEndpointRow,
+      $$ApiEndpointsTableFilterComposer,
+      $$ApiEndpointsTableOrderingComposer,
+      $$ApiEndpointsTableAnnotationComposer,
+      $$ApiEndpointsTableCreateCompanionBuilder,
+      $$ApiEndpointsTableUpdateCompanionBuilder,
+      (
+        ApiEndpointRow,
+        BaseReferences<_$AppDatabase, $ApiEndpointsTable, ApiEndpointRow>,
+      ),
+      ApiEndpointRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4070,4 +4642,6 @@ class $AppDatabaseManager {
       $$PerfReportsTableTableManager(_db, _db.perfReports);
   $$SettingsTableTableManager get settings =>
       $$SettingsTableTableManager(_db, _db.settings);
+  $$ApiEndpointsTableTableManager get apiEndpoints =>
+      $$ApiEndpointsTableTableManager(_db, _db.apiEndpoints);
 }

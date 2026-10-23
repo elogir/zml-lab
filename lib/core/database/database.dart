@@ -15,6 +15,7 @@ part 'database.g.dart';
     SavedBenchmarks,
     PerfReports,
     Settings,
+    ApiEndpoints,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -31,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -99,6 +100,7 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(savedBenchmarks, savedBenchmarks.maxTokens);
         await m.addColumn(savedBenchmarks, savedBenchmarks.temperature);
       }
+      if (from < 13) await m.createTable(apiEndpoints);
     },
   );
 }

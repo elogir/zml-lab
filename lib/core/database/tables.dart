@@ -81,6 +81,20 @@ class PerfReports extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Saved OpenAI-compatible endpoints (hosted APIs, servers by URL). API keys
+/// are in the Keychain, keyed by [id]; [hasApiKey] only records one is there.
+@DataClassName('ApiEndpointRow')
+class ApiEndpoints extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get baseUrl => text()();
+  BoolColumn get hasApiKey => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// App-wide preferences as a key/value store (values stringified). One row
 /// per setting; absent keys mean "use the built-in default".
 @DataClassName('SettingRow')

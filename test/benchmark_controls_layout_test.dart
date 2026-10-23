@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' show DefaultMaterialLocalizations;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zml_lab/core/execution/native_io.dart';
 import 'package:zml_lab/core/theme/app_theme.dart';
 import 'package:zml_lab/core/widgets/widgets.dart';
 import 'package:zml_lab/features/benchmark/presentation/benchmark_view.dart';
@@ -37,15 +38,14 @@ void main() {
               child: Overlay(
                 initialEntries: [
                   OverlayEntry(
-                    builder: (context) => const BenchmarkView(
+                    builder: (context) => BenchmarkView(
                       jobId: 'layout',
                       jobName: 'x',
                       jobDescription: '',
                       jobCommand: '',
                       machineName: 'local',
                       endpoint: '127.0.0.1:8000',
-                      host: '127.0.0.1',
-                      port: 8000,
+                      target: ChatEndpoint.hostPort('127.0.0.1', 8000),
                     ),
                   ),
                 ],

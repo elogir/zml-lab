@@ -144,8 +144,8 @@ class BenchmarkController extends _$BenchmarkController {
   void setTemperature(double? temperature) =>
       state = state.copyWith(temperature: temperature?.clamp(0.0, 2.0));
 
-  /// Fires the batch at `http://[host]:[port]/v1/chat/completions`.
-  void start({required String host, required int port}) {
+  /// Fires the batch at [endpoint]'s `/chat/completions`.
+  void start({required ChatEndpoint endpoint}) {
     _teardown();
     final n = state.batchSize;
     final prompt = state.prompt.trim().isEmpty
@@ -178,8 +178,7 @@ class BenchmarkController extends _$BenchmarkController {
     ];
     _batch =
         streamChatBatch(
-          host,
-          port,
+          endpoint,
           messages,
           count: n,
           maxTokens: state.maxTokens,

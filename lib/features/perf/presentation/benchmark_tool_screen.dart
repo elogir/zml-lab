@@ -10,8 +10,11 @@ import '../../../core/shell/app_fullscreen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/search.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../../models/api_endpoint.dart';
 import '../../../models/machine.dart';
 import '../../benchmark/presentation/benchmark_view.dart';
+import '../../endpoints/application/endpoints_providers.dart';
+import '../../endpoints/presentation/endpoint_dialog.dart';
 import '../../machines/application/machines_providers.dart';
 import '../../settings/application/settings_controller.dart';
 import '../../terminal/presentation/terminal_mux.dart';
@@ -80,6 +83,16 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
     _target.setTool(tool);
   }
 
+  Future<void> _newEndpoint() async {
+    final e = await showEndpointDialog(context);
+    if (e != null) await _target.selectEndpoint(e);
+  }
+
+  Future<void> _editEndpoint(ApiEndpoint e) async {
+    final saved = await showEndpointDialog(context, existing: e);
+    if (saved != null) await _target.reloadKey(saved.id);
+  }
+
   void _toggleTerminal() {
     ref.read(appFullscreenProvider.notifier).exitIf(FullscreenSurface.terminal);
     ref.read(benchmarkTerminalPanelControllerProvider.notifier).toggle();
@@ -118,8 +131,7 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
             jobCommand: '',
             machineName: target.label,
             endpoint: endpoint,
-            host: host,
-            port: port,
+            target: target.chat,
           )
         : PerfView(
             jobId: _adhocJobId,
@@ -156,7 +168,11 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
           host: _host,
           port: _port,
           selectedMachineId: target.machineId,
+          target: target,
           onSelectMachine: _target.selectMachine,
+          onSelectEndpoint: _target.selectEndpoint,
+          onNewEndpoint: _newEndpoint,
+          onEditEndpoint: _editEndpoint,
           onSelectCustom: _target.selectCustom,
           onHostEdited: _target.setHostText,
           onPortEdited: _target.setPortText,
@@ -415,7 +431,11 @@ class _EndpointBar extends ConsumerWidget {
     required this.host,
     required this.port,
     required this.selectedMachineId,
+    required this.target,
     required this.onSelectMachine,
+    required this.onSelectEndpoint,
+    required this.onNewEndpoint,
+    required this.onEditEndpoint,
     required this.onSelectCustom,
     required this.onHostEdited,
     required this.onPortEdited,
@@ -424,7 +444,11 @@ class _EndpointBar extends ConsumerWidget {
   final TextEditingController host;
   final TextEditingController port;
   final String? selectedMachineId;
+  final BenchmarkTarget target;
   final ValueChanged<Machine> onSelectMachine;
+  final ValueChanged<ApiEndpoint> onSelectEndpoint;
+  final VoidCallback onNewEndpoint;
+  final ValueChanged<ApiEndpoint> onEditEndpoint;
   final VoidCallback onSelectCustom;
   final ValueChanged<String> onHostEdited;
   final ValueChanged<String> onPortEdited;
@@ -436,19 +460,54 @@ class _EndpointBar extends ConsumerWidget {
     final blurHost = ref.watch(
       settingsControllerProvider.select((s) => s.blurHost),
     );
-    final custom = selectedMachineId == null;
+    final endpoints = ref.watch(endpointsStreamProvider).value ?? const [];
+    final onEndpoint = target.isEndpoint;
+    final custom = selectedMachineId == null && !onEndpoint;
     final selected = machines.firstWhereOrNull(
       (m) => m.id == selectedMachineId,
     );
     Widget dropdown({double? width}) => _MachineDropdown(
       width: width,
       machines: machines,
-      label: selected?.name ?? 'Custom host',
+      endpoints: endpoints,
+      label: onEndpoint ? target.endpointName : selected?.name ?? 'Custom host',
+      icon: onEndpoint
+          ? AppIcons.web
+          : custom
+          ? AppIcons.edit
+          : AppIcons.machines,
       customSelected: custom,
       selectedMachineId: selectedMachineId,
+      selectedEndpointId: target.endpointId,
       onSelectMachine: onSelectMachine,
+      onSelectEndpoint: onSelectEndpoint,
+      onNewEndpoint: onNewEndpoint,
+      onEditEndpoint: onEditEndpoint,
       onSelectCustom: onSelectCustom,
       blurHost: blurHost,
+    );
+    // A saved endpoint: its URL (read-only, edited from the dropdown) and
+    // whether a key is in use, instead of host + port.
+    final urlText = Text(
+      blurHost ? maskHost(target.baseUrl) : target.baseUrl,
+      style: context.text.mono.copyWith(color: c.textSecondary),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    final keyBadge = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          target.apiKey != null ? AppIcons.check : AppIcons.close,
+          size: 12,
+          color: target.apiKey != null ? c.statusRunning : c.textFaint,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          target.apiKey != null ? 'API key' : 'no key',
+          style: context.text.smallMuted,
+        ),
+      ],
     );
     final hostField = custom
         // Custom: type any host. Still editable while masked — the
@@ -490,17 +549,27 @@ class _EndpointBar extends ConsumerWidget {
               children: [
                 label('Target'),
                 const SizedBox(width: AppSpacing.md),
-                dropdown(width: 160),
+                // The picker takes a real share (it lists machines and
+                // endpoints); the address gets the rest, not the whole bar.
+                Expanded(flex: 2, child: dropdown()),
                 const SizedBox(width: AppSpacing.md),
                 Container(width: 1, height: 20, color: c.borderMuted),
                 const SizedBox(width: AppSpacing.md),
-                label('host'),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(child: hostField),
-                const SizedBox(width: AppSpacing.lg),
-                label('port'),
-                const SizedBox(width: AppSpacing.sm),
-                portField,
+                if (onEndpoint) ...[
+                  label('url'),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(flex: 3, child: urlText),
+                  const SizedBox(width: AppSpacing.lg),
+                  keyBadge,
+                ] else ...[
+                  label('host'),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(flex: 3, child: hostField),
+                  const SizedBox(width: AppSpacing.lg),
+                  label('port'),
+                  const SizedBox(width: AppSpacing.sm),
+                  portField,
+                ],
               ],
             );
           }
@@ -519,16 +588,26 @@ class _EndpointBar extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  labelled('host'),
-                  Expanded(child: hostField),
-                  const SizedBox(width: AppSpacing.md),
-                  label('port'),
-                  const SizedBox(width: AppSpacing.sm),
-                  portField,
-                ],
-              ),
+              if (onEndpoint)
+                Row(
+                  children: [
+                    labelled('url'),
+                    Expanded(child: urlText),
+                    const SizedBox(width: AppSpacing.md),
+                    keyBadge,
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    labelled('host'),
+                    Expanded(child: hostField),
+                    const SizedBox(width: AppSpacing.md),
+                    label('port'),
+                    const SizedBox(width: AppSpacing.sm),
+                    portField,
+                  ],
+                ),
             ],
           );
         },
@@ -546,10 +625,16 @@ class _MachineDropdown extends StatefulWidget {
   const _MachineDropdown({
     this.width,
     required this.machines,
+    required this.endpoints,
     required this.label,
+    required this.icon,
     required this.customSelected,
     required this.selectedMachineId,
+    required this.selectedEndpointId,
     required this.onSelectMachine,
+    required this.onSelectEndpoint,
+    required this.onNewEndpoint,
+    required this.onEditEndpoint,
     required this.onSelectCustom,
     required this.blurHost,
   });
@@ -557,10 +642,16 @@ class _MachineDropdown extends StatefulWidget {
   /// The button's width; null fills what the parent gives it.
   final double? width;
   final List<Machine> machines;
+  final List<ApiEndpoint> endpoints;
   final String label;
+  final IconData icon;
   final bool customSelected;
   final String? selectedMachineId;
+  final String? selectedEndpointId;
   final ValueChanged<Machine> onSelectMachine;
+  final ValueChanged<ApiEndpoint> onSelectEndpoint;
+  final VoidCallback onNewEndpoint;
+  final ValueChanged<ApiEndpoint> onEditEndpoint;
   final VoidCallback onSelectCustom;
 
   /// Mask the addresses listed under each machine name — leaving them readable
@@ -620,11 +711,7 @@ class _MachineDropdownState extends State<_MachineDropdown> {
             ),
             child: Row(
               children: [
-                Icon(
-                  widget.customSelected ? AppIcons.edit : AppIcons.machines,
-                  size: 12,
-                  color: c.textFaint,
-                ),
+                Icon(widget.icon, size: 12, color: c.textFaint),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -652,6 +739,11 @@ class _MachineDropdownState extends State<_MachineDropdown> {
         ? widget.machines
         : widget.machines
               .where((m) => matchesSearch(q, [m.name, m.address]))
+              .toList();
+    final endpoints = q.isEmpty
+        ? widget.endpoints
+        : widget.endpoints
+              .where((e) => matchesSearch(q, [e.name, e.baseUrl]))
               .toList();
     return Stack(
       children: [
@@ -686,7 +778,7 @@ class _MachineDropdownState extends State<_MachineDropdown> {
                       controller: _search,
                       autofocus: true,
                       prefixIcon: AppIcons.search,
-                      placeholder: 'Search machines',
+                      placeholder: 'Search machines and endpoints',
                       dense: true,
                       onChanged: (v) => setState(() => _query = v),
                     ),
@@ -723,14 +815,53 @@ class _MachineDropdownState extends State<_MachineDropdown> {
                                 _close();
                               },
                             ),
-                          if (filtered.isEmpty && q.isNotEmpty)
+                          if (filtered.isEmpty &&
+                              endpoints.isEmpty &&
+                              q.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.all(AppSpacing.sm),
                               child: Text(
-                                'No matching machines',
+                                'Nothing matches',
                                 style: context.text.smallMuted,
                               ),
                             ),
+                          // Saved endpoints: hosted APIs and servers by URL.
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.sm,
+                              AppSpacing.sm,
+                              AppSpacing.sm,
+                              4,
+                            ),
+                            child: SectionLabel('ENDPOINTS'),
+                          ),
+                          for (final e in endpoints)
+                            _MenuRow(
+                              icon: AppIcons.web,
+                              title: e.name,
+                              subtitle: widget.blurHost
+                                  ? maskHost(e.host)
+                                  : e.host,
+                              selected: e.id == widget.selectedEndpointId,
+                              onTap: () {
+                                widget.onSelectEndpoint(e);
+                                _close();
+                              },
+                              onEdit: () {
+                                _close();
+                                widget.onEditEndpoint(e);
+                              },
+                            ),
+                          _MenuRow(
+                            icon: AppIcons.add,
+                            title: 'New endpoint…',
+                            subtitle: 'URL + API key',
+                            selected: false,
+                            onTap: () {
+                              _close();
+                              widget.onNewEndpoint();
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -753,6 +884,7 @@ class _MenuRow extends StatelessWidget {
     required this.subtitle,
     required this.selected,
     required this.onTap,
+    this.onEdit,
   });
 
   final IconData icon;
@@ -760,6 +892,9 @@ class _MenuRow extends StatelessWidget {
   final String subtitle;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Shows a pencil (on hover) that edits the row's item.
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -792,12 +927,27 @@ class _MenuRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            Text(
-              subtitle,
-              style: context.text.monoSmall.copyWith(color: c.textFaint),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            Flexible(
+              child: Text(
+                subtitle,
+                style: context.text.monoSmall.copyWith(color: c.textFaint),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
+            if (onEdit != null) ...[
+              const SizedBox(width: 4),
+              // Always laid out so the subtitle doesn't jump on hover.
+              Opacity(
+                opacity: hovered ? 1 : 0,
+                child: AppIconButton(
+                  icon: AppIcons.edit,
+                  size: 12,
+                  padding: const EdgeInsets.all(3),
+                  onPressed: onEdit,
+                ),
+              ),
+            ],
           ],
         ),
       ),

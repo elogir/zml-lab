@@ -2,6 +2,7 @@
 library;
 
 export 'app_button.dart';
+export 'app_dialog.dart';
 export 'app_icon_button.dart';
 export 'app_icons.dart';
 export 'app_markdown.dart';
