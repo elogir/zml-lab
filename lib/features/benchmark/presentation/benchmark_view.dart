@@ -138,7 +138,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
             ),
           );
 
-    final content = Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Controls(
@@ -196,18 +196,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
         ],
       ],
     );
-    // A short window can't fit the controls, stats and a usable grid: below
-    // a minimum the whole view scrolls instead of overflowing.
-    return LayoutBuilder(
-      builder: (context, constraints) => constraints.maxHeight >= _minHeight
-          ? content
-          : SingleChildScrollView(
-              child: SizedBox(height: _minHeight, child: content),
-            ),
-    );
   }
-
-  static const _minHeight = 560.0;
 }
 
 class _Controls extends StatelessWidget {
@@ -266,42 +255,23 @@ class _Controls extends StatelessWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth >= _oneLineWidth;
-            // Batch first, with one-click presets: sweeping batch sizes is
-            // the main loop here. A custom value can still be typed.
-            final batchRow = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Batch', style: context.text.smallMuted),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 80,
-                      child: AppTextField(
-                        controller: batch,
-                        mono: true,
-                        onChanged: onBatchChanged,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: _BatchPresets(
-                        controller: batch,
-                        onPick: onBatchChanged,
-                      ),
-                    ),
-                  ],
+            // Fixed widths on one line; equal shares of the row when they
+            // stack, so the narrow layout is a clean grid either way.
+            Widget number(_Setting s, double width) =>
+                wide ? SizedBox(width: width, child: s) : Expanded(child: s);
+            final numbers = [
+              number(
+                _Setting(
+                  label: 'Batch',
+                  controller: batch,
+                  onChanged: onBatchChanged,
                 ),
-              ],
-            );
-            Widget sized(Widget child, double width, {int flex = 1}) => wide
-                ? SizedBox(width: width, child: child)
-                : Expanded(flex: flex, child: child);
-            final settings = [
+                80,
+              ),
+              const SizedBox(width: AppSpacing.md),
               // Empty = no cap: the server generates until EOS or its max
               // seqlen.
-              sized(
+              number(
                 _Setting(
                   label: 'Max tokens',
                   placeholder: '∞',
@@ -312,7 +282,7 @@ class _Controls extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.md),
               // Empty = the server's default temperature.
-              sized(
+              number(
                 _Setting(
                   label: 'Temp',
                   placeholder: 'auto',
@@ -321,67 +291,98 @@ class _Controls extends StatelessWidget {
                 ),
                 80,
               ),
-              const SizedBox(width: AppSpacing.md),
-              // Empty sends `zml_model` — llmd ignores the name, vLLM
-              // requires a real one. Long names scroll inside the field.
-              sized(
-                _Setting(
-                  label: 'Model',
-                  placeholder: 'zml_model',
-                  controller: model,
-                  onChanged: onModelChanged,
-                ),
-                220,
-                flex: 2,
-              ),
             ];
-            final actions = _AtFieldHeight(
-              builder: (stretch) => Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: stretch
-                    ? CrossAxisAlignment.stretch
-                    : CrossAxisAlignment.center,
-                children: [
-                  AppButton(
-                    label: 'Send batch',
-                    icon: AppIcons.send,
-                    variant: AppButtonVariant.primary,
-                    onPressed: onSend,
-                  ),
-                  if (running) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    Center(
-                      child: AppIconButton(
-                        icon: AppIcons.kill,
-                        size: 15,
-                        color: c.statusFailed,
-                        hoverColor: c.statusFailed,
-                        padding: const EdgeInsets.all(9),
-                        onPressed: onCancel,
-                      ),
+            // Send (and Cancel while running) at exactly the field's height.
+            // Stretched only where a height is given (the pinned copy).
+            Widget actions({required bool stretch}) => Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: stretch
+                  ? CrossAxisAlignment.stretch
+                  : CrossAxisAlignment.center,
+              children: [
+                AppButton(
+                  label: 'Send batch',
+                  icon: AppIcons.send,
+                  variant: AppButtonVariant.primary,
+                  onPressed: onSend,
+                ),
+                if (running) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  Center(
+                    child: AppIconButton(
+                      icon: AppIcons.kill,
+                      size: 15,
+                      color: c.statusFailed,
+                      hoverColor: c.statusFailed,
+                      padding: const EdgeInsets.all(9),
+                      onPressed: onCancel,
                     ),
-                  ],
+                  ),
+                ],
+              ],
+            );
+            final send = Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Model', style: context.text.smallMuted),
+                  const SizedBox(height: 6),
+                  // The field row sets the height (a hidden copy of the
+                  // actions reserves their width); the real actions are then
+                  // pinned over that slot at the same height. Exact in one
+                  // pass — the text field's intrinsic height overstates it.
+                  Stack(
+                    children: [
+                      Row(
+                        children: [
+                          // Takes the row's slack (a model name can be a
+                          // long path). Empty sends `zml_model` — llmd
+                          // ignores the name, vLLM requires a real one.
+                          Expanded(
+                            child: AppTextField(
+                              controller: model,
+                              mono: true,
+                              placeholder: 'zml_model',
+                              onChanged: onModelChanged,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Visibility.maintain(
+                            visible: false,
+                            child: actions(stretch: false),
+                          ),
+                        ],
+                      ),
+                      Positioned(
+                        top: 0,
+                        bottom: 0,
+                        right: 0,
+                        child: actions(stretch: true),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             );
+            // Labels sit above their fields, so fields line up and the
+            // button aligns with them at the bottom.
+            if (wide) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  ...numbers,
+                  const SizedBox(width: AppSpacing.md),
+                  send,
+                ],
+              );
+            }
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                batchRow,
-                const SizedBox(height: AppSpacing.md),
-                if (wide)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [...settings, const Spacer(), actions],
-                  )
-                else ...[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: settings,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Align(alignment: Alignment.centerRight, child: actions),
-                ],
+                Row(children: numbers),
+                const SizedBox(height: AppSpacing.sm),
+                Row(children: [send]),
               ],
             );
           },
@@ -390,98 +391,11 @@ class _Controls extends StatelessWidget {
     );
   }
 
-  /// Below this the settings and Send split onto separate rows.
+  /// Below this the controls split into two rows.
   static const _oneLineWidth = 600.0;
 }
 
-/// One-click batch sizes beside the Batch field; the one matching the
-/// field's value is highlighted.
-class _BatchPresets extends StatelessWidget {
-  const _BatchPresets({required this.controller, required this.onPick});
-
-  final TextEditingController controller;
-  final ValueChanged<String> onPick;
-
-  static const sizes = [1, 8, 16, 32, 128, 512, 1024];
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return ValueListenableBuilder<TextEditingValue>(
-      valueListenable: controller,
-      builder: (context, value, _) {
-        final current = int.tryParse(value.text.trim());
-        return Wrap(
-          spacing: 4,
-          runSpacing: 4,
-          children: [
-            for (final n in sizes)
-              HoverRegion(
-                onTap: () {
-                  controller.text = '$n';
-                  onPick('$n');
-                },
-                builder: (context, hovered) {
-                  final selected = n == current;
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? c.surfaceSelected
-                          : (hovered ? c.surfaceHover : null),
-                      borderRadius: AppRadius.pillAll,
-                      border: Border.all(
-                        color: selected ? c.border : c.borderMuted,
-                      ),
-                    ),
-                    child: Text(
-                      '$n',
-                      style: context.text.monoSmall.copyWith(
-                        color: selected || hovered
-                            ? c.textPrimary
-                            : c.textMuted,
-                      ),
-                    ),
-                  );
-                },
-              ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// Gives [builder]'s widget exactly a text field's height (the Send button
-/// beside the inputs). Hidden copies set the size — a field for the height,
-/// the widget itself for the width — and the real one fills it. The text
-/// field's intrinsic height overstates its laid-out height, so
-/// IntrinsicHeight can't do this.
-class _AtFieldHeight extends StatelessWidget {
-  const _AtFieldHeight({required this.builder});
-
-  /// Built twice: `stretch` false for the hidden sizing copy (unbounded
-  /// height there), true for the visible one.
-  final Widget Function(bool stretch) builder;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        const Visibility.maintain(
-          visible: false,
-          child: SizedBox(width: 40, child: AppTextField(mono: true)),
-        ),
-        Visibility.maintain(visible: false, child: builder(false)),
-        Positioned.fill(child: builder(true)),
-      ],
-    );
-  }
-}
-
+/// A labeled setting in the controls row.
 /// A labelled field, label above — the parent sizes it (a fixed-width box on
 /// the one-line layout, an equal share of the row when stacked).
 class _Setting extends StatelessWidget {
