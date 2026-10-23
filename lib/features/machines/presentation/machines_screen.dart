@@ -41,7 +41,7 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen> {
           ScreenHeader(
             title: 'Machines',
             subtitle:
-                '${all.length} hosts to benchmark against and open terminals on.',
+                '${all.length} ${all.length == 1 ? 'host' : 'hosts'} to benchmark against and open terminals on.',
             trailing: AppButton(
               label: 'Add machine',
               icon: AppIcons.add,

@@ -425,60 +425,52 @@ class _AggregateBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // The stats scroll instead of squeezing the actions off the right:
-          // on a narrow window Save and the grid/charts toggle have to stay
-          // reachable, and the leftmost stats are the ones worth reading.
+          // The stats wrap onto a second line when the terminal leaves the
+          // tools narrow, rather than hiding off the right edge.
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _Stat(
-                    label: 'AGGREGATE',
-                    value: run.aggregateTokensPerSecond.toStringAsFixed(1),
-                    unit: 'tok/s',
-                    // Green only while the reading is still live (all requests at full
-                    // concurrency). Once it freezes at the first completion it turns
-                    // neutral, signalling a locked-in result rather than a live number.
-                    valueColor: run.isRunning && !run.aggregateFrozen
-                        ? c.statusRunning
-                        : null,
-                  ),
-                  const SizedBox(width: AppSpacing.xxl),
-                  _Stat(
-                    label: 'AVG / REQ',
-                    value: run.averageTokensPerSecond.toStringAsFixed(1),
-                    unit: 'tok/s',
-                  ),
-                  const SizedBox(width: AppSpacing.xxl),
-                  _Stat(
-                    label: 'COMPLETED',
-                    value: '${run.completed}',
-                    // Denominator is the batch actually in flight, not the (editable)
-                    // batch-size setting — so tweaking the field for the next run
-                    // doesn't skew the current run's count.
-                    unit:
-                        '/${run.requests.isEmpty ? run.batchSize : run.requests.length}',
-                  ),
-                  const SizedBox(width: AppSpacing.xxl),
-                  _Stat(
-                    label: 'MEDIAN TTFT',
-                    value: '${run.medianTtftMs}',
-                    unit: 'ms',
-                  ),
-                  const SizedBox(width: AppSpacing.xxl),
-                  _Stat(
-                    label: 'ELAPSED',
-                    value: (run.elapsed.inMilliseconds / 1000)
-                        .toStringAsFixed(1),
-                    unit: 's',
-                  ),
-                  // Keeps the last stat off the pill when scrolled to the end.
-                  const SizedBox(width: AppSpacing.lg),
-                ],
-              ),
+            child: Wrap(
+              spacing: AppSpacing.xxl,
+              runSpacing: AppSpacing.md,
+              children: [
+                _Stat(
+                  label: 'AGGREGATE',
+                  value: run.aggregateTokensPerSecond.toStringAsFixed(1),
+                  unit: 'tok/s',
+                  // Green only while the reading is still live (all requests at full
+                  // concurrency). Once it freezes at the first completion it turns
+                  // neutral, signalling a locked-in result rather than a live number.
+                  valueColor: run.isRunning && !run.aggregateFrozen
+                      ? c.statusRunning
+                      : null,
+                ),
+                _Stat(
+                  label: 'AVG / REQ',
+                  value: run.averageTokensPerSecond.toStringAsFixed(1),
+                  unit: 'tok/s',
+                ),
+                _Stat(
+                  label: 'COMPLETED',
+                  value: '${run.completed}',
+                  // Denominator is the batch actually in flight, not the (editable)
+                  // batch-size setting — so tweaking the field for the next run
+                  // doesn't skew the current run's count.
+                  unit:
+                      '/${run.requests.isEmpty ? run.batchSize : run.requests.length}',
+                ),
+                _Stat(
+                  label: 'MEDIAN TTFT',
+                  value: '${run.medianTtftMs}',
+                  unit: 'ms',
+                ),
+                _Stat(
+                  label: 'ELAPSED',
+                  value: (run.elapsed.inMilliseconds / 1000).toStringAsFixed(1),
+                  unit: 's',
+                ),
+              ],
             ),
           ),
+          if (run.isRunning) const SizedBox(width: AppSpacing.lg),
           if (run.isRunning) _StreamingPill(),
         ],
       ),
@@ -566,6 +558,7 @@ class _Stat extends StatelessWidget {
         Text(label, style: context.text.columnHeader),
         const SizedBox(height: 4),
         Row(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [

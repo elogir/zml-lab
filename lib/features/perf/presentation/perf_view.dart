@@ -340,51 +340,74 @@ class _Controls extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: _Setting(
-                label: 'Model (vLLM needs the real name; llmd ignores it)',
-                child: AppTextField(
-                  controller: model,
-                  mono: true,
-                  placeholder: 'from /v1/models',
-                  onChanged: (v) => onPatch((p) => p.copyWith(model: v.trim())),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final modelField = _Setting(
+              label: 'Model (vLLM needs the real name; llmd ignores it)',
+              child: AppTextField(
+                controller: model,
+                mono: true,
+                placeholder: 'from /v1/models',
+                onChanged: (v) => onPatch((p) => p.copyWith(model: v.trim())),
+              ),
+            );
+            final actions = [
+              _WarmupToggle(
+                value: run.params.warmup,
+                onChanged: (v) => onPatch((p) => p.copyWith(warmup: v)),
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              if (active)
+                AppIconButton(
+                  icon: AppIcons.kill,
+                  color: c.statusFailed,
+                  hoverColor: c.statusFailed,
+                  padding: const EdgeInsets.all(8),
+                  onPressed: onCancel,
+                )
+              else
+                AppButton(
+                  label: 'Run benchmark',
+                  icon: AppIcons.play,
+                  variant: AppButtonVariant.primary,
+                  onPressed: onRun,
                 ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.lg),
-            _WarmupToggle(
-              value: run.params.warmup,
-              onChanged: (v) => onPatch((p) => p.copyWith(warmup: v)),
-            ),
-            const SizedBox(width: AppSpacing.lg),
-            if (active)
+              const SizedBox(width: AppSpacing.sm),
+              // Same fullscreen as the terminal: sidebar, header and actions
+              // panel all collapse away.
               AppIconButton(
-                icon: AppIcons.kill,
-                color: c.statusFailed,
-                hoverColor: c.statusFailed,
-                padding: const EdgeInsets.all(8),
-                onPressed: onCancel,
-              )
-            else
-              AppButton(
-                label: 'Run benchmark',
-                icon: AppIcons.play,
-                variant: AppButtonVariant.primary,
-                onPressed: onRun,
+                icon: fullscreen
+                    ? AppIcons.exitFullscreen
+                    : AppIcons.fullscreen,
+                size: 15,
+                padding: const EdgeInsets.all(9),
+                onPressed: onToggleFullscreen,
               ),
-            const SizedBox(width: AppSpacing.sm),
-            // Same fullscreen as the terminal: sidebar, header and actions
-            // panel all collapse away.
-            AppIconButton(
-              icon: fullscreen ? AppIcons.exitFullscreen : AppIcons.fullscreen,
-              size: 15,
-              padding: const EdgeInsets.all(9),
-              onPressed: onToggleFullscreen,
-            ),
-          ],
+            ];
+            // Narrow (terminal open): the model gets its own line rather
+            // than being squeezed beside the run controls.
+            if (constraints.maxWidth < 560) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  modelField,
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: actions,
+                  ),
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(child: modelField),
+                const SizedBox(width: AppSpacing.lg),
+                ...actions,
+              ],
+            );
+          },
         ),
       ],
     );

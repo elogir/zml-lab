@@ -311,61 +311,80 @@ class _EndpointBar extends ConsumerWidget {
     final selected = machines.firstWhereOrNull(
       (m) => m.id == selectedMachineId,
     );
+    final picker = [
+      Text('Target', style: context.text.smallMuted),
+      const SizedBox(width: AppSpacing.md),
+      _MachineDropdown(
+        machines: machines,
+        label: selected?.name ?? 'Custom host',
+        customSelected: custom,
+        selectedMachineId: selectedMachineId,
+        onSelectMachine: onSelectMachine,
+        onSelectCustom: onSelectCustom,
+        blurHost: blurHost,
+      ),
+    ];
+    final address = [
+      Text('host', style: context.text.smallMuted),
+      const SizedBox(width: AppSpacing.sm),
+      Expanded(
+        child: custom
+            // Custom: type any host. Still editable while masked — the
+            // controller holds the real value either way.
+            ? AppTextField(
+                controller: host,
+                mono: true,
+                dense: true,
+                obscureText: blurHost,
+                onChanged: onHostEdited,
+              )
+            // A machine sets the host; show it read-only.
+            : Text(
+                blurHost ? maskHost(host.text) : host.text,
+                style: context.text.mono.copyWith(color: c.textSecondary),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+      ),
+      const SizedBox(width: AppSpacing.lg),
+      Text('port', style: context.text.smallMuted),
+      const SizedBox(width: AppSpacing.sm),
+      SizedBox(
+        width: 68,
+        child: AppTextField(
+          controller: port,
+          mono: true,
+          dense: true,
+          onChanged: onPortEdited,
+        ),
+      ),
+    ];
     return AppPanel(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
       ),
-      child: Row(
-        children: [
-          Text('Target', style: context.text.smallMuted),
-          const SizedBox(width: AppSpacing.md),
-          _MachineDropdown(
-            machines: machines,
-            label: selected?.name ?? 'Custom host',
-            customSelected: custom,
-            selectedMachineId: selectedMachineId,
-            onSelectMachine: onSelectMachine,
-            onSelectCustom: onSelectCustom,
-            blurHost: blurHost,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Container(width: 1, height: 20, color: c.borderMuted),
-          const SizedBox(width: AppSpacing.md),
-          Text('host', style: context.text.smallMuted),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: custom
-                // Custom: type any host. Still editable while masked — the
-                // controller holds the real value either way.
-                ? AppTextField(
-                    controller: host,
-                    mono: true,
-                    dense: true,
-                    obscureText: blurHost,
-                    onChanged: onHostEdited,
-                  )
-                // A machine sets the host; show it read-only.
-                : Text(
-                    blurHost ? maskHost(host.text) : host.text,
-                    style: context.text.mono.copyWith(color: c.textSecondary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          Text('port', style: context.text.smallMuted),
-          const SizedBox(width: AppSpacing.sm),
-          SizedBox(
-            width: 68,
-            child: AppTextField(
-              controller: port,
-              mono: true,
-              dense: true,
-              onChanged: onPortEdited,
-            ),
-          ),
-        ],
+      // Stack the picker over the address when the terminal leaves the tools
+      // too narrow for one line.
+      child: LayoutBuilder(
+        builder: (context, constraints) => constraints.maxWidth < 460
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: picker),
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(children: address),
+                ],
+              )
+            : Row(
+                children: [
+                  ...picker,
+                  const SizedBox(width: AppSpacing.md),
+                  Container(width: 1, height: 20, color: c.borderMuted),
+                  const SizedBox(width: AppSpacing.md),
+                  ...address,
+                ],
+              ),
       ),
     );
   }
