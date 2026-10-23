@@ -131,13 +131,13 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
             port: port,
           );
 
-    final terminal = panel.open
-        ? TerminalMux(
-            key: _terminalKey,
-            muxId: _terminalMuxId,
-            machine: machine,
-          )
-        : null;
+    // Mounted only while the panel is open (or animating shut) — the split
+    // decides; its shells live on in the mux provider either way.
+    final terminal = TerminalMux(
+      key: _terminalKey,
+      muxId: _terminalMuxId,
+      machine: machine,
+    );
 
     // In fullscreen the shell already hid the sidebar; drop our own chrome too
     // so the surface fills the window (the perf view re-adds padding).
@@ -145,7 +145,7 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
         target.tool == BenchmarkTool.perf) {
       return body;
     }
-    if (fullscreen == FullscreenSurface.terminal && terminal != null) {
+    if (fullscreen == FullscreenSurface.terminal && panel.open) {
       return terminal;
     }
 
@@ -208,16 +208,15 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           Expanded(
-            child: terminal == null
-                ? tools
-                : _TerminalSplit(
-                    ratio: panel.ratio,
-                    onRatioChanged: ref
-                        .read(benchmarkTerminalPanelControllerProvider.notifier)
-                        .setRatio,
-                    tools: tools,
-                    terminal: terminal,
-                  ),
+            child: _TerminalSplit(
+              open: panel.open,
+              ratio: panel.ratio,
+              onRatioChanged: ref
+                  .read(benchmarkTerminalPanelControllerProvider.notifier)
+                  .setRatio,
+              tools: tools,
+              terminal: terminal,
+            ),
           ),
         ],
       ),
@@ -226,15 +225,18 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
 }
 
 /// The tools on the left, the terminal on the right, with a draggable gutter
-/// between them. [ratio] is the terminal's share of the width.
+/// between them. [ratio] is the terminal's share of the width. Toggling
+/// [open] slides the terminal in from / out to the right edge.
 class _TerminalSplit extends StatefulWidget {
   const _TerminalSplit({
+    required this.open,
     required this.ratio,
     required this.onRatioChanged,
     required this.tools,
     required this.terminal,
   });
 
+  final bool open;
   final double ratio;
   final ValueChanged<double> onRatioChanged;
   final Widget tools;
@@ -244,7 +246,8 @@ class _TerminalSplit extends StatefulWidget {
   State<_TerminalSplit> createState() => _TerminalSplitState();
 }
 
-class _TerminalSplitState extends State<_TerminalSplit> {
+class _TerminalSplitState extends State<_TerminalSplit>
+    with SingleTickerProviderStateMixin {
   static const _gutter = AppSpacing.lg;
   static const _minTools = 340.0;
   static const _minTerminal = 280.0;
@@ -256,8 +259,43 @@ class _TerminalSplitState extends State<_TerminalSplit> {
   double _dragStartX = 0;
   double _dragStartRatio = 0;
 
+  /// 1 = open, 0 = shut; drives the slide.
+  late final AnimationController _reveal = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+    value: widget.open ? 1 : 0,
+  );
+  late final Animation<double> _slide = CurvedAnimation(
+    parent: _reveal,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  );
+
+  @override
+  void didUpdateWidget(_TerminalSplit old) {
+    super.didUpdateWidget(old);
+    if (widget.open != old.open) {
+      widget.open ? _reveal.forward() : _reveal.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _reveal.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    // The Row keeps the same shape at every step (the terminal slot just has
+    // zero width when shut), so the tools are never remounted by a toggle.
+    return AnimatedBuilder(
+      animation: _slide,
+      builder: (context, _) => _buildSplit(context, _slide.value),
+    );
+  }
+
+  Widget _buildSplit(BuildContext context, double t) {
     final c = context.colors;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -277,48 +315,94 @@ class _TerminalSplitState extends State<_TerminalSplit> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(child: widget.tools),
-            MouseRegion(
-              cursor: SystemMouseCursors.resizeLeftRight,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                dragStartBehavior: DragStartBehavior.down,
-                onHorizontalDragStart: (d) {
-                  _dragStartX = d.globalPosition.dx;
-                  // What's on screen, not the stored ratio: they differ while
-                  // a floor holds, and starting from the stored one would
-                  // leave a dead zone before the divider moved.
-                  _dragStartRatio = usable > 0
-                      ? terminalWidth / usable
-                      : widget.ratio;
-                },
-                onHorizontalDragUpdate: (d) {
-                  if (usable <= 0) return;
-                  final dx = d.globalPosition.dx - _dragStartX;
-                  final width = (usable * _dragStartRatio - dx).clamp(
-                    minTerminal,
-                    maxTerminal,
-                  );
-                  widget.onRatioChanged(width / usable);
-                },
-                child: SizedBox(
-                  width: _gutter,
-                  child: Center(
-                    child: Container(
-                      width: 2,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: c.borderMuted,
-                        borderRadius: AppRadius.pillAll,
-                      ),
+            if (t == 0)
+              const SizedBox.shrink()
+            else
+              SizedBox(
+                width: _gutter * t,
+                child: ClipRect(
+                  clipBehavior: t < 1 ? Clip.hardEdge : Clip.none,
+                  child: OverflowBox(
+                    alignment: Alignment.centerLeft,
+                    minWidth: _gutter,
+                    maxWidth: _gutter,
+                    child: _gutterHandle(
+                      c,
+                      usable,
+                      terminalWidth,
+                      minTerminal,
+                      maxTerminal,
                     ),
                   ),
                 ),
               ),
-            ),
-            SizedBox(width: terminalWidth, child: widget.terminal),
+            if (t == 0)
+              const SizedBox.shrink()
+            else
+              // Laid out at its full width while it slides, so the terminal
+              // doesn't re-wrap (and resize the PTY) on every frame. Clipped
+              // only mid-slide: a settled panel may hold web tabs, and native
+              // web views don't belong under a clip.
+              SizedBox(
+                width: terminalWidth * t,
+                child: ClipRect(
+                  clipBehavior: t < 1 ? Clip.hardEdge : Clip.none,
+                  child: OverflowBox(
+                    alignment: Alignment.centerLeft,
+                    minWidth: terminalWidth,
+                    maxWidth: terminalWidth,
+                    child: widget.terminal,
+                  ),
+                ),
+              ),
           ],
         );
       },
+    );
+  }
+
+  Widget _gutterHandle(
+    AppColors c,
+    double usable,
+    double terminalWidth,
+    double minTerminal,
+    double maxTerminal,
+  ) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeLeftRight,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        dragStartBehavior: DragStartBehavior.down,
+        onHorizontalDragStart: (d) {
+          _dragStartX = d.globalPosition.dx;
+          // What's on screen, not the stored ratio: they differ while
+          // a floor holds, and starting from the stored one would
+          // leave a dead zone before the divider moved.
+          _dragStartRatio = usable > 0 ? terminalWidth / usable : widget.ratio;
+        },
+        onHorizontalDragUpdate: (d) {
+          if (usable <= 0) return;
+          final dx = d.globalPosition.dx - _dragStartX;
+          final width = (usable * _dragStartRatio - dx).clamp(
+            minTerminal,
+            maxTerminal,
+          );
+          widget.onRatioChanged(width / usable);
+        },
+        child: SizedBox(
+          width: _gutter,
+          child: Center(
+            child: Container(
+              width: 2,
+              height: 32,
+              decoration: BoxDecoration(
+                color: c.borderMuted,
+                borderRadius: AppRadius.pillAll,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
