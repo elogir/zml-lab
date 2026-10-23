@@ -37,6 +37,17 @@ class BenchmarkChatController extends _$BenchmarkChatController {
   /// once the request settles or the user replays the prompt.
   bool _mirrorBatch = false;
 
+  /// Releases the batch's live-text watch on the mirrored request (a big
+  /// batch only keeps watched requests' text current — see
+  /// [BenchmarkController.watchText]). Null when not watching.
+  void Function()? _unwatch;
+
+  void _stopMirroring() {
+    _mirrorBatch = false;
+    _unwatch?.call();
+    _unwatch = null;
+  }
+
   /// Bumped per reply, so a frame-deferred write from a replaced (replayed)
   /// reply can't land in the new one.
   int _generation = 0;
@@ -62,6 +73,12 @@ class BenchmarkChatController extends _$BenchmarkChatController {
     // Opened mid-run: keep mirroring the still-streaming request into the
     // seed reply until it finishes. Opened after, the seed is a snapshot.
     _mirrorBatch = request.status == BenchmarkRequestStatus.streaming;
+    if (_mirrorBatch) {
+      final batch = ref.read(benchmarkControllerProvider(jobId).notifier)
+        ..watchText(index);
+      _unwatch = () => batch.unwatchText(index);
+    }
+    ref.onDispose(_stopMirroring);
     final seedToken = run.runToken;
     ref.listen(benchmarkControllerProvider(jobId), (_, next) {
       // A new batch replaced the request this chat was seeded from — the
@@ -104,7 +121,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
   void _mirrorSeed(BenchmarkRequest r) {
     if (!_mirrorBatch || state.turns.length < 2) return;
     _setTurn(1, _seedTurn(r));
-    if (r.status.isTerminal) _mirrorBatch = false; // settled — snapshot now
+    if (r.status.isTerminal) _stopMirroring(); // settled — snapshot now
   }
 
   /// Fire a single request: append the user's prompt, then stream a reply.
@@ -141,7 +158,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
   void _startReply() {
     // The user is driving the conversation now — a replay replaces turn 1, so
     // the batch request must stop writing into it.
-    _mirrorBatch = false;
+    _stopMirroring();
     _sub?.cancel();
     _generation++;
     final messages = _messages();

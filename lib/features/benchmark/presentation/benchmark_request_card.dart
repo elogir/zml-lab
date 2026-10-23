@@ -21,8 +21,8 @@ class BenchmarkRequestCard extends StatelessWidget {
   final BenchmarkRequest request;
   final VoidCallback? onExpand;
 
-  /// How much of the reply the card renders — several times what fits.
-  static const _previewChars = 1500;
+  /// How much of the reply the card renders — comfortably more than fits.
+  static const _previewChars = 800;
 
   @override
   Widget build(BuildContext context) {

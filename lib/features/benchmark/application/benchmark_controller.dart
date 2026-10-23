@@ -16,7 +16,7 @@ part 'benchmark_controller.g.dart';
 class _Progress {
   _Progress({required this.index, required this.start});
   final int index;
-  final DateTime start;
+  DateTime start; // re-set to when the worker actually sent the request
   DateTime? firstTokenAt;
   DateTime? endAt;
   final StringBuffer buffer = StringBuffer();
@@ -43,8 +43,7 @@ class _Progress {
   int get tokens => usageTokens > 0 ? usageTokens : chunkTokens;
 }
 
-/// Strips the `Exception: ` wrapper off the message streamChat throws, which
-/// is already a clean, human string (see describeIoError).
+/// Strips the `Exception: ` wrapper off an error message.
 String _cleanError(Object e) {
   final s = e.toString();
   return s.startsWith('Exception: ') ? s.substring('Exception: '.length) : s;
@@ -60,7 +59,20 @@ String _cleanError(Object e) {
 /// cancelling) aborts them.
 @Riverpod(keepAlive: true)
 class BenchmarkController extends _$BenchmarkController {
-  final List<StreamSubscription<ChatToken>> _subs = [];
+  /// The batch's merged progress, streamed from a background isolate (see
+  /// [streamChatBatch]): receiving hundreds of streams here starved the UI.
+  StreamSubscription<List<ChatBatchDelta>>? _batch;
+  int _settled = 0;
+
+  /// Requests whose text is on screen right now (a grid card, a chat popup),
+  /// with how many views hold each. While a big batch streams, only these get
+  /// their text republished each flush — re-joining all of hundreds of long
+  /// replies every flush was most of the UI thread's time. The rest catch up
+  /// when they finish (or come into view).
+  final Map<int, int> _watched = {};
+
+  /// Small batches always republish everything; it's cheap at that size.
+  static const _watchAllUpTo = 64;
   Timer? _ticker;
   DateTime? _startAt;
   List<_Progress> _progs = [];
@@ -96,6 +108,25 @@ class BenchmarkController extends _$BenchmarkController {
   bool updateShouldNotify(BenchmarkRun previous, BenchmarkRun next) =>
       !identical(previous, next);
 
+  /// A view started showing request [index]'s text (see [_watched]).
+  void watchText(int index) {
+    _watched.update(index, (n) => n + 1, ifAbsent: () => 1);
+    // Newly visible mid-run: bring its text up to date on the next flush.
+    if (index >= 1 && index <= _progs.length) {
+      _progs[index - 1].dirty = true;
+      if (state.isRunning) _scheduleFlush();
+    }
+  }
+
+  void unwatchText(int index) {
+    final n = (_watched[index] ?? 0) - 1;
+    if (n <= 0) {
+      _watched.remove(index);
+    } else {
+      _watched[index] = n;
+    }
+  }
+
   void setPrompt(String prompt) => state = state.copyWith(prompt: prompt);
 
   /// Empty = send `zml_model` (the server-agnostic default).
@@ -123,6 +154,7 @@ class BenchmarkController extends _$BenchmarkController {
     final now = DateTime.now();
     _startAt = now;
     _progs = List.generate(n, (i) => _Progress(index: i + 1, start: now));
+    _settled = 0;
     _samples.clear();
     _samplesSnapshot = const [];
 
@@ -144,24 +176,27 @@ class BenchmarkController extends _$BenchmarkController {
     final messages = [
       {'role': 'user', 'content': prompt},
     ];
-    for (final p in _progs) {
-      final sub =
-          streamChat(
-            host,
-            port,
-            messages,
-            maxTokens: state.maxTokens,
-            temperature: state.temperature,
-            model: state.model,
-          ).listen(
-            (tok) => _onToken(p, tok),
-            onError: (Object e) =>
-                _finish(p, failed: true, error: _cleanError(e)),
-            onDone: () => _finish(p, failed: false),
-            cancelOnError: true,
-          );
-      _subs.add(sub);
-    }
+    _batch =
+        streamChatBatch(
+          host,
+          port,
+          messages,
+          count: n,
+          maxTokens: state.maxTokens,
+          temperature: state.temperature,
+          model: state.model,
+          // Token-by-token for a small batch; coarser merges for a big one,
+          // whose flushes back off anyway (see [_flushInterval]).
+          interval: Duration(milliseconds: n <= 32 ? 16 : 50),
+        ).listen(
+          _onDeltas,
+          // The worker itself failed (not one request): fail what's left.
+          onError: (Object e) {
+            for (final p in _progs) {
+              _finish(p, failed: true, error: _cleanError(e));
+            }
+          },
+        );
 
     // Slow tick just keeps the live elapsed / tok-s readout advancing between
     // tokens; token *text* is flushed per-token (frame-coalesced) below.
@@ -172,14 +207,16 @@ class BenchmarkController extends _$BenchmarkController {
   }
 
   void cancel() {
-    for (final s in _subs) {
-      s.cancel();
-    }
-    _subs.clear();
+    _batch?.cancel();
+    _batch = null;
     _ticker?.cancel();
+    // Lock the aggregate at whatever was live if we never hit a natural
+    // first-completion (same reasoning as the freeze in [_flush]).
+    final frozen = state.aggregateFrozen
+        ? state.frozenAggregate
+        : _liveAggregate();
 
     final now = DateTime.now();
-    final start = _startAt;
     for (final p in _progs) {
       if (!p.status.isTerminal) {
         p.status = BenchmarkRequestStatus.done;
@@ -187,21 +224,9 @@ class BenchmarkController extends _$BenchmarkController {
         p.dirty = true;
       }
     }
-    state = state.copyWith(
-      isRunning: false,
-      // Lock the aggregate at whatever was live if we never hit a natural
-      // first-completion (same reasoning as the freeze below).
-      frozenAggregate: state.aggregateFrozen
-          ? state.frozenAggregate
-          : _liveAggregate(),
-      elapsed: start != null ? now.difference(start) : state.elapsed,
-      requests: [
-        for (final r in state.requests)
-          r.status == BenchmarkRequestStatus.streaming
-              ? r.copyWith(status: BenchmarkRequestStatus.done)
-              : r,
-      ],
-    );
+    // A full flush, so unwatched requests publish their text as it stood.
+    _flush();
+    state = state.copyWith(isRunning: false, frozenAggregate: frozen);
   }
 
   /// Drops the run's results — back to the empty state, ready for a fresh
@@ -230,29 +255,45 @@ class BenchmarkController extends _$BenchmarkController {
       .where((r) => r.status == BenchmarkRequestStatus.streaming)
       .fold(0.0, (sum, r) => sum + r.tokensPerSecond);
 
-  void _onToken(_Progress p, ChatToken tok) {
-    final content = tok.content;
-    final reasoning = tok.reasoning;
-    final hasContent = content != null && content.isNotEmpty;
-    final hasReasoning = reasoning != null && reasoning.isNotEmpty;
-    // Start the decode clock at the first *real* token (content or thinking),
-    // not the empty role delta the server sends first — otherwise the wait for
-    // it (the ttft) would be counted in the tok/s window.
-    if (hasContent || hasReasoning) p.firstTokenAt ??= DateTime.now();
-    if (hasReasoning) {
-      p.reasoning.write(reasoning);
-      p.chunkTokens += 1;
+  /// Folds one merged update from the batch worker into the requests' scratch
+  /// progress. Timestamps come from the worker, taken as bytes arrived.
+  void _onDeltas(List<ChatBatchDelta> deltas) {
+    var firstOrLast = false;
+    for (final d in deltas) {
+      final p = _progs[d.index - 1];
+      if (p.status.isTerminal) continue; // cancelled meanwhile
+      if (d.startUs != null) {
+        p.start = DateTime.fromMicrosecondsSinceEpoch(d.startUs!);
+      }
+      // The decode clock starts at the first *real* token (content or
+      // thinking), not the empty role delta — the worker stamps that one.
+      if (d.firstTokenUs != null) {
+        p.firstTokenAt ??= DateTime.fromMicrosecondsSinceEpoch(d.firstTokenUs!);
+      }
+      if (d.reasoning.isNotEmpty) p.reasoning.write(d.reasoning);
+      if (d.content.isNotEmpty) p.buffer.write(d.content);
+      p.chunkTokens += d.chunks;
+      if (d.completionTokens != null && d.completionTokens! > 0) {
+        p.usageTokens = d.completionTokens!;
+      }
+      if (d.finishReason != null) p.finishReason = d.finishReason;
+      p.dirty = true;
+      if (d.done) {
+        p
+          ..status = d.error != null
+              ? BenchmarkRequestStatus.failed
+              : BenchmarkRequestStatus.done
+          ..error = d.error
+          ..endAt = d.endUs != null
+              ? DateTime.fromMicrosecondsSinceEpoch(d.endUs!)
+              : DateTime.now();
+        _settled++;
+        if (_settled == 1 || _settled == _progs.length) firstOrLast = true;
+      }
     }
-    if (hasContent) {
-      p.buffer.write(content);
-      p.chunkTokens += 1;
-    }
-    if (tok.completionTokens != null && tok.completionTokens! > 0) {
-      p.usageTokens = tok.completionTokens!;
-    }
-    if (tok.finishReason != null) p.finishReason = tok.finishReason;
-    p.dirty = true;
-    _scheduleFlush(); // show this token on the next frame
+    // The first completion (it freezes the aggregate) and the last show at
+    // once; everything else rides the regular cadence.
+    firstOrLast ? _flush() : _scheduleFlush();
   }
 
   /// How often a running batch republishes. Per frame reads token-by-token
@@ -293,10 +334,8 @@ class BenchmarkController extends _$BenchmarkController {
     if (failed) p.error = error;
     p.endAt = DateTime.now();
     p.dirty = true;
-    // The last one (and the first, which freezes the aggregate) shows at
-    // once; completions in between ride the regular cadence.
-    final settled = _progs.where((q) => q.status.isTerminal).length;
-    if (settled == 1 || settled == _progs.length) {
+    _settled++;
+    if (_settled == 1 || _settled == _progs.length) {
       _flush();
     } else {
       _scheduleFlush();
@@ -320,9 +359,13 @@ class BenchmarkController extends _$BenchmarkController {
         requests.add(published);
         continue;
       }
-      if (p.buffer.length != p.text.length) p.text = p.buffer.toString();
-      if (p.reasoning.length != p.reasoningText.length) {
-        p.reasoningText = p.reasoning.toString();
+      if (p.status.isTerminal ||
+          _progs.length <= _watchAllUpTo ||
+          _watched.containsKey(p.index)) {
+        if (p.buffer.length != p.text.length) p.text = p.buffer.toString();
+        if (p.reasoning.length != p.reasoningText.length) {
+          p.reasoningText = p.reasoning.toString();
+        }
       }
       p.dirty = false;
       final endRef = p.endAt ?? now;
@@ -415,10 +458,8 @@ class BenchmarkController extends _$BenchmarkController {
   }
 
   void _teardown() {
-    for (final s in _subs) {
-      s.cancel();
-    }
-    _subs.clear();
+    _batch?.cancel();
+    _batch = null;
     _ticker?.cancel();
     _flushDelay?.cancel();
     _progs = [];

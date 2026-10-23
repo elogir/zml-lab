@@ -8,11 +8,16 @@ import 'package:zml_lab/models/benchmark.dart';
 
 /// A minimal OpenAI-style streaming endpoint: every request gets [words]
 /// content deltas ("w0 ", "w1 ", …), a stop, then [DONE].
-Future<HttpServer> _fakeServer({required int words}) async {
+Future<HttpServer> _fakeServer({
+  required int words,
+  Duration pace = const Duration(milliseconds: 3),
+}) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   server.listen((req) async {
     await utf8.decoder.bind(req).join();
+    // Unbuffered, so each delta goes out as written (like a real server).
     final res = req.response
+      ..bufferOutput = false
       ..headers.contentType = ContentType('text', 'event-stream');
     String event(Map<String, dynamic> choice) =>
         'data: ${jsonEncode({
@@ -25,7 +30,7 @@ Future<HttpServer> _fakeServer({required int words}) async {
         }),
       );
       await res.flush();
-      await Future<void>.delayed(const Duration(milliseconds: 3));
+      await Future<void>.delayed(pace);
     }
     res.write(event({'delta': <String, dynamic>{}, 'finish_reason': 'stop'}));
     res.write('data: [DONE]\n\n');
@@ -76,9 +81,58 @@ void main() {
         expect(r.tokens, words, reason: '#${r.index}');
         expect(r.finishReason, 'stop', reason: '#${r.index}');
         expect(r.latencyMs, isNotNull, reason: '#${r.index}');
+        // Stamped by the batch worker as bytes arrived.
+        expect(r.ttftMs, isNotNull, reason: '#${r.index}');
+        expect(r.ttftMs, greaterThanOrEqualTo(0), reason: '#${r.index}');
+        // Equal when a loaded local server bursts a whole reply in one read.
+        expect(
+          r.latencyMs,
+          greaterThanOrEqualTo(r.ttftMs!),
+          reason: '#${r.index}',
+        );
       }
       expect(run.aggregateFrozen, isTrue);
       expect(run.completed, batch);
+    });
+  });
+
+  testWidgets('cancelling mid-run publishes every partial reply', (
+    tester,
+  ) async {
+    // Big enough that off-screen requests' text isn't kept live while it
+    // streams — cancel has to bring all of it up to date.
+    const batch = 120;
+    final mocked = HttpOverrides.current;
+    HttpOverrides.global = null;
+    addTearDown(() => HttpOverrides.global = mocked);
+
+    await tester.runAsync(() async {
+      final server = await _fakeServer(
+        words: 1000,
+        pace: const Duration(milliseconds: 20),
+      );
+      addTearDown(() => server.close(force: true));
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final provider = benchmarkControllerProvider('t');
+      final controller = container.read(provider.notifier)
+        ..setBatchSize(batch)
+        ..start(host: '127.0.0.1', port: server.port);
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      controller.cancel();
+
+      final run = container.read(provider);
+      expect(run.isRunning, isFalse);
+      for (final r in run.requests) {
+        expect(r.status, BenchmarkRequestStatus.done, reason: '#${r.index}');
+        // One "wN " per token: the published text is the full partial reply.
+        expect(' '.allMatches(r.text).length, r.tokens, reason: '#${r.index}');
+      }
+      // Most were well into their reply (a few may still be connecting).
+      expect(
+        run.requests.where((r) => r.tokens > 10).length,
+        greaterThan(batch ~/ 2),
+      );
     });
   });
 }

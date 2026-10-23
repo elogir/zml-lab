@@ -676,16 +676,76 @@ class _Grid extends StatelessWidget {
           itemCount: run.requests.length,
           itemBuilder: (context, i) {
             final request = run.requests[i];
-            return BenchmarkRequestCard(
-              request: request,
-              onExpand: () =>
-                  showBenchmarkFocus(context, jobId, request.index, host, port),
+            return _WatchedText(
+              jobId: jobId,
+              index: request.index,
+              child: BenchmarkRequestCard(
+                request: request,
+                onExpand: () => showBenchmarkFocus(
+                  context,
+                  jobId,
+                  request.index,
+                  host,
+                  port,
+                ),
+              ),
             );
           },
         );
       },
     );
   }
+}
+
+/// Tells the controller request [index]'s card is on screen while it's
+/// mounted, so a big batch keeps that card's text live (see
+/// [BenchmarkController.watchText]). The grid builds lazily, so mounted ≈
+/// visible.
+class _WatchedText extends ConsumerStatefulWidget {
+  const _WatchedText({
+    required this.jobId,
+    required this.index,
+    required this.child,
+  });
+
+  final String jobId;
+  final int index;
+  final Widget child;
+
+  @override
+  ConsumerState<_WatchedText> createState() => _WatchedTextState();
+}
+
+class _WatchedTextState extends ConsumerState<_WatchedText> {
+  // Captured up front: dispose must not read through `ref`.
+  late final BenchmarkController _controller = ref.read(
+    benchmarkControllerProvider(widget.jobId).notifier,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.watchText(widget.index);
+  }
+
+  @override
+  void didUpdateWidget(_WatchedText old) {
+    super.didUpdateWidget(old);
+    if (old.index != widget.index) {
+      _controller
+        ..unwatchText(old.index)
+        ..watchText(widget.index);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.unwatchText(widget.index);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _EmptyState extends StatelessWidget {

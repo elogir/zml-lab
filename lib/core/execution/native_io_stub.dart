@@ -19,6 +19,50 @@ Stream<ChatToken> streamChat(
   // No dart:io on web — benchmarking is native-only.
 }
 
+typedef ChatBatchDelta = ({
+  int index,
+  int? startUs,
+  int? firstTokenUs,
+  String content,
+  String reasoning,
+  int chunks,
+  int? completionTokens,
+  String? finishReason,
+  bool done,
+  int? endUs,
+  String? error,
+});
+
+/// Every request ends at once with nothing streamed (no networking on web).
+Stream<List<ChatBatchDelta>> streamChatBatch(
+  String host,
+  int port,
+  List<Map<String, String>> messages, {
+  required int count,
+  int? maxTokens,
+  double? temperature,
+  String model = '',
+  Duration interval = const Duration(milliseconds: 50),
+}) {
+  final now = DateTime.now().microsecondsSinceEpoch;
+  return Stream.value([
+    for (var i = 1; i <= count; i++)
+      (
+        index: i,
+        startUs: now,
+        firstTokenUs: null,
+        content: '',
+        reasoning: '',
+        chunks: 0,
+        completionTokens: null,
+        finishReason: null,
+        done: true,
+        endUs: now,
+        error: null,
+      ),
+  ]);
+}
+
 Future<bool> checkHealth(
   String host,
   int port, {

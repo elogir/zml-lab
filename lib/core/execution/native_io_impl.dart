@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 /// One streamed chunk from a chat completion: a text [content] delta, a
 /// [reasoning] (thinking) delta for reasoning models — llmd routes `<think>`
@@ -33,23 +34,26 @@ Stream<ChatToken> streamChat(
   double? temperature,
   String model = '',
 }) async* {
-  final client = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 10);
+  final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
   try {
     final request = await client.post(host, port, '/v1/chat/completions');
     request.headers.contentType = ContentType.json;
     request.headers.set(HttpHeaders.acceptHeader, 'text/event-stream');
-    request.add(utf8.encode(jsonEncode({
-      'model': model.isEmpty ? 'zml_model' : model,
-      'messages': messages,
-      'max_tokens': ?maxTokens,
-      'temperature': ?temperature,
-      'stream': true,
-      'stream_options': {
-        'include_usage': true,
-        'continuous_usage_stats': true,
-      },
-    })));
+    request.add(
+      utf8.encode(
+        jsonEncode({
+          'model': model.isEmpty ? 'zml_model' : model,
+          'messages': messages,
+          'max_tokens': ?maxTokens,
+          'temperature': ?temperature,
+          'stream': true,
+          'stream_options': {
+            'include_usage': true,
+            'continuous_usage_stats': true,
+          },
+        }),
+      ),
+    );
     final response = await request.close();
     if (response.statusCode >= 400) {
       // The body isn't SSE — it's the server's error (usually an OpenAI-shape
@@ -137,7 +141,9 @@ String _errorSnippet(String body) {
     final json = jsonDecode(body);
     if (json is Map) {
       final err = json['error'];
-      if (err is Map && err['message'] is String) return err['message'] as String;
+      if (err is Map && err['message'] is String) {
+        return err['message'] as String;
+      }
       if (err is String && err.isNotEmpty) return err;
       if (json['message'] is String) return json['message'] as String;
     }
@@ -147,6 +153,217 @@ String _errorSnippet(String body) {
   return t.length > _maxErrorBodyChars
       ? '${t.substring(0, _maxErrorBodyChars)}…'
       : t;
+}
+
+/// What one request of a [streamChatBatch] did since the previous update.
+/// Times are wall-clock microseconds taken where the bytes arrived, so ttft
+/// and latency are exact however the updates are batched.
+typedef ChatBatchDelta = ({
+  int index,
+  int? startUs,
+  int? firstTokenUs,
+  String content,
+  String reasoning,
+  int chunks,
+  int? completionTokens,
+  String? finishReason,
+  bool done,
+  int? endUs,
+  String? error,
+});
+
+/// Fires [count] identical streaming chat requests (indices 1..count) from a
+/// background isolate and emits their progress merged into one list per
+/// [interval]. Receiving and parsing hundreds of SSE streams is tens of
+/// thousands of events a second; on the UI isolate that alone starved
+/// rendering. Cancelling the subscription kills the isolate (closing every
+/// socket). The stream closes once every request has finished.
+Stream<List<ChatBatchDelta>> streamChatBatch(
+  String host,
+  int port,
+  List<Map<String, String>> messages, {
+  required int count,
+  int? maxTokens,
+  double? temperature,
+  String model = '',
+  Duration interval = const Duration(milliseconds: 50),
+}) {
+  final fromWorker = ReceivePort();
+  Isolate? worker;
+  var cancelled = false;
+  late final StreamController<List<ChatBatchDelta>> controller;
+  controller = StreamController(
+    onListen: () async {
+      fromWorker.listen((msg) {
+        if (msg == null) {
+          fromWorker.close();
+          controller.close();
+        } else {
+          controller.add((msg as List).cast<ChatBatchDelta>());
+        }
+      });
+      try {
+        worker = await Isolate.spawn(_chatBatchWorker, (
+          fromWorker.sendPort,
+          host,
+          port,
+          messages,
+          count,
+          maxTokens,
+          temperature,
+          model,
+          interval.inMicroseconds,
+        ), debugName: 'benchmark batch');
+      } catch (e) {
+        controller.addError(e);
+        fromWorker.close();
+        await controller.close();
+        return;
+      }
+      if (cancelled) worker?.kill(priority: Isolate.immediate);
+    },
+    onCancel: () {
+      cancelled = true;
+      worker?.kill(priority: Isolate.immediate);
+      fromWorker.close();
+    },
+  );
+  return controller.stream;
+}
+
+/// Mutable per-request accumulator inside the batch worker.
+class _BatchProgress {
+  _BatchProgress(this.index);
+  final int index;
+  int? startUs;
+  int? firstTokenUs;
+  bool sentFirst = false;
+  final content = StringBuffer();
+  final reasoning = StringBuffer();
+  int chunks = 0;
+  int? completionTokens;
+  String? finishReason;
+  bool done = false;
+  int? endUs;
+  String? error;
+  bool dirty = false;
+
+  ChatBatchDelta take() {
+    final delta = (
+      index: index,
+      startUs: startUs,
+      firstTokenUs: sentFirst ? null : firstTokenUs,
+      content: content.toString(),
+      reasoning: reasoning.toString(),
+      chunks: chunks,
+      completionTokens: completionTokens,
+      finishReason: finishReason,
+      done: done,
+      endUs: endUs,
+      error: error,
+    );
+    if (firstTokenUs != null) sentFirst = true;
+    startUs = null;
+    content.clear();
+    reasoning.clear();
+    chunks = 0;
+    dirty = false;
+    return delta;
+  }
+}
+
+Future<void> _chatBatchWorker(
+  (
+    SendPort,
+    String,
+    int,
+    List<Map<String, String>>,
+    int,
+    int?,
+    double?,
+    String,
+    int,
+  )
+  args,
+) async {
+  final (out, host, port, messages, count, maxTokens, temperature, model, us) =
+      args;
+  final progress = [for (var i = 1; i <= count; i++) _BatchProgress(i)];
+  var remaining = count;
+  int now() => DateTime.now().microsecondsSinceEpoch;
+
+  void send() {
+    final deltas = [
+      for (final p in progress)
+        if (p.dirty) p.take(),
+    ];
+    if (deltas.isNotEmpty) out.send(deltas);
+  }
+
+  final ticker = Timer.periodic(Duration(microseconds: us), (_) => send());
+
+  void finish(_BatchProgress p, {String? error}) {
+    if (p.done) return;
+    p
+      ..done = true
+      ..endUs = now()
+      ..error = error
+      ..dirty = true;
+    remaining--;
+    // The first completion freezes the aggregate; show it without waiting.
+    if (remaining == count - 1) send();
+    if (remaining == 0) {
+      ticker.cancel();
+      send();
+      Isolate.exit(out, null);
+    }
+  }
+
+  for (final p in progress) {
+    p
+      ..startUs = now()
+      ..dirty = true;
+    streamChat(
+      host,
+      port,
+      messages,
+      maxTokens: maxTokens,
+      temperature: temperature,
+      model: model,
+    ).listen(
+      (tok) {
+        final content = tok.content;
+        final reasoning = tok.reasoning;
+        final hasContent = content != null && content.isNotEmpty;
+        final hasReasoning = reasoning != null && reasoning.isNotEmpty;
+        if (hasContent || hasReasoning) p.firstTokenUs ??= now();
+        if (hasReasoning) {
+          p.reasoning.write(reasoning);
+          p.chunks++;
+        }
+        if (hasContent) {
+          p.content.write(content);
+          p.chunks++;
+        }
+        if (tok.completionTokens != null && tok.completionTokens! > 0) {
+          p.completionTokens = tok.completionTokens;
+        }
+        if (tok.finishReason != null) p.finishReason = tok.finishReason;
+        p.dirty = true;
+      },
+      onError: (Object e) {
+        final s = e.toString();
+        finish(
+          p,
+          error: s.startsWith('Exception: ')
+              ? s.substring('Exception: '.length)
+              : s,
+        );
+      },
+      onDone: () => finish(p),
+      cancelOnError: true,
+    );
+  }
 }
 
 /// Whether something is accepting connections on `host:port` — a bare TCP
