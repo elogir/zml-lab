@@ -77,14 +77,16 @@ void main() {
         expect(model.width, lessThanOrEqualTo(240));
         expect(send.left - model.right, lessThan(20));
       }
-      // Room for a 4-digit batch size beside the preset chevron.
-      expect(batch.width, greaterThanOrEqualTo(80));
+      // Room for a 4-digit batch size beside the dropdown segment (128 px
+      // on one line; an equal share of the row when stacked).
+      expect(batch.width, greaterThanOrEqualTo(width >= 600 ? 128 : 100));
 
-      // The chevron opens the presets; picking one fills the field.
+      // The dropdown segment (the field's right end, full height) opens the
+      // presets; picking one fills the field. Tapped near its bottom edge, so
+      // this also checks the whole segment is the target.
       await tester.ensureVisible(fields.at(1));
-      await tester.tap(
-        find.descendant(of: fields.at(1), matching: find.byType(AppIconButton)),
-      );
+      final field = tester.getRect(fields.at(1));
+      await tester.tapAt(Offset(field.right - 8, field.bottom - 4));
       await tester.pumpAndSettle();
       await tester.tap(find.text('1024').last);
       await tester.pumpAndSettle();

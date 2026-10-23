@@ -290,7 +290,7 @@ class _Controls extends StatelessWidget {
                     '1024',
                   ],
                 ),
-                104,
+                128,
               ),
               const SizedBox(width: AppSpacing.md),
               // Empty = no cap: the server generates until EOS or its max
@@ -450,6 +450,8 @@ class _Setting extends StatefulWidget {
 }
 
 class _SettingState extends State<_Setting> {
+  static const _segmentWidth = 34.0;
+
   final _link = LayerLink();
   final _menu = OverlayPortalController();
 
@@ -468,16 +470,42 @@ class _SettingState extends State<_Setting> {
       mono: true,
       placeholder: widget.placeholder,
       onChanged: widget.onChanged,
+      // Keeps the text clear of the dropdown segment laid over the right.
       suffix: presets == null
           ? null
-          : AppIconButton(
-              icon: AppIcons.chevronDown,
-              size: 13,
-              padding: const EdgeInsets.all(2),
-              onPressed: () => _menu.isShowing ? _menu.hide() : _menu.show(),
-            ),
+          : const SizedBox(width: _segmentWidth - AppSpacing.md + 4),
     );
     if (presets != null) {
+      field = Stack(
+        children: [
+          field,
+          // A split-button segment inside the field's border: its own tint,
+          // a divider, and the full height clickable.
+          Positioned(
+            top: 1,
+            bottom: 1,
+            right: 1,
+            width: _segmentWidth,
+            child: HoverRegion(
+              onTap: () => _menu.isShowing ? _menu.hide() : _menu.show(),
+              builder: (context, hovered) => Container(
+                decoration: BoxDecoration(
+                  color: hovered ? c.surfaceHover : c.surfaceSelected,
+                  border: Border(left: BorderSide(color: c.border)),
+                  borderRadius: const BorderRadius.horizontal(
+                    right: Radius.circular(7),
+                  ),
+                ),
+                child: Icon(
+                  AppIcons.chevronDown,
+                  size: 14,
+                  color: hovered ? c.textPrimary : c.textMuted,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
       field = CompositedTransformTarget(
         link: _link,
         child: OverlayPortal(
