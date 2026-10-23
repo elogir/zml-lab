@@ -348,7 +348,7 @@ class _EmptyState extends StatelessWidget {
           Text(
             searching
                 ? 'Try a different search.'
-                : 'Run a benchmark on a job, then Save it to keep it here.',
+                : 'Run a benchmark, then Save it to keep it here.',
             style: context.text.smallMuted,
           ),
         ],

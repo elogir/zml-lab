@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-/// Remote hosts jobs run on.
+/// The local box plus remote hosts benchmarks and terminals target.
 @DataClassName('MachineRow')
 class Machines extends Table {
   TextColumn get id => text()();
@@ -20,24 +20,6 @@ class Machines extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-/// Reusable saved launch presets.
-@DataClassName('LaunchConfigRow')
-class LaunchConfigs extends Table {
-  TextColumn get id => text()();
-  TextColumn get name => text()();
-  TextColumn get description => text().nullable()();
-  TextColumn get machineId => text()();
-  TextColumn get command => text()();
-  TextColumn get workingDir => text().nullable()();
-  IntColumn get port => integer()();
-
-  /// JSON-encoded `List<EnvVar>`.
-  TextColumn get envJson => text().withDefault(const Constant('[]'))();
-
-  @override
-  Set<Column<Object>> get primaryKey => {id};
-}
-
 /// Named snapshots of completed benchmark runs.
 @DataClassName('SavedBenchmarkRow')
 class SavedBenchmarks extends Table {
@@ -49,7 +31,7 @@ class SavedBenchmarks extends Table {
   /// column existed fall back to the endpoint's host part.
   TextColumn get machineName => text().nullable()();
 
-  /// The job's launch command at save time.
+  /// The launch command at save time (empty for runs saved without one).
   TextColumn get command => text().withDefault(const Constant(''))();
   TextColumn get prompt => text()();
   IntColumn get batchSize => integer()();
@@ -112,28 +94,4 @@ class BrowserHistoryEntries extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {url};
-}
-
-/// Launched (or once-launched) processes.
-@DataClassName('JobRow')
-class Jobs extends Table {
-  TextColumn get id => text()();
-  TextColumn get name => text()();
-  TextColumn get description => text().nullable()();
-  TextColumn get machineId => text()();
-  TextColumn get command => text()();
-  TextColumn get workingDir => text().nullable()();
-  IntColumn get port => integer()();
-
-  /// The saved config this job launched from, if any.
-  TextColumn get configId => text().nullable()();
-
-  /// [JobStatus.name].
-  TextColumn get status => text()();
-  TextColumn get envJson => text().withDefault(const Constant('[]'))();
-  IntColumn get pid => integer().nullable()();
-  DateTimeColumn get startedAt => dateTime().nullable()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {id};
 }

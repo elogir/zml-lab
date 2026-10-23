@@ -1,30 +1,40 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:zml_lab/main.dart';
+import 'package:zml_lab/core/shell/app_fullscreen.dart';
+import 'package:zml_lab/features/perf/application/benchmark_terminal_panel.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  test('a view tearing down only drops its own fullscreen', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final fullscreen = container.read(appFullscreenProvider.notifier);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    fullscreen.toggle(FullscreenSurface.perf);
+    fullscreen.exitIf(FullscreenSurface.terminal);
+    expect(container.read(appFullscreenProvider), FullscreenSurface.perf);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    fullscreen.toggle(FullscreenSurface.terminal);
+    expect(container.read(appFullscreenProvider), FullscreenSurface.terminal);
+    fullscreen.exitIf(FullscreenSurface.terminal);
+    expect(container.read(appFullscreenProvider), isNull);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  test('terminal panel width stays within bounds', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final panel = container.read(
+      benchmarkTerminalPanelControllerProvider.notifier,
+    );
+
+    panel.setRatio(2);
+    expect(
+      container.read(benchmarkTerminalPanelControllerProvider).ratio,
+      BenchmarkTerminalPanel.maxRatio,
+    );
+    panel.toggle();
+    final state = container.read(benchmarkTerminalPanelControllerProvider);
+    expect(state.open, isFalse);
+    expect(state.ratio, BenchmarkTerminalPanel.maxRatio);
   });
 }

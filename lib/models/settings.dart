@@ -1,6 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'env_var.dart';
 import 'perf_report.dart';
 
 part 'settings.freezed.dart';
@@ -50,14 +49,7 @@ abstract class AppSettings with _$AppSettings {
     /// dialled, and nothing is masked on the way into saved runs.
     @Default(false) bool blurHost,
 
-    /// The range `findFreePort` scans when pre-filling a new job's port.
-    @Default(8000) int portRangeStart,
-    @Default(8100) int portRangeEnd,
-
-    /// Seconds between endpoint health checks on running jobs.
-    @Default(5) int healthIntervalSeconds,
-
-    // Defaults a job's benchmark tab starts with.
+    // Defaults the benchmark tool starts with.
     @Default(defaultBenchmarkPrompt) String benchPrompt,
     @Default(16) int benchBatchSize,
 
@@ -70,10 +62,6 @@ abstract class AppSettings with _$AppSettings {
     /// Model name sent in benchmark requests (vLLM requires the real one;
     /// llmd ignores it). Empty = send `zml_model`.
     @Default('') String benchModel,
-
-    /// Environment variables injected into every job launch (local and remote).
-    /// A job's own env vars override these on a key clash.
-    @Default(<EnvVar>[]) List<EnvVar> globalEnv,
 
     // Perf benchmark (Go benchmarker) integration.
     @Default(defaultPerfToolDir) String perfToolDir,
@@ -93,8 +81,4 @@ abstract class AppSettings with _$AppSettings {
 abstract final class SettingsLimits {
   static const double minTerminalFont = 10;
   static const double maxTerminalFont = 22;
-  static const int minHealthInterval = 2;
-  static const int maxHealthInterval = 60;
-  static const int minPort = 1024;
-  static const int maxPort = 65535;
 }

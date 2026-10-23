@@ -8,7 +8,6 @@ import 'dart:async';
 
 import 'app.dart';
 import 'core/bootstrap.dart';
-import 'core/execution/job_executor.dart';
 import 'core/logging/app_log.dart';
 import 'features/settings/application/settings_controller.dart';
 import 'repositories/machine_repository.dart';
@@ -87,42 +86,10 @@ Future<void> _run() async {
   }
   AppLog.write('boot ok — starting UI');
 
-  // Any job the DB still marks running died with the previous app session —
-  // record them as stopped.
-  unawaited(container.read(jobExecutorProvider).markStaleStopped());
-
-  // Kill running jobs when the window closes so nothing is left behind (a job's
-  // server survives a bare PTY-close, so we stop it explicitly).
-  if (!kIsWeb) {
-    await windowManager.setPreventClose(true);
-    windowManager.addListener(_ShutdownHandler(container));
-  }
-
   runApp(
     UncontrolledProviderScope(
       container: container,
       child: const ZmlLabApp(),
     ),
   );
-}
-
-/// Stops all running jobs before letting the window close.
-class _ShutdownHandler extends WindowListener {
-  _ShutdownHandler(this._container);
-
-  final ProviderContainer _container;
-
-  @override
-  void onWindowClose() {
-    () async {
-      AppLog.write('window close — stopping jobs and exiting');
-      try {
-        await _container.read(jobExecutorProvider).stopAll();
-      } catch (e) {
-        debugPrint('stopAll on close failed: $e');
-      }
-      await windowManager.setPreventClose(false);
-      await windowManager.destroy();
-    }();
-  }
 }

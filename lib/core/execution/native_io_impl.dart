@@ -2,95 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// SIGINTs whatever is listening on [port] on loopback ([force] escalates to
-/// SIGKILL). Used to stop a job's server on app close: the process (e.g. llmd
-/// under `bazel run`) is a grandchild in its own process group that a
-/// PTY-close SIGHUP misses, but it does bind the port we track, so we can
-/// find and signal it directly. Best-effort.
-Future<void> killPortListeners(int port, {bool force = false}) async {
-  try {
-    final shell = Platform.environment['SHELL'] ?? '/bin/zsh';
-    final r = await Process.run(shell, [
-      '-lc',
-      'lsof -nP -iTCP:$port -sTCP:LISTEN -t',
-    ]);
-    for (final line in (r.stdout as String).split('\n')) {
-      final pid = int.tryParse(line.trim());
-      if (pid != null) {
-        try {
-          Process.killPid(
-            pid,
-            force ? ProcessSignal.sigkill : ProcessSignal.sigint,
-          );
-        } catch (_) {}
-      }
-    }
-  } catch (_) {}
-}
-
-/// SIGINTs whatever is LISTENing on [port] on a remote host, over ssh — the
-/// remote mirror of [killPortListeners]. A remote job's server outlives its
-/// ssh/tty (under `bazel run` it's a child of the detached bazel daemon, so
-/// killing our ssh never reaches it); the port is the one handle we own.
-/// Uses `fuser -k -INT` (psmisc, stock on Ubuntu/Debian). Best-effort with a
-/// hard timeout so app close can't hang on a dead host.
-Future<void> killRemotePortListeners({
-  required String target,
-  required int port,
-  int sshPort = 22,
-  String? identityFile,
-  bool force = false,
-  Duration timeout = const Duration(seconds: 8),
-}) async {
-  try {
-    await Process.run('/usr/bin/ssh', [
-      '-o', 'BatchMode=yes',
-      '-o', 'ConnectTimeout=5',
-      if (sshPort != 22) ...['-p', '$sshPort'],
-      if (identityFile != null && identityFile.isNotEmpty)
-        ...['-i', identityFile],
-      target,
-      'fuser -k -${force ? 'KILL' : 'INT'} $port/tcp',
-    ]).timeout(timeout);
-  } catch (_) {}
-}
-
-/// Expands a leading `~` to the user's home directory, so a working directory
-/// like `~/Documents/benchmark` resolves (PTY chdir doesn't expand tildes).
-String expandUser(String path) {
-  if (path == '~') return Platform.environment['HOME'] ?? path;
-  if (path.startsWith('~/')) {
-    final home = Platform.environment['HOME'];
-    if (home != null) return '$home${path.substring(1)}';
-  }
-  return path;
-}
-
-/// Returns the first TCP port in `[start, end)` that nothing is currently
-/// bound to on the loopback interface, skipping any in [avoid]. Falls back to
-/// [start] if the whole range is taken (the caller still gets a sensible
-/// default to show in the form).
-Future<int> findFreePort({
-  int start = 8000,
-  int end = 8100,
-  Set<int> avoid = const {},
-}) async {
-  for (var port = start; port < end; port++) {
-    if (avoid.contains(port)) continue;
-    try {
-      // Bind 0.0.0.0 (not loopback): a server binding any-interface conflicts
-      // with an existing dual-stack `[::]:port` listener that a loopback-only
-      // probe would miss. Reflects what a launched server actually does.
-      final socket = await ServerSocket.bind(InternetAddress.anyIPv4, port);
-      await socket.close();
-      return port;
-    } on SocketException {
-      // In use — try the next one.
-    }
-  }
-  return start;
-}
-
 /// One streamed chunk from a chat completion: a text [content] delta, a
 /// [reasoning] (thinking) delta for reasoning models — llmd routes `<think>`
 /// output to `delta.reasoning_content`, separate from content — the server's
@@ -131,8 +42,8 @@ Stream<ChatToken> streamChat(
     request.add(utf8.encode(jsonEncode({
       'model': model.isEmpty ? 'zml_model' : model,
       'messages': messages,
-      if (maxTokens != null) 'max_tokens': maxTokens,
-      if (temperature != null) 'temperature': temperature,
+      'max_tokens': ?maxTokens,
+      'temperature': ?temperature,
       'stream': true,
       'stream_options': {
         'include_usage': true,
@@ -236,74 +147,6 @@ String _errorSnippet(String body) {
   return t.length > _maxErrorBodyChars
       ? '${t.substring(0, _maxErrorBodyChars)}…'
       : t;
-}
-
-/// Fires one chat request with the `x-zml-profiler` header set, so llmd captures
-/// a profile trace of it to `/tmp/xprof` (same mechanism as `chat.sh PROFILE=1`).
-/// Drains the streamed response and returns when the request completes.
-Future<void> runProfileRequest(
-  String host,
-  int port, {
-  String prompt = 'Write a short paragraph about GPUs.',
-  int maxTokens = 64,
-}) async {
-  final client = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 10);
-  try {
-    final request = await client.post(host, port, '/v1/chat/completions');
-    request.headers.contentType = ContentType.json;
-    request.headers.set('x-zml-profiler', 'true');
-    request.add(utf8.encode(jsonEncode({
-      'model': 'zml_model',
-      'messages': [
-        {'role': 'user', 'content': prompt},
-      ],
-      'max_tokens': maxTokens,
-      'stream': true,
-    })));
-    final response = await request.close().timeout(const Duration(seconds: 180));
-    await response.drain<void>();
-  } finally {
-    client.close(force: true);
-  }
-}
-
-/// Result of probing an endpoint: HTTP status + body snippet + round-trip
-/// latency, or an [error] string if the request never completed.
-typedef EndpointProbe = ({int? status, String? body, int latencyMs, String? error});
-
-/// Sends a GET to `http://[host]:[port][path]` and reports the outcome — for
-/// the "Test endpoint" action. Reads (a capped slice of) the body so the caller
-/// can show e.g. the `/v1/models` JSON.
-Future<EndpointProbe> probeEndpoint(
-  String host,
-  int port, {
-  String path = '/v1/models',
-  Duration timeout = const Duration(seconds: 4),
-}) async {
-  final sw = Stopwatch()..start();
-  final client = HttpClient()..connectionTimeout = timeout;
-  try {
-    final request = await client.get(host, port, path).timeout(timeout);
-    final response = await request.close().timeout(timeout);
-    final body = await response
-        .transform(utf8.decoder)
-        .join()
-        .timeout(timeout);
-    sw.stop();
-    final snippet = body.length > 4000 ? body.substring(0, 4000) : body;
-    return (
-      status: response.statusCode,
-      body: snippet,
-      latencyMs: sw.elapsedMilliseconds,
-      error: null,
-    );
-  } catch (e) {
-    sw.stop();
-    return (status: null, body: null, latencyMs: sw.elapsedMilliseconds, error: '$e');
-  } finally {
-    client.close(force: true);
-  }
 }
 
 /// Whether something is accepting connections on `host:port` — a bare TCP

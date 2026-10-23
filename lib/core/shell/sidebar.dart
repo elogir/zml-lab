@@ -2,8 +2,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/configs/application/configs_providers.dart';
-import '../../features/jobs/application/jobs_providers.dart';
 import '../../features/machines/application/machines_providers.dart';
 import '../../features/saved_benchmarks/application/saved_benchmarks_providers.dart';
 import '../theme/app_theme.dart';
@@ -44,9 +42,6 @@ class Sidebar extends ConsumerWidget {
     final c = context.colors;
     final loc = GoRouterState.of(context).uri.path;
 
-    final running = ref.watch(jobCountsProvider).running;
-    final configCount =
-        ref.watch(configsStreamProvider).value?.length ?? 0;
     final benchmarkCount =
         (ref.watch(savedBenchmarksStreamProvider).value?.length ?? 0) +
         (ref.watch(perfReportsStreamProvider).value?.length ?? 0);
@@ -73,30 +68,11 @@ class Sidebar extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xs),
               _NavItem(
                 t: t,
-                icon: AppIcons.jobs,
-                label: 'Jobs',
-                badge: running,
-                // The new-job form is contextual (pushed from any tab), so it
-                // claims no tab; job detail still counts as Jobs.
-                active: loc == '/' ||
-                    (loc.startsWith('/jobs') && !loc.startsWith('/jobs/new')),
-                onTap: () => context.go('/'),
-              ),
-              _NavItem(
-                t: t,
-                icon: AppIcons.configs,
-                label: 'Saved configs',
-                badge: configCount,
-                active: loc.startsWith('/configs'),
-                onTap: () => context.go('/configs'),
-              ),
-              _NavItem(
-                t: t,
                 icon: AppIcons.benchmarkTool,
                 label: 'Benchmark',
                 badge: 0,
-                active: loc == '/benchmark' || loc.startsWith('/benchmark/'),
-                onTap: () => context.go('/benchmark'),
+                active: loc == '/',
+                onTap: () => context.go('/'),
               ),
               _NavItem(
                 t: t,

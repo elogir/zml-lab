@@ -114,7 +114,7 @@ class _AddMachineScreenState extends ConsumerState<AddMachineScreen> {
               Text(
                 _isEditing
                     ? 'Update this remote host.'
-                    : 'Register a remote host so jobs can be launched on it.',
+                    : 'Register a remote host to benchmark and open terminals on.',
                 style: context.text.subtitle,
               ),
               const SizedBox(height: AppSpacing.xl),

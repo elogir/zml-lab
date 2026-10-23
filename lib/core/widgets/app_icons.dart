@@ -5,8 +5,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 /// one-line swap and call sites read semantically.
 abstract final class AppIcons {
   // Navigation
-  static const IconData jobs = LucideIcons.list;
-  static const IconData configs = LucideIcons.settings2;
   static const IconData machines = LucideIcons.monitor;
   static const IconData savedBenchmarks = LucideIcons.chartColumnBig;
   static const IconData grid = LucideIcons.layoutGrid;
@@ -28,8 +26,6 @@ abstract final class AppIcons {
   static const IconData benchmark = LucideIcons.gauge;
   static const IconData send = LucideIcons.arrowRight;
   static const IconData kill = LucideIcons.square;
-  static const IconData profiler = LucideIcons.activity;
-  static const IconData captureTrace = LucideIcons.circleDot;
   static const IconData perf = LucideIcons.zap;
   static const IconData benchmarkTool = LucideIcons.flaskConical;
   static const IconData download = LucideIcons.download;
@@ -37,7 +33,6 @@ abstract final class AppIcons {
   static const IconData copy = LucideIcons.copy;
   static const IconData edit = LucideIcons.pencil;
   static const IconData check = LucideIcons.check;
-  static const IconData testEndpoint = LucideIcons.externalLink;
   static const IconData save = LucideIcons.bookmark;
   static const IconData warning = LucideIcons.triangleAlert;
 
@@ -47,7 +42,6 @@ abstract final class AppIcons {
   static const IconData web = LucideIcons.globe;
   static const IconData fullscreen = LucideIcons.maximize2;
   static const IconData exitFullscreen = LucideIcons.minimize2;
-  static const IconData lock = LucideIcons.lock;
 
   // Web view chrome
   static const IconData navBack = LucideIcons.arrowLeft;

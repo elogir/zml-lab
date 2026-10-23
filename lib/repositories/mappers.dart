@@ -2,29 +2,14 @@ import 'dart:convert';
 
 import '../core/database/database.dart';
 import '../models/benchmark.dart';
-import '../models/env_var.dart';
 import '../models/enums.dart';
-import '../models/job.dart';
-import '../models/launch_config.dart';
 import '../models/machine.dart';
 import '../models/perf_report.dart';
 import '../models/saved_benchmark.dart';
 
 /// Conversions between drift rows and the domain models the UI consumes.
 ///
-/// Env vars are persisted as a JSON blob; enums as their `name`.
-
-List<EnvVar> decodeEnv(String json) {
-  final decoded = jsonDecode(json);
-  if (decoded is! List) return const [];
-  return decoded
-      .whereType<Map<String, dynamic>>()
-      .map(EnvVar.fromJson)
-      .toList();
-}
-
-String encodeEnv(List<EnvVar> env) =>
-    jsonEncode(env.map((e) => e.toJson()).toList());
+/// Enums are persisted as their `name`.
 
 BenchmarkRequestStatus _benchmarkStatusFromName(String? name) {
   for (final s in BenchmarkRequestStatus.values) {
@@ -92,13 +77,6 @@ Vendor? _vendorFromName(String? name) {
   return null;
 }
 
-JobStatus _statusFromName(String name) {
-  for (final s in JobStatus.values) {
-    if (s.name == name) return s;
-  }
-  return JobStatus.exited;
-}
-
 extension MachineRowMapper on MachineRow {
   Machine toModel() => Machine(
     id: id,
@@ -111,19 +89,6 @@ extension MachineRowMapper on MachineRow {
     gpus: gpus,
     memory: memory,
     online: online,
-  );
-}
-
-extension LaunchConfigRowMapper on LaunchConfigRow {
-  LaunchConfig toModel() => LaunchConfig(
-    id: id,
-    name: name,
-    description: description,
-    machineId: machineId,
-    command: command,
-    workingDir: workingDir,
-    port: port,
-    env: decodeEnv(envJson),
   );
 }
 
@@ -162,21 +127,4 @@ extension PerfReportRowMapper on PerfReportRow {
       m: decoded is Map ? decoded.cast<String, dynamic>() : const {},
     );
   }
-}
-
-extension JobRowMapper on JobRow {
-  Job toModel() => Job(
-    id: id,
-    name: name,
-    description: description,
-    machineId: machineId,
-    command: command,
-    workingDir: workingDir,
-    port: port,
-    status: _statusFromName(status),
-    env: decodeEnv(envJson),
-    configId: configId,
-    pid: pid,
-    startedAt: startedAt,
-  );
 }

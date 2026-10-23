@@ -1,14 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/configs/presentation/configs_screen.dart';
-import '../../features/job_detail/presentation/job_detail_screen.dart';
-import '../../features/jobs/presentation/jobs_screen.dart';
 import '../../features/perf/presentation/benchmark_tool_screen.dart';
 import '../../features/saved_benchmarks/presentation/saved_benchmarks_screen.dart';
 import '../../features/machines/presentation/add_machine_screen.dart';
 import '../../features/machines/presentation/machines_screen.dart';
-import '../../features/new_job/presentation/custom_job_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../shell/app_shell.dart';
 
@@ -17,15 +13,11 @@ part 'routes.g.dart';
 /// The persistent shell (title bar + sidebar) wrapping every top-level screen.
 @TypedShellRoute<AppShellRoute>(
   routes: [
-    TypedGoRoute<JobsRoute>(path: '/'),
-    TypedGoRoute<ConfigsRoute>(path: '/configs'),
-    TypedGoRoute<BenchmarkToolRoute>(path: '/benchmark'),
+    TypedGoRoute<BenchmarkToolRoute>(path: '/'),
     TypedGoRoute<SavedBenchmarksRoute>(path: '/benchmarks'),
     TypedGoRoute<MachinesRoute>(path: '/machines'),
     TypedGoRoute<AddMachineRoute>(path: '/machines/new'),
     TypedGoRoute<EditMachineRoute>(path: '/machines/:id/edit'),
-    TypedGoRoute<NewCustomJobRoute>(path: '/jobs/new/custom'),
-    TypedGoRoute<JobDetailRoute>(path: '/jobs/:id'),
     TypedGoRoute<SettingsRoute>(path: '/settings'),
   ],
 )
@@ -35,22 +27,6 @@ class AppShellRoute extends ShellRouteData {
   @override
   Widget builder(BuildContext context, GoRouterState state, Widget navigator) =>
       AppShell(child: navigator);
-}
-
-class JobsRoute extends GoRouteData with $JobsRoute {
-  const JobsRoute();
-
-  @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      const JobsScreen();
-}
-
-class ConfigsRoute extends GoRouteData with $ConfigsRoute {
-  const ConfigsRoute();
-
-  @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      const ConfigsScreen();
 }
 
 class BenchmarkToolRoute extends GoRouteData with $BenchmarkToolRoute {
@@ -93,36 +69,6 @@ class EditMachineRoute extends GoRouteData with $EditMachineRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) =>
       AddMachineScreen(machineId: id);
-}
-
-class NewCustomJobRoute extends GoRouteData with $NewCustomJobRoute {
-  const NewCustomJobRoute({this.configId, this.jobId, this.newConfig = false});
-
-  /// Editing an existing config.
-  final String? configId;
-
-  /// Editing an existing job (pre-filled from it, saves back to the job).
-  final String? jobId;
-
-  /// Framing: opened from the configs tab to author a config.
-  final bool newConfig;
-
-  @override
-  Widget build(BuildContext context, GoRouterState state) => CustomJobScreen(
-    configId: configId,
-    jobId: jobId,
-    newConfig: newConfig,
-  );
-}
-
-class JobDetailRoute extends GoRouteData with $JobDetailRoute {
-  const JobDetailRoute({required this.id});
-
-  final String id;
-
-  @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      JobDetailScreen(jobId: id);
 }
 
 class SettingsRoute extends GoRouteData with $SettingsRoute {

@@ -2,10 +2,8 @@ import 'dart:convert';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../../models/env_var.dart';
 import '../../../models/perf_report.dart';
 import '../../../models/settings.dart';
-import '../../../repositories/mappers.dart';
 import '../../../repositories/settings_repository.dart';
 
 part 'settings_controller.g.dart';
@@ -50,24 +48,6 @@ class SettingsController extends _$SettingsController {
             'false' => false,
             _ => def.blurHost,
           },
-      portRangeStart:
-          i('portRangeStart')?.clamp(
-            SettingsLimits.minPort,
-            SettingsLimits.maxPort,
-          ) ??
-          def.portRangeStart,
-      portRangeEnd:
-          i('portRangeEnd')?.clamp(
-            SettingsLimits.minPort,
-            SettingsLimits.maxPort,
-          ) ??
-          def.portRangeEnd,
-      healthIntervalSeconds:
-          i('healthIntervalSeconds')?.clamp(
-            SettingsLimits.minHealthInterval,
-            SettingsLimits.maxHealthInterval,
-          ) ??
-          def.healthIntervalSeconds,
       benchPrompt: raw['benchPrompt'] ?? def.benchPrompt,
       benchBatchSize: switch (i('benchBatchSize')) {
         null => def.benchBatchSize,
@@ -76,9 +56,6 @@ class SettingsController extends _$SettingsController {
       benchMaxTokens: i('benchMaxTokens'),
       benchTemperature: d('benchTemperature')?.clamp(0.0, 2.0),
       benchModel: raw['benchModel'] ?? def.benchModel,
-      globalEnv: raw['globalEnv'] == null
-          ? def.globalEnv
-          : decodeEnv(raw['globalEnv']!),
       perfToolDir: raw['perfToolDir'] ?? def.perfToolDir,
       perfDatasetPath: raw['perfDatasetPath'] ?? def.perfDatasetPath,
       perfDuckdbCommand: raw['perfDuckdbCommand'] ?? def.perfDuckdbCommand,
@@ -121,27 +98,6 @@ class SettingsController extends _$SettingsController {
     _repo.put('blurHost', '$value');
   }
 
-  void setPortRangeStart(int port) {
-    final v = port.clamp(SettingsLimits.minPort, SettingsLimits.maxPort);
-    state = state.copyWith(portRangeStart: v);
-    _repo.put('portRangeStart', '$v');
-  }
-
-  void setPortRangeEnd(int port) {
-    final v = port.clamp(SettingsLimits.minPort, SettingsLimits.maxPort);
-    state = state.copyWith(portRangeEnd: v);
-    _repo.put('portRangeEnd', '$v');
-  }
-
-  void setHealthInterval(int seconds) {
-    final v = seconds.clamp(
-      SettingsLimits.minHealthInterval,
-      SettingsLimits.maxHealthInterval,
-    );
-    state = state.copyWith(healthIntervalSeconds: v);
-    _repo.put('healthIntervalSeconds', '$v');
-  }
-
   void setBenchPrompt(String prompt) {
     state = state.copyWith(benchPrompt: prompt);
     _repo.put('benchPrompt', prompt);
@@ -172,19 +128,6 @@ class SettingsController extends _$SettingsController {
     final v = model.trim();
     state = state.copyWith(benchModel: v);
     v.isEmpty ? _repo.remove('benchModel') : _repo.put('benchModel', v);
-  }
-
-  /// Replace the global env vars applied to every launch. Empty entries are
-  /// dropped; an empty list removes the stored value.
-  void setGlobalEnv(List<EnvVar> env) {
-    final cleaned = [
-      for (final e in env)
-        if (e.key.trim().isNotEmpty) EnvVar(key: e.key.trim(), value: e.value),
-    ];
-    state = state.copyWith(globalEnv: cleaned);
-    cleaned.isEmpty
-        ? _repo.remove('globalEnv')
-        : _repo.put('globalEnv', encodeEnv(cleaned));
   }
 
   void setPerfToolDir(String dir) {

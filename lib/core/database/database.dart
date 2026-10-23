@@ -6,13 +6,11 @@ import 'tables.dart';
 part 'database.g.dart';
 
 /// The app's single SQLite database (via drift). Starts empty — the local
-/// machine is added at startup (`ensureLocalMachine`); machines, configs and
-/// jobs are all created by the user.
+/// machine is added at startup (`ensureLocalMachine`); everything else is
+/// created by the user.
 @DriftDatabase(
   tables: [
     Machines,
-    LaunchConfigs,
-    Jobs,
     BrowserHistoryEntries,
     SavedBenchmarks,
     PerfReports,
@@ -33,7 +31,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -87,6 +85,12 @@ class AppDatabase extends _$AppDatabase {
         );
       }
       if (from < 10) await m.createTable(perfReports);
+      if (from < 11) {
+        // Jobs and saved launch configs were removed from the app (processes
+        // are now started from the Benchmark tab's terminals).
+        await m.database.customStatement('DROP TABLE IF EXISTS jobs');
+        await m.database.customStatement('DROP TABLE IF EXISTS launch_configs');
+      }
     },
   );
 }

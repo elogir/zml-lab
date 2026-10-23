@@ -3,15 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:collection/collection.dart';
 
+import '../../../core/shell/app_fullscreen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/search.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/machine.dart';
 import '../../benchmark/presentation/benchmark_view.dart';
-import '../../job_detail/application/terminal_fullscreen.dart';
 import '../../machines/application/machines_providers.dart';
 import '../../settings/application/settings_controller.dart';
+import '../../terminal/presentation/terminal_mux.dart';
 import '../application/benchmark_target.dart';
+import '../application/benchmark_terminal_panel.dart';
 import 'perf_view.dart';
 
 /// Bullets in place of an address, when the Blur host setting is on. Matches
@@ -19,14 +21,16 @@ import 'perf_view.dart';
 /// the editable field look the same while masked.
 String maskHost(String host) => '•' * host.trim().length;
 
-/// A stable, job-independent id so the ad-hoc benchmark/perf controllers keep
-/// their state (kept alive) across visits and tool switches.
+/// A stable id so the benchmark/perf controllers keep their state (kept alive)
+/// across visits and tool switches.
 const _adhocJobId = 'adhoc';
 
-/// A standalone tab that points the two benchmarking tools — the chat/throughput
-/// grid and the perf load generator — at any endpoint, with no launched job
-/// involved. It reuses the exact views from job detail, feeding them a target
-/// the user picks here instead of one derived from a job.
+/// The terminal multiplexer beside the tools (its shells persist across visits).
+const _terminalMuxId = 'benchmark';
+
+/// The home tab: points the two benchmarking tools — the chat/throughput grid
+/// and the perf load generator — at any endpoint, beside a terminal
+/// multiplexer for launching and watching the server being measured.
 class BenchmarkToolScreen extends ConsumerStatefulWidget {
   const BenchmarkToolScreen({super.key});
 
@@ -41,6 +45,10 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
   // fields, seeded once and written straight back on edit.
   late final TextEditingController _host;
   late final TextEditingController _port;
+
+  // Moves the terminal between the split and fullscreen layouts without
+  // remounting it (a remount would churn its panes' focus and views).
+  final GlobalKey _terminalKey = GlobalKey();
 
   @override
   void initState() {
@@ -64,9 +72,16 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
     // The chat grid has no full-window mode; make sure the shell chrome comes
     // back when leaving perf.
     if (tool != BenchmarkTool.perf) {
-      ref.read(terminalFullscreenProvider.notifier).exit();
+      ref.read(appFullscreenProvider.notifier).exitIf(FullscreenSurface.perf);
     }
     _target.setTool(tool);
+  }
+
+  void _toggleTerminal() {
+    ref
+        .read(appFullscreenProvider.notifier)
+        .exitIf(FullscreenSurface.terminal);
+    ref.read(benchmarkTerminalPanelControllerProvider.notifier).toggle();
   }
 
   @override
@@ -83,8 +98,13 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
     });
 
     final target = ref.watch(benchmarkTargetControllerProvider);
-    final fullscreen =
-        target.tool == BenchmarkTool.perf && ref.watch(terminalFullscreenProvider);
+    final fullscreen = ref.watch(appFullscreenProvider);
+    final panel = ref.watch(benchmarkTerminalPanelControllerProvider);
+    // New shells open on the target machine (ssh when it's remote); a custom
+    // host gets local shells.
+    final machine = target.machineId == null
+        ? null
+        : ref.watch(machineMapProvider)[target.machineId];
     final host = target.host;
     final port = target.port;
     final endpoint = target.endpoint;
@@ -110,9 +130,36 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
             port: port,
           );
 
-    // In perf fullscreen the shell already hid the sidebar; drop our own
-    // chrome too so the run fills the window (the perf view re-adds padding).
-    if (fullscreen) return body;
+    final terminal = panel.open
+        ? TerminalMux(key: _terminalKey, muxId: _terminalMuxId, machine: machine)
+        : null;
+
+    // In fullscreen the shell already hid the sidebar; drop our own chrome too
+    // so the surface fills the window (the perf view re-adds padding).
+    if (fullscreen == FullscreenSurface.perf &&
+        target.tool == BenchmarkTool.perf) {
+      return body;
+    }
+    if (fullscreen == FullscreenSurface.terminal && terminal != null) {
+      return terminal;
+    }
+
+    final tools = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _EndpointBar(
+          host: _host,
+          port: _port,
+          selectedMachineId: target.machineId,
+          onSelectMachine: _target.selectMachine,
+          onSelectCustom: _target.selectCustom,
+          onHostEdited: _target.setHostText,
+          onPortEdited: _target.setPortText,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Expanded(child: body),
+      ],
+    );
 
     return Padding(
       padding: AppSpacing.screen,
@@ -121,38 +168,112 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
         children: [
           ScreenHeader(
             title: 'Benchmark',
-            subtitle: 'Point the tools at any endpoint — no job needed.',
-            trailing: SegmentedControl<BenchmarkTool>(
-              value: target.tool,
-              onChanged: _setTool,
-              options: const [
-                SegmentOption(
-                  value: BenchmarkTool.benchmark,
-                  label: 'Benchmark',
-                  icon: AppIcons.benchmark,
+            subtitle: 'Launch a server in the terminal, point the tools at it.',
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SegmentedControl<BenchmarkTool>(
+                  value: target.tool,
+                  onChanged: _setTool,
+                  options: const [
+                    SegmentOption(
+                      value: BenchmarkTool.benchmark,
+                      label: 'Benchmark',
+                      icon: AppIcons.benchmark,
+                    ),
+                    SegmentOption(
+                      value: BenchmarkTool.perf,
+                      label: 'Perf',
+                      icon: AppIcons.perf,
+                    ),
+                  ],
                 ),
-                SegmentOption(
-                  value: BenchmarkTool.perf,
-                  label: 'Perf',
-                  icon: AppIcons.perf,
+                const SizedBox(width: AppSpacing.sm),
+                AppButton(
+                  label: panel.open ? 'Hide terminal' : 'Terminal',
+                  icon: AppIcons.terminal,
+                  onPressed: _toggleTerminal,
                 ),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          _EndpointBar(
-            host: _host,
-            port: _port,
-            selectedMachineId: target.machineId,
-            onSelectMachine: _target.selectMachine,
-            onSelectCustom: _target.selectCustom,
-            onHostEdited: _target.setHostText,
-            onPortEdited: _target.setPortText,
+          Expanded(
+            child: terminal == null
+                ? tools
+                : _TerminalSplit(
+                    ratio: panel.ratio,
+                    onRatioChanged: ref
+                        .read(benchmarkTerminalPanelControllerProvider.notifier)
+                        .setRatio,
+                    tools: tools,
+                    terminal: terminal,
+                  ),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          Expanded(child: body),
         ],
       ),
+    );
+  }
+}
+
+/// The tools on the left, the terminal on the right, with a draggable gutter
+/// between them. [ratio] is the terminal's share of the width.
+class _TerminalSplit extends StatelessWidget {
+  const _TerminalSplit({
+    required this.ratio,
+    required this.onRatioChanged,
+    required this.tools,
+    required this.terminal,
+  });
+
+  final double ratio;
+  final ValueChanged<double> onRatioChanged;
+  final Widget tools;
+  final Widget terminal;
+
+  static const _gutter = AppSpacing.lg;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final usable = (constraints.maxWidth - _gutter).clamp(
+          0.0,
+          double.infinity,
+        );
+        final terminalWidth = usable * ratio;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: tools),
+            MouseRegion(
+              cursor: SystemMouseCursors.resizeLeftRight,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onHorizontalDragUpdate: (d) {
+                  if (usable <= 0) return;
+                  onRatioChanged(ratio - d.delta.dx / usable);
+                },
+                child: SizedBox(
+                  width: _gutter,
+                  child: Center(
+                    child: Container(
+                      width: 2,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: c.borderMuted,
+                        borderRadius: AppRadius.pillAll,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: terminalWidth, child: terminal),
+          ],
+        );
+      },
     );
   }
 }

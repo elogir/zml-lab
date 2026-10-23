@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'job_terminal.dart';
+part of 'terminal_mux.dart';
 
 // **************************************************************************
 // RiverpodGenerator
@@ -8,18 +8,20 @@ part of 'job_terminal.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Keep-alive so a job's terminals, web views and layout persist across
-/// navigation. Keyed by job id; seeded with a single shell tab on first read.
-/// The sessions live here, not in [JobTerminal], so unmounting the widget no
-/// longer tears them down — only invalidating the provider does.
+/// Keep-alive so a mux's terminals, web views and layout persist across
+/// navigation. Keyed by a caller-chosen id; starts empty and is seeded with a
+/// single shell tab by the first [TerminalMux] that mounts it. The sessions
+/// live here, not in the widget, so unmounting it doesn't tear them down —
+/// only invalidating the provider does.
 
 @ProviderFor(terminalMux)
 final terminalMuxProvider = TerminalMuxFamily._();
 
-/// Keep-alive so a job's terminals, web views and layout persist across
-/// navigation. Keyed by job id; seeded with a single shell tab on first read.
-/// The sessions live here, not in [JobTerminal], so unmounting the widget no
-/// longer tears them down — only invalidating the provider does.
+/// Keep-alive so a mux's terminals, web views and layout persist across
+/// navigation. Keyed by a caller-chosen id; starts empty and is seeded with a
+/// single shell tab by the first [TerminalMux] that mounts it. The sessions
+/// live here, not in the widget, so unmounting it doesn't tear them down —
+/// only invalidating the provider does.
 
 final class TerminalMuxProvider
     extends
@@ -29,10 +31,11 @@ final class TerminalMuxProvider
           TerminalMuxState
         >
     with $Provider<TerminalMuxState> {
-  /// Keep-alive so a job's terminals, web views and layout persist across
-  /// navigation. Keyed by job id; seeded with a single shell tab on first read.
-  /// The sessions live here, not in [JobTerminal], so unmounting the widget no
-  /// longer tears them down — only invalidating the provider does.
+  /// Keep-alive so a mux's terminals, web views and layout persist across
+  /// navigation. Keyed by a caller-chosen id; starts empty and is seeded with a
+  /// single shell tab by the first [TerminalMux] that mounts it. The sessions
+  /// live here, not in the widget, so unmounting it doesn't tear them down —
+  /// only invalidating the provider does.
   TerminalMuxProvider._({
     required TerminalMuxFamily super.from,
     required String super.argument,
@@ -84,12 +87,13 @@ final class TerminalMuxProvider
   }
 }
 
-String _$terminalMuxHash() => r'3eec5503072f1a52c79bf9169ad84807705ab38c';
+String _$terminalMuxHash() => r'b71dac6c8bc66117513582c21b482bc4087e6a82';
 
-/// Keep-alive so a job's terminals, web views and layout persist across
-/// navigation. Keyed by job id; seeded with a single shell tab on first read.
-/// The sessions live here, not in [JobTerminal], so unmounting the widget no
-/// longer tears them down — only invalidating the provider does.
+/// Keep-alive so a mux's terminals, web views and layout persist across
+/// navigation. Keyed by a caller-chosen id; starts empty and is seeded with a
+/// single shell tab by the first [TerminalMux] that mounts it. The sessions
+/// live here, not in the widget, so unmounting it doesn't tear them down —
+/// only invalidating the provider does.
 
 final class TerminalMuxFamily extends $Family
     with $FunctionalFamilyOverride<TerminalMuxState, String> {
@@ -102,13 +106,14 @@ final class TerminalMuxFamily extends $Family
         isAutoDispose: false,
       );
 
-  /// Keep-alive so a job's terminals, web views and layout persist across
-  /// navigation. Keyed by job id; seeded with a single shell tab on first read.
-  /// The sessions live here, not in [JobTerminal], so unmounting the widget no
-  /// longer tears them down — only invalidating the provider does.
+  /// Keep-alive so a mux's terminals, web views and layout persist across
+  /// navigation. Keyed by a caller-chosen id; starts empty and is seeded with a
+  /// single shell tab by the first [TerminalMux] that mounts it. The sessions
+  /// live here, not in the widget, so unmounting it doesn't tear them down —
+  /// only invalidating the provider does.
 
-  TerminalMuxProvider call(String jobId) =>
-      TerminalMuxProvider._(argument: jobId, from: this);
+  TerminalMuxProvider call(String muxId) =>
+      TerminalMuxProvider._(argument: muxId, from: this);
 
   @override
   String toString() => r'terminalMuxProvider';

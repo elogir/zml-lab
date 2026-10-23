@@ -7,7 +7,6 @@ import '../../../core/util/search.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/machine.dart';
 import '../../../repositories/machine_repository.dart';
-import '../../jobs/application/jobs_providers.dart';
 import '../application/machines_providers.dart';
 
 class MachinesScreen extends ConsumerStatefulWidget {
@@ -42,7 +41,7 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen> {
           ScreenHeader(
             title: 'Machines',
             subtitle:
-                '${all.length} remote hosts available for inference jobs.',
+                '${all.length} hosts to benchmark against and open terminals on.',
             trailing: AppButton(
               label: 'Add machine',
               icon: AppIcons.add,
@@ -98,10 +97,6 @@ class _MachineCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
-    final jobs = ref.watch(jobsStreamProvider).value ?? const [];
-    final running = jobs
-        .where((j) => j.machineId == machine.id && j.status.isActive)
-        .length;
     // Live probe: gray while the first check runs, then green/red.
     final up = ref.watch(machineReachableProvider(machine.id)).value;
 
@@ -136,7 +131,6 @@ class _MachineCard extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           _DetailRow(label: 'GPUs', value: machine.gpus ?? '—'),
           _DetailRow(label: 'Memory', value: machine.memory ?? '—'),
-          _DetailRow(label: 'Running', value: '$running jobs'),
         ],
       ),
     );

@@ -2,8 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../features/job_detail/application/terminal_fullscreen.dart';
 import '../theme/app_theme.dart';
+import 'app_fullscreen.dart';
 import 'sidebar.dart';
 
 /// The persistent window chrome: a custom draggable title bar across the top,
@@ -24,7 +24,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final fullscreen = ref.watch(terminalFullscreenProvider);
+    final fullscreen = ref.watch(appFullscreenProvider) != null;
     return ColoredBox(
       color: c.window,
       child: Column(

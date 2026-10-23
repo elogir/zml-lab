@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/perf_report.dart';
-import '../../job_detail/application/terminal_fullscreen.dart';
+import '../../../core/shell/app_fullscreen.dart';
 import '../application/perf_controller.dart';
 import '../domain/bench_runner.dart';
 import '../domain/report_text.dart';
@@ -12,8 +12,8 @@ import 'perf_charts.dart';
 import 'perf_report_view.dart';
 import 'save_perf_report_dialog.dart';
 
-/// The job detail's Perf tab: configure and run the benchmarker
-/// (tools/benchmark) against this job's endpoint, watch it live, then read,
+/// The Benchmark tab's Perf tool: configure and run the benchmarker
+/// (tools/benchmark) against the target endpoint, watch it live, then read,
 /// save or export the report.
 class PerfView extends ConsumerStatefulWidget {
   const PerfView({
@@ -117,11 +117,12 @@ class _PerfViewState extends ConsumerState<PerfView> {
   Widget build(BuildContext context) {
     final run = ref.watch(perfControllerProvider(widget.jobId));
     final report = run.report;
-    final fullscreen = ref.watch(terminalFullscreenProvider);
+    final fullscreen =
+        ref.watch(appFullscreenProvider) == FullscreenSurface.perf;
 
     return Padding(
-      // In fullscreen the detail screen drops its own padding (the terminal
-      // wants edge-to-edge); this view re-adds breathing room.
+      // In fullscreen the Benchmark screen drops its own padding; this view
+      // re-adds breathing room.
       padding: fullscreen
           ? const EdgeInsets.fromLTRB(
               AppSpacing.xl,
@@ -140,8 +141,9 @@ class _PerfViewState extends ConsumerState<PerfView> {
           maxTokens: _maxTokens,
           model: _model,
           fullscreen: fullscreen,
-          onToggleFullscreen: () =>
-              ref.read(terminalFullscreenProvider.notifier).toggle(),
+          onToggleFullscreen: () => ref
+              .read(appFullscreenProvider.notifier)
+              .toggle(FullscreenSurface.perf),
           onPatch: _patchParams,
           onRun: _start,
           onCancel: _controller.cancel,
