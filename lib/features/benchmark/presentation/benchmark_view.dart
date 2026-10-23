@@ -695,12 +695,10 @@ class _AggregateBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // The stats wrap onto a second line when the terminal leaves the
-          // tools narrow, rather than hiding off the right edge.
+          // A grid: when the terminal leaves the tools narrow, the stats wrap
+          // into aligned columns rather than hiding off the right edge.
           Expanded(
-            child: Wrap(
-              spacing: AppSpacing.xxl,
-              runSpacing: AppSpacing.md,
+            child: StatGrid(
               children: [
                 _Stat(
                   label: 'AGGREGATE',

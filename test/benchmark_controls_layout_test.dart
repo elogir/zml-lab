@@ -81,6 +81,25 @@ void main() {
       // on one line; an equal share of the row when stacked).
       expect(batch.width, greaterThanOrEqualTo(width >= 600 ? 128 : 100));
 
+      // Stats form a grid: every label starts at one of the first row's
+      // column edges, whether they fit on one line or wrap.
+      final stats = [
+        'AGGREGATE',
+        'AVG / REQ',
+        'COMPLETED',
+        'MEDIAN TTFT',
+        'ELAPSED',
+      ].map((t) => tester.getRect(find.text(t))).toList();
+      final firstRow = stats.where((r) => r.top == stats.first.top);
+      final columns = firstRow.map((r) => r.left).toList();
+      for (final r in stats) {
+        expect(
+          columns.any((x) => (x - r.left).abs() < 0.5),
+          isTrue,
+          reason: 'stat at ${r.left} is off the column grid $columns',
+        );
+      }
+
       // The dropdown segment (the field's right end, full height) opens the
       // presets; picking one fills the field. Tapped near its bottom edge, so
       // this also checks the whole segment is the target.

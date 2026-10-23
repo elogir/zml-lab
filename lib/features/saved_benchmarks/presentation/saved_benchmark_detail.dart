@@ -332,11 +332,9 @@ class _Stats extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            // Wraps onto a second line rather than clipping on a narrow
+            // Wraps into aligned columns rather than clipping on a narrow
             // window (the popup shrinks with it).
-            child: Wrap(
-              spacing: AppSpacing.xxl,
-              runSpacing: AppSpacing.md,
+            child: StatGrid(
               children: [
                 _Stat(
                   label: 'AGGREGATE',
