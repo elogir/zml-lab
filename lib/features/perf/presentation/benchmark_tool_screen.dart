@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -78,9 +81,7 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
   }
 
   void _toggleTerminal() {
-    ref
-        .read(appFullscreenProvider.notifier)
-        .exitIf(FullscreenSurface.terminal);
+    ref.read(appFullscreenProvider.notifier).exitIf(FullscreenSurface.terminal);
     ref.read(benchmarkTerminalPanelControllerProvider.notifier).toggle();
   }
 
@@ -131,7 +132,11 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
           );
 
     final terminal = panel.open
-        ? TerminalMux(key: _terminalKey, muxId: _terminalMuxId, machine: machine)
+        ? TerminalMux(
+            key: _terminalKey,
+            muxId: _terminalMuxId,
+            machine: machine,
+          )
         : null;
 
     // In fullscreen the shell already hid the sidebar; drop our own chrome too
@@ -218,7 +223,7 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
 
 /// The tools on the left, the terminal on the right, with a draggable gutter
 /// between them. [ratio] is the terminal's share of the width.
-class _TerminalSplit extends StatelessWidget {
+class _TerminalSplit extends StatefulWidget {
   const _TerminalSplit({
     required this.ratio,
     required this.onRatioChanged,
@@ -231,7 +236,21 @@ class _TerminalSplit extends StatelessWidget {
   final Widget tools;
   final Widget terminal;
 
+  @override
+  State<_TerminalSplit> createState() => _TerminalSplitState();
+}
+
+class _TerminalSplitState extends State<_TerminalSplit> {
   static const _gutter = AppSpacing.lg;
+  static const _minTools = 340.0;
+  static const _minTerminal = 280.0;
+
+  // The drag is measured from where it started, not accumulated from deltas:
+  // several pointer moves land per frame, and adding each to the last *built*
+  // ratio dropped all but one, so the divider lagged behind the cursor (and
+  // drifted off it after hitting a clamp).
+  double _dragStartX = 0;
+  double _dragStartRatio = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -242,18 +261,40 @@ class _TerminalSplit extends StatelessWidget {
           0.0,
           double.infinity,
         );
-        final terminalWidth = usable * ratio;
+        // Pixel floors on both sides (the tools' controls overflow below
+        // ~320px), relaxed when the window can't fit both.
+        final maxTerminal = math.max(0.0, usable - _minTools);
+        final minTerminal = math.min(_minTerminal, maxTerminal);
+        final terminalWidth = (usable * widget.ratio).clamp(
+          minTerminal,
+          maxTerminal,
+        );
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: tools),
+            Expanded(child: widget.tools),
             MouseRegion(
               cursor: SystemMouseCursors.resizeLeftRight,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
+                dragStartBehavior: DragStartBehavior.down,
+                onHorizontalDragStart: (d) {
+                  _dragStartX = d.globalPosition.dx;
+                  // What's on screen, not the stored ratio: they differ while
+                  // a floor holds, and starting from the stored one would
+                  // leave a dead zone before the divider moved.
+                  _dragStartRatio = usable > 0
+                      ? terminalWidth / usable
+                      : widget.ratio;
+                },
                 onHorizontalDragUpdate: (d) {
                   if (usable <= 0) return;
-                  onRatioChanged(ratio - d.delta.dx / usable);
+                  final dx = d.globalPosition.dx - _dragStartX;
+                  final width = (usable * _dragStartRatio - dx).clamp(
+                    minTerminal,
+                    maxTerminal,
+                  );
+                  widget.onRatioChanged(width / usable);
                 },
                 child: SizedBox(
                   width: _gutter,
@@ -270,7 +311,7 @@ class _TerminalSplit extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(width: terminalWidth, child: terminal),
+            SizedBox(width: terminalWidth, child: widget.terminal),
           ],
         );
       },

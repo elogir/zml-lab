@@ -73,8 +73,9 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
     _prompt = TextEditingController(text: run.prompt);
     _batch = TextEditingController(text: '${run.batchSize}');
     _maxTokens = TextEditingController(text: run.maxTokens?.toString() ?? '');
-    _temperature =
-        TextEditingController(text: run.temperature?.toString() ?? '');
+    _temperature = TextEditingController(
+      text: run.temperature?.toString() ?? '',
+    );
     _model = TextEditingController(text: run.model);
   }
 
@@ -96,8 +97,9 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
   void _saveBenchmark() {
     final run = ref.read(benchmarkControllerProvider(widget.jobId));
     final desc = widget.jobDescription.trim();
-    final defaultName =
-        desc.isEmpty ? widget.jobName : '${widget.jobName} · $desc';
+    final defaultName = desc.isEmpty
+        ? widget.jobName
+        : '${widget.jobName} · $desc';
     showSaveBenchmarkDialog(
       context,
       run: run,
@@ -244,7 +246,6 @@ class _Controls extends StatelessWidget {
                 controller: batch,
                 onChanged: onBatchChanged,
               ),
-              const SizedBox(width: AppSpacing.lg),
               // Empty = no cap: the server generates until EOS or its max
               // seqlen.
               _Setting(
@@ -254,7 +255,6 @@ class _Controls extends StatelessWidget {
                 controller: maxTokens,
                 onChanged: onMaxTokensChanged,
               ),
-              const SizedBox(width: AppSpacing.lg),
               // Empty = the server's default temperature.
               _Setting(
                 label: 'Temp',
@@ -300,8 +300,10 @@ class _Controls extends StatelessWidget {
             if (constraints.maxWidth >= _oneLineWidth) {
               return Row(
                 children: [
-                  ...numbers,
-                  const SizedBox(width: AppSpacing.lg),
+                  for (final n in numbers) ...[
+                    n,
+                    const SizedBox(width: AppSpacing.lg),
+                  ],
                   ...send,
                 ],
               );
@@ -309,7 +311,13 @@ class _Controls extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(mainAxisSize: MainAxisSize.min, children: numbers),
+                // Wraps too: at the narrowest the three numbers don't fit
+                // on one line either.
+                Wrap(
+                  spacing: AppSpacing.lg,
+                  runSpacing: AppSpacing.sm,
+                  children: numbers,
+                ),
                 const SizedBox(height: AppSpacing.sm),
                 Row(children: send),
               ],
@@ -352,6 +360,8 @@ class _Setting extends StatelessWidget {
       onChanged: onChanged,
     );
     return Row(
+      // Fixed-width settings hug their content so they can sit in a Wrap.
+      mainAxisSize: width == null ? MainAxisSize.max : MainAxisSize.min,
       children: [
         Text(label, style: context.text.smallMuted),
         const SizedBox(width: AppSpacing.sm),

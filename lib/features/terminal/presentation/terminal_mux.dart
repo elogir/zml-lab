@@ -3,6 +3,7 @@ import 'dart:collection';
 
 import 'package:flterm/flterm.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart'
     show InputDecoration, Material, MaterialType, TextField;
 import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
@@ -84,6 +85,10 @@ class _Split extends _Pane {
   _Pane first;
   _Pane second;
   double ratio = 0.5;
+  // Where the divider drag started, so the ratio is measured from it rather
+  // than accumulated (accumulating drifts off the cursor after a clamp).
+  double dragStart = 0;
+  double dragStartRatio = 0.5;
   static int _counter = 0;
 }
 
@@ -191,9 +196,7 @@ class _TerminalMuxState extends ConsumerState<TerminalMux> {
   // The tabs / panes / sessions live in a keep-alive provider, so they and
   // their live sessions survive this widget being unmounted when the user
   // navigates away and returns.
-  late final TerminalMuxState _s = ref.read(
-    terminalMuxProvider(widget.muxId),
-  );
+  late final TerminalMuxState _s = ref.read(terminalMuxProvider(widget.muxId));
 
   List<_Tab> get _tabs => _s.tabs;
   int get _active => _s.active;
@@ -296,7 +299,9 @@ class _TerminalMuxState extends ConsumerState<TerminalMux> {
     if (m == null || m.isLocal) return TerminalSession();
     final ssh = StringBuffer('ssh');
     if (m.sshPort != 22) ssh.write(' -p ${m.sshPort}');
-    if (m.sshKey != null && m.sshKey!.isNotEmpty) ssh.write(" -i '${m.sshKey}'");
+    if (m.sshKey != null && m.sshKey!.isNotEmpty) {
+      ssh.write(" -i '${m.sshKey}'");
+    }
     ssh.write(' ${m.sshTarget}');
     return TerminalSession(initialCommand: ssh.toString());
   }
@@ -479,8 +484,10 @@ class _TerminalMuxState extends ConsumerState<TerminalMux> {
     _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
       if (!_tabScroll.hasClients) return;
       final pos = _tabScroll.position;
-      final next = (pos.pixels + dir * _dragScrollStep)
-          .clamp(0.0, pos.maxScrollExtent);
+      final next = (pos.pixels + dir * _dragScrollStep).clamp(
+        0.0,
+        pos.maxScrollExtent,
+      );
       if (next != pos.pixels) _tabScroll.jumpTo(next);
     });
   }
@@ -871,10 +878,22 @@ class _TerminalMuxState extends ConsumerState<TerminalMux> {
               : SystemMouseCursors.resizeUpDown,
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
+            dragStartBehavior: DragStartBehavior.down,
+            onPanStart: (d) {
+              split.dragStart = horizontal
+                  ? d.globalPosition.dx
+                  : d.globalPosition.dy;
+              split.dragStartRatio = split.ratio;
+            },
             onPanUpdate: (d) {
-              final delta = horizontal ? d.delta.dx : d.delta.dy;
+              if (usable <= 0) return;
+              final pos = horizontal
+                  ? d.globalPosition.dx
+                  : d.globalPosition.dy;
               setState(() {
-                split.ratio = (split.ratio + delta / extent).clamp(0.08, 0.92);
+                split.ratio =
+                    (split.dragStartRatio + (pos - split.dragStart) / usable)
+                        .clamp(0.08, 0.92);
               });
             },
             child: Container(
@@ -925,7 +944,8 @@ class _TerminalMuxState extends ConsumerState<TerminalMux> {
     final node = session.focusNode;
     final handler = _metaHandlers.putIfAbsent(
       session,
-      () => (n, e) => _handleMetaKey(session, e),
+      () =>
+          (n, e) => _handleMetaKey(session, e),
     );
     final desired = enabled ? handler : null;
     if (identical(node.onKeyEvent, desired)) return;

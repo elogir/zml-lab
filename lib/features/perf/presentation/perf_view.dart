@@ -132,58 +132,60 @@ class _PerfViewState extends ConsumerState<PerfView> {
             )
           : EdgeInsets.zero,
       child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _Controls(
-          run: run,
-          duration: _duration,
-          concurrency: _concurrency,
-          maxTokens: _maxTokens,
-          model: _model,
-          fullscreen: fullscreen,
-          onToggleFullscreen: () => ref
-              .read(appFullscreenProvider.notifier)
-              .toggle(FullscreenSurface.perf),
-          onPatch: _patchParams,
-          onRun: _start,
-          onCancel: _controller.cancel,
-        ),
-        if (_preflightProblem != null && !run.phase.isActive) ...[
-          const SizedBox(height: AppSpacing.sm),
-          _PreflightWarning(problem: _preflightProblem!),
-        ],
-        const SizedBox(height: AppSpacing.md),
-        if (run.phase != PerfPhase.idle) ...[
-          _StatusBar(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _Controls(
             run: run,
-            saved: run.saved,
-            exportedTo: _exportedTo,
-            copyText: run.phase == PerfPhase.done && report != null
-                ? _controller.copyText
-                : null,
-            onSave: run.phase == PerfPhase.done && report != null && !run.saved
-                ? () => showSavePerfReportDialog(
-                    context,
-                    jobId: widget.jobId,
-                    defaultName: widget.jobDescription.trim().isEmpty
-                        ? widget.jobName
-                        : '${widget.jobName} · ${widget.jobDescription.trim()}',
-                  )
-                : null,
-            onExport: run.phase == PerfPhase.done && report != null
-                ? () => _export(report)
-                : null,
-            onDiscard: run.phase == PerfPhase.done || run.phase == PerfPhase.failed
-                ? () {
-                    setState(() => _exportedTo = null);
-                    _controller.discard();
-                  }
-                : null,
+            duration: _duration,
+            concurrency: _concurrency,
+            maxTokens: _maxTokens,
+            model: _model,
+            fullscreen: fullscreen,
+            onToggleFullscreen: () => ref
+                .read(appFullscreenProvider.notifier)
+                .toggle(FullscreenSurface.perf),
+            onPatch: _patchParams,
+            onRun: _start,
+            onCancel: _controller.cancel,
           ),
+          if (_preflightProblem != null && !run.phase.isActive) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _PreflightWarning(problem: _preflightProblem!),
+          ],
           const SizedBox(height: AppSpacing.md),
+          if (run.phase != PerfPhase.idle) ...[
+            _StatusBar(
+              run: run,
+              saved: run.saved,
+              exportedTo: _exportedTo,
+              copyText: run.phase == PerfPhase.done && report != null
+                  ? _controller.copyText
+                  : null,
+              onSave:
+                  run.phase == PerfPhase.done && report != null && !run.saved
+                  ? () => showSavePerfReportDialog(
+                      context,
+                      jobId: widget.jobId,
+                      defaultName: widget.jobDescription.trim().isEmpty
+                          ? widget.jobName
+                          : '${widget.jobName} · ${widget.jobDescription.trim()}',
+                    )
+                  : null,
+              onExport: run.phase == PerfPhase.done && report != null
+                  ? () => _export(report)
+                  : null,
+              onDiscard:
+                  run.phase == PerfPhase.done || run.phase == PerfPhase.failed
+                  ? () {
+                      setState(() => _exportedTo = null);
+                      _controller.discard();
+                    }
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          Expanded(child: _body(run)),
         ],
-        Expanded(child: _body(run)),
-      ],
       ),
     );
   }
@@ -195,9 +197,7 @@ class _PerfViewState extends ConsumerState<PerfView> {
       case PerfPhase.preparing:
       case PerfPhase.running:
       case PerfPhase.stopping:
-        return SingleChildScrollView(
-          child: PerfLiveCharts(series: run.series),
-        );
+        return SingleChildScrollView(child: PerfLiveCharts(series: run.series));
       case PerfPhase.failed:
         return Center(
           child: Column(
@@ -392,8 +392,10 @@ class _Controls extends StatelessWidget {
                 children: [
                   modelField,
                   const SizedBox(height: AppSpacing.sm),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    runSpacing: AppSpacing.sm,
                     children: actions,
                   ),
                 ],
