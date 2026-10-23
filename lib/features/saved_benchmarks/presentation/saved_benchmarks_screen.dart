@@ -60,7 +60,10 @@ class _SavedBenchmarksScreenState extends ConsumerState<SavedBenchmarksScreen> {
     Widget grid(List<Widget> cards) => LayoutBuilder(
       builder: (context, constraints) {
         const gap = AppSpacing.lg;
-        final width = (constraints.maxWidth - gap) / 2;
+        // One column when two would squeeze the cards' metrics.
+        final width = constraints.maxWidth < 760
+            ? constraints.maxWidth
+            : (constraints.maxWidth - gap) / 2;
         return Wrap(
           spacing: gap,
           runSpacing: gap,
@@ -100,8 +103,7 @@ class _SavedBenchmarksScreenState extends ConsumerState<SavedBenchmarksScreen> {
                             const SizedBox(height: AppSpacing.md),
                           ],
                           grid([
-                            for (final r in reports)
-                              _PerfReportCard(report: r),
+                            for (final r in reports) _PerfReportCard(report: r),
                           ]),
                         ],
                         if (labelled) const SizedBox(height: AppSpacing.xl),
@@ -180,10 +182,7 @@ class _PerfReportCard extends ConsumerWidget {
               const SizedBox(width: AppSpacing.md),
               Text(r.serverLabel, style: context.text.smallMuted),
               const SizedBox(width: AppSpacing.md),
-              Text(
-                'c ${r.params.concurrency}',
-                style: context.text.smallMuted,
-              ),
+              Text('c ${r.params.concurrency}', style: context.text.smallMuted),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -201,23 +200,19 @@ class _PerfReportCard extends ConsumerWidget {
               ),
               const SizedBox(width: 4),
               Text('tok/s', style: context.text.monoSmall),
-              const Spacer(),
-              _Metric(
-                label: 'req/s',
-                value: r.requestsPerSecond.toStringAsFixed(2),
-              ),
               const SizedBox(width: AppSpacing.lg),
-              if (ttft != null) ...[
+              _Metrics([
                 _Metric(
-                  label: 'ttft p50',
-                  value: '${ttft.p50.round()}ms',
+                  label: 'req/s',
+                  value: r.requestsPerSecond.toStringAsFixed(2),
                 ),
-                const SizedBox(width: AppSpacing.lg),
-              ],
-              _Metric(
-                label: 'dur',
-                value: '${r.totalSeconds.toStringAsFixed(0)}s',
-              ),
+                if (ttft != null)
+                  _Metric(label: 'ttft p50', value: '${ttft.p50.round()}ms'),
+                _Metric(
+                  label: 'dur',
+                  value: '${r.totalSeconds.toStringAsFixed(0)}s',
+                ),
+              ]),
             ],
           ),
         ],
@@ -238,8 +233,7 @@ class _BenchmarkCard extends ConsumerWidget {
 
     return AppCard(
       onTap: () => showSavedBenchmarkDetail(context, b),
-      onDelete: () =>
-          ref.read(savedBenchmarkRepositoryProvider).delete(b.id),
+      onDelete: () => ref.read(savedBenchmarkRepositoryProvider).delete(b.id),
       topRight: Text(formatAgo(b.createdAt), style: context.text.smallMuted),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -287,21 +281,41 @@ class _BenchmarkCard extends ConsumerWidget {
               ),
               const SizedBox(width: 4),
               Text('tok/s agg', style: context.text.monoSmall),
-              const Spacer(),
-              _Metric(
-                label: 'avg',
-                value: '${b.averageTokensPerSecond.toStringAsFixed(1)} t/s',
-              ),
               const SizedBox(width: AppSpacing.lg),
-              _Metric(label: 'ttft', value: '${b.medianTtftMs}ms'),
-              const SizedBox(width: AppSpacing.lg),
-              _Metric(
-                label: 'elapsed',
-                value: '${(b.elapsedMs / 1000).toStringAsFixed(1)}s',
-              ),
+              _Metrics([
+                _Metric(
+                  label: 'avg',
+                  value: '${b.averageTokensPerSecond.toStringAsFixed(1)} t/s',
+                ),
+                _Metric(label: 'ttft', value: '${b.medianTtftMs}ms'),
+                _Metric(
+                  label: 'elapsed',
+                  value: '${(b.elapsedMs / 1000).toStringAsFixed(1)}s',
+                ),
+              ]),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A card's secondary metrics, right-aligned after the headline number;
+/// they wrap under each other rather than overflow a narrow card.
+class _Metrics extends StatelessWidget {
+  const _Metrics(this.metrics);
+
+  final List<_Metric> metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        spacing: AppSpacing.lg,
+        runSpacing: AppSpacing.xs,
+        children: metrics,
       ),
     );
   }
@@ -317,6 +331,7 @@ class _Metric extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(label, style: context.text.monoSmall.copyWith(color: c.textFaint)),
         const SizedBox(width: 5),
