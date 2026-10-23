@@ -8,9 +8,18 @@ import 'package:zml_lab/features/benchmark/presentation/benchmark_view.dart';
 
 void main() {
   // From the narrowest the terminal split allows to a full window.
-  for (final width in [340.0, 520.0, 900.0]) {
-    testWidgets('controls line up at ${width.toInt()} px', (tester) async {
-      tester.view.physicalSize = Size(width, 800);
+  // Short heights too: below a minimum the view scrolls, never overflows.
+  for (final (width, height) in [
+    (340.0, 800.0),
+    (520.0, 800.0),
+    (900.0, 800.0),
+    (340.0, 420.0),
+    (900.0, 420.0),
+  ]) {
+    testWidgets('controls line up at ${width.toInt()}x${height.toInt()}', (
+      tester,
+    ) async {
+      tester.view.physicalSize = Size(width, height);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
@@ -46,18 +55,29 @@ void main() {
       final maxTokens = rect(fields.at(2));
       final temp = rect(fields.at(3));
       final model = rect(fields.at(4));
-      // The visible button (the first is a hidden copy reserving its width).
+      // The visible button (the first is a hidden copy that sizes it).
       final send = rect(find.widgetWithText(AppButton, 'Send batch').last);
 
-      // The number fields share a top edge and a height.
-      expect(maxTokens.top, batch.top);
-      expect(temp.top, batch.top);
-      expect(maxTokens.height, batch.height);
-      // Send is exactly as tall as the field beside it, on the same line.
-      expect(send.top, model.top);
-      expect(send.height, model.height);
-      // Wide enough for a 4-digit batch size with room to spare.
+      // The settings share a top edge and a height.
+      expect(temp.top, closeTo(maxTokens.top, 0.01));
+      expect(model.top, closeTo(maxTokens.top, 0.01));
+      expect(temp.height, closeTo(maxTokens.height, 0.01));
+      expect(model.height, closeTo(maxTokens.height, 0.01));
+      // Send is exactly as tall as the fields.
+      expect(send.height, closeTo(model.height, 0.01));
+      // Wide: Send sits on the settings' line and Model stays compact.
+      if (width >= 600) {
+        expect(send.top, closeTo(model.top, 0.01));
+        expect(model.width, lessThanOrEqualTo(240));
+      }
+      // Batch fits a 4-digit size with room to spare, and every preset is
+      // on screen.
       expect(batch.width, greaterThanOrEqualTo(80));
+      for (final n in ['1', '8', '16', '32', '128', '512', '1024']) {
+        // `.last`: the Batch field itself can show the same number.
+        final chip = rect(find.text(n).last);
+        expect(chip.right, lessThanOrEqualTo(width), reason: n);
+      }
     });
   }
 }
