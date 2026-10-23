@@ -246,174 +246,198 @@ class _Controls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // The prompt gets a full line of its own; the settings live below.
-        AppTextField(
-          controller: prompt,
-          prefix: '>',
-          mono: true,
-          onChanged: onPromptChanged,
-          suffix: AppIconButton(
-            icon: AppIcons.fullscreen,
-            size: 15,
-            padding: const EdgeInsets.all(6),
-            onPressed: onExpandPrompt,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final wide = constraints.maxWidth >= _oneLineWidth;
-            // Shares of the row: on one line the settings fill it in
-            // proportion (Model + Send the biggest, so nothing balloons and
-            // no gap trails Send); stacked, the numbers split it equally.
-            Widget number(_Setting s, int flex) =>
-                Expanded(flex: wide ? flex : 1, child: s);
-            final numbers = [
-              number(
-                _Setting(
-                  label: 'Batch',
-                  controller: batch,
-                  onChanged: onBatchChanged,
-                  presets: const [
-                    '1',
-                    '2',
-                    '4',
-                    '8',
-                    '16',
-                    '32',
-                    '64',
-                    '128',
-                    '256',
-                    '512',
-                    '1024',
-                  ],
-                ),
-                2,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              // Empty = no cap: the server generates until EOS or its max
-              // seqlen.
-              number(
-                _Setting(
-                  label: 'Max tokens',
-                  placeholder: '∞',
-                  controller: maxTokens,
-                  onChanged: onMaxTokensChanged,
-                ),
-                2,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              // Empty = the server's default temperature.
-              number(
-                _Setting(
-                  label: 'Temp',
-                  placeholder: 'auto',
-                  controller: temperature,
-                  onChanged: onTemperatureChanged,
-                ),
-                2,
-              ),
-            ];
-            // Send (and Cancel while running) at exactly the field's height.
-            // Stretched only where a height is given (the pinned copy).
-            Widget actions({required bool stretch}) => Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: stretch
-                  ? CrossAxisAlignment.stretch
-                  : CrossAxisAlignment.center,
-              children: [
-                AppButton(
-                  label: 'Send batch',
-                  icon: AppIcons.send,
-                  variant: AppButtonVariant.primary,
-                  onPressed: onSend,
-                ),
-                if (running) ...[
-                  const SizedBox(width: AppSpacing.sm),
-                  Center(
-                    child: AppIconButton(
-                      icon: AppIcons.kill,
-                      size: 15,
-                      color: c.statusFailed,
-                      hoverColor: c.statusFailed,
-                      padding: const EdgeInsets.all(9),
-                      onPressed: onCancel,
-                    ),
-                  ),
-                ],
+    final promptField = AppTextField(
+      controller: prompt,
+      prefix: '>',
+      mono: true,
+      onChanged: onPromptChanged,
+      suffix: AppIconButton(
+        icon: AppIcons.fullscreen,
+        size: 14,
+        padding: const EdgeInsets.all(2),
+        onPressed: onExpandPrompt,
+      ),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Very wide: the prompt shares the settings' line (one level
+        // fewer). Otherwise it gets a line of its own above them.
+        final oneRow = constraints.maxWidth >= _promptInlineWidth;
+        final wide = constraints.maxWidth >= _oneLineWidth;
+        // Shares of the row: on one line the settings fill it in
+        // proportion (Model + Send the biggest, so nothing balloons and
+        // no gap trails Send); stacked, the numbers split it equally.
+        Widget number(_Setting s, int flex) =>
+            Expanded(flex: wide ? flex : 1, child: s);
+        final numbers = [
+          number(
+            _Setting(
+              label: 'Batch',
+              controller: batch,
+              onChanged: onBatchChanged,
+              presets: const [
+                '1',
+                '2',
+                '4',
+                '8',
+                '16',
+                '32',
+                '64',
+                '128',
+                '256',
+                '512',
+                '1024',
               ],
-            );
-            final modelField = AppTextField(
-              controller: model,
-              mono: true,
-              placeholder: 'zml_model',
-              onChanged: onModelChanged,
-            );
-            final send = Expanded(
-              flex: wide ? 5 : 1,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
+            ),
+            2,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          // Empty = no cap: the server generates until EOS or its max
+          // seqlen.
+          number(
+            _Setting(
+              label: 'Max tokens',
+              placeholder: '∞',
+              controller: maxTokens,
+              onChanged: onMaxTokensChanged,
+            ),
+            2,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          // Empty = the server's default temperature.
+          number(
+            _Setting(
+              label: 'Temp',
+              placeholder: 'auto',
+              controller: temperature,
+              onChanged: onTemperatureChanged,
+            ),
+            2,
+          ),
+        ];
+        // Send (and Cancel while running) at exactly the field's height.
+        // Stretched only where a height is given (the pinned copy).
+        Widget actions({required bool stretch}) => Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: stretch
+              ? CrossAxisAlignment.stretch
+              : CrossAxisAlignment.center,
+          children: [
+            AppButton(
+              label: 'Send batch',
+              icon: AppIcons.send,
+              variant: AppButtonVariant.primary,
+              onPressed: onSend,
+            ),
+            if (running) ...[
+              const SizedBox(width: AppSpacing.sm),
+              Center(
+                child: AppIconButton(
+                  icon: AppIcons.kill,
+                  size: 15,
+                  color: c.statusFailed,
+                  hoverColor: c.statusFailed,
+                  padding: const EdgeInsets.all(9),
+                  onPressed: onCancel,
+                ),
+              ),
+            ],
+          ],
+        );
+        final modelField = AppTextField(
+          controller: model,
+          mono: true,
+          placeholder: 'zml_model',
+          onChanged: onModelChanged,
+        );
+        final send = Expanded(
+          flex: wide ? 5 : 1,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Model', style: context.text.smallMuted),
+              const SizedBox(height: 6),
+              // The field row sets the height (a hidden copy of the
+              // actions reserves their width); the real actions are then
+              // pinned over that slot at the same height. Exact in one
+              // pass — the text field's intrinsic height overstates it.
+              Stack(
                 children: [
-                  Text('Model', style: context.text.smallMuted),
-                  const SizedBox(height: 6),
-                  // The field row sets the height (a hidden copy of the
-                  // actions reserves their width); the real actions are then
-                  // pinned over that slot at the same height. Exact in one
-                  // pass — the text field's intrinsic height overstates it.
-                  Stack(
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          // Empty sends `zml_model` — llmd ignores the name,
-                          // vLLM requires a real one.
-                          Expanded(child: modelField),
-                          const SizedBox(width: AppSpacing.md),
-                          Visibility.maintain(
-                            visible: false,
-                            child: actions(stretch: false),
-                          ),
-                        ],
-                      ),
-                      Positioned(
-                        top: 0,
-                        bottom: 0,
-                        right: 0,
-                        child: actions(stretch: true),
+                      // Empty sends `zml_model` — llmd ignores the name,
+                      // vLLM requires a real one.
+                      Expanded(child: modelField),
+                      const SizedBox(width: AppSpacing.md),
+                      Visibility.maintain(
+                        visible: false,
+                        child: actions(stretch: false),
                       ),
                     ],
                   ),
+                  Positioned(
+                    top: 0,
+                    bottom: 0,
+                    right: 0,
+                    child: actions(stretch: true),
+                  ),
                 ],
               ),
-            );
-            // Labels sit above their fields, so fields line up and the
-            // button aligns with them at the bottom.
-            if (wide) {
-              return Row(
+            ],
+          ),
+        );
+        // Labels sit above their fields, so fields line up and the
+        // button aligns with them at the bottom.
+        if (oneRow) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                flex: 7,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('Prompt', style: context.text.smallMuted),
+                    const SizedBox(height: 6),
+                    promptField,
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              ...numbers,
+              const SizedBox(width: AppSpacing.md),
+              send,
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            promptField,
+            const SizedBox(height: AppSpacing.sm),
+            if (wide)
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   ...numbers,
                   const SizedBox(width: AppSpacing.md),
                   send,
                 ],
-              );
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(children: numbers),
-                const SizedBox(height: AppSpacing.sm),
-                Row(children: [send]),
-              ],
-            );
-          },
-        ),
-      ],
+              )
+            else ...[
+              Row(children: numbers),
+              const SizedBox(height: AppSpacing.sm),
+              Row(children: [send]),
+            ],
+          ],
+        );
+      },
     );
   }
+
+  /// From this width the prompt joins the settings' row.
+  static const _promptInlineWidth = 1150.0;
 
   /// Below this the controls split into two rows.
   static const _oneLineWidth = 600.0;
