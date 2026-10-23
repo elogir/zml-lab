@@ -57,6 +57,23 @@ class _AppMarkdownState extends State<AppMarkdown> {
           child: GptMarkdown(
             widget.data,
             style: base,
+            // Models write math as `$…$` / `$$…$$` as often as `\(…\)` /
+            // `\[…\]`; the package tells prices ("$5 and $10") apart.
+            useDollarSignsForLatex: true,
+            // Set outright: left to the package, the header row came out in
+            // Material's *light* `surfaceContainerHighest` even under a dark
+            // theme — a bright bar across every table (often around math).
+            styleSheet: GptMarkdownStyleSheet(
+              table: TableStyle(
+                headerBackground: c.surfaceSelected,
+                headerTextStyle: base.copyWith(
+                  color: c.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+                borderColor: c.border,
+                borderRadius: const Radius.circular(6),
+              ),
+            ),
             codeBuilder: _codeBlock,
             // Inline `code`: a subtle mono chip.
             inlineCodeStyle: InlineCodeStyle(
@@ -93,6 +110,20 @@ class _AppMarkdownState extends State<AppMarkdown> {
               onSurface: c.textPrimary,
               onSurfaceVariant: c.textSecondary,
               onInverseSurface: c.surfaceMuted,
+              // Every surface tone from the app palette: anything left at the
+              // Material default is a light grey even in the dark scheme
+              // (table header rows read `surfaceContainerHighest` — that was
+              // the bright bar across tables).
+              surfaceDim: c.surfaceMuted,
+              surfaceBright: c.surfaceHover,
+              surfaceContainerLowest: c.surfaceMuted,
+              surfaceContainerLow: c.surfaceMuted,
+              surfaceContainer: c.surfaceMuted,
+              surfaceContainerHigh: c.surfaceSelected,
+              surfaceContainerHighest: c.surfaceSelected,
+              surfaceTint: c.surface,
+              inverseSurface: c.textPrimary,
+              outlineVariant: c.borderMuted,
               outline: c.border,
               error: c.statusFailed,
             );

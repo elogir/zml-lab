@@ -25,6 +25,33 @@ void main() {
     expect(markdownTail(text, maxChars: 60).startsWith('```'), isFalse);
   });
 
+  test('a cut inside display math re-opens it', () {
+    final lines = List.filled(30, r'x_i = y_i + z_i \\').join('\n');
+    expect(
+      markdownTail(
+        'intro\n\$\$\n$lines\n\$\$',
+        maxChars: 60,
+      ).startsWith('\$\$\n'),
+      isTrue,
+    );
+    expect(
+      markdownTail('intro\n\\[\n$lines\n\\]', maxChars: 60).startsWith('\\[\n'),
+      isTrue,
+    );
+  });
+
+  test('a cut after closed math does not', () {
+    final prose = List.filled(50, 'prose').join('\n');
+    expect(
+      markdownTail('\$\$x\$\$\n$prose', maxChars: 60),
+      isNot(startsWith(r'$')),
+    );
+    expect(
+      markdownTail('\\[x\\]\n$prose', maxChars: 60),
+      isNot(startsWith(r'\')),
+    );
+  });
+
   test('one huge line is cut by length', () {
     final text = 'a' * 5000;
     expect(markdownTail(text, maxChars: 100), 'a' * 100);

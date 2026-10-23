@@ -2,8 +2,9 @@
 /// (the benchmark grid cards). Parsing and laying out a whole long reply every
 /// frame just to show its tail is what made big or long batches lag.
 ///
-/// Cuts at a line start where possible, and re-opens a fenced code block when
-/// the cut lands inside one, so the kept part still renders as it would have.
+/// Cuts at a line start where possible, and re-opens a fenced code block or a
+/// display-math block (`$$…$$`, `\[…\]`) when the cut lands inside one — else
+/// its closing delimiter would open a new block that swallows the rest.
 String markdownTail(String text, {int maxChars = 1500}) {
   if (text.length <= maxChars) return text;
   var cut = text.length - maxChars;
@@ -12,11 +13,18 @@ String markdownTail(String text, {int maxChars = 1500}) {
   if (lineStart != -1 && lineStart < text.length - maxChars ~/ 2) {
     cut = lineStart + 1;
   }
-  var fences = 0;
-  for (var i = text.indexOf('```'); i != -1 && i < cut;) {
-    fences++;
-    i = text.indexOf('```', i + 3);
+  int before(String delimiter) {
+    var n = 0;
+    for (var i = text.indexOf(delimiter); i != -1 && i < cut;) {
+      n++;
+      i = text.indexOf(delimiter, i + delimiter.length);
+    }
+    return n;
   }
+
   final tail = text.substring(cut);
-  return fences.isOdd ? '```\n$tail' : tail;
+  if (before('```').isOdd) return '```\n$tail';
+  if (before(r'$$').isOdd) return '\$\$\n$tail';
+  if (before(r'\[') > before(r'\]')) return '\\[\n$tail';
+  return tail;
 }
