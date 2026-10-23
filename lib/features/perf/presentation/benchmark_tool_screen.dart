@@ -174,32 +174,36 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
           ScreenHeader(
             title: 'Benchmark',
             subtitle: 'Launch a server in the terminal, point the tools at it.',
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SegmentedControl<BenchmarkTool>(
-                  value: target.tool,
-                  onChanged: _setTool,
-                  options: const [
-                    SegmentOption(
-                      value: BenchmarkTool.benchmark,
-                      label: 'Benchmark',
-                      icon: AppIcons.benchmark,
-                    ),
-                    SegmentOption(
-                      value: BenchmarkTool.perf,
-                      label: 'Perf',
-                      icon: AppIcons.perf,
-                    ),
-                  ],
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                AppButton(
-                  label: panel.open ? 'Hide terminal' : 'Terminal',
-                  icon: AppIcons.terminal,
-                  onPressed: _toggleTerminal,
-                ),
-              ],
+            trailing: IntrinsicHeight(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SegmentedControl<BenchmarkTool>(
+                    value: target.tool,
+                    onChanged: _setTool,
+                    options: const [
+                      SegmentOption(
+                        value: BenchmarkTool.benchmark,
+                        label: 'Benchmark',
+                        icon: AppIcons.benchmark,
+                      ),
+                      SegmentOption(
+                        value: BenchmarkTool.perf,
+                        label: 'Perf',
+                        icon: AppIcons.perf,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  AppToggleIconButton(
+                    icon: AppIcons.terminal,
+                    value: panel.open,
+                    onChanged: (_) => _toggleTerminal(),
+                    semanticLabel: 'Terminal panel',
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
