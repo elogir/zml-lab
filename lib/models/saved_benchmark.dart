@@ -24,6 +24,16 @@ abstract class SavedBenchmark with _$SavedBenchmark {
     /// The job's launch command at save time, for reference.
     @Default('') String command,
     required String prompt,
+
+    /// The model name sent with the requests. Null for runs saved before this
+    /// was tracked.
+    String? model,
+
+    /// Per-request output cap; null = unlimited (or not tracked).
+    int? maxTokens,
+
+    /// Sampling temperature; null = the server's default (or not tracked).
+    double? temperature,
     required int batchSize,
     required double aggregateTokensPerSecond,
     required int completed,

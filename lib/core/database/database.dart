@@ -31,7 +31,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -43,7 +43,9 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) await m.createTable(savedBenchmarks);
       if (from < 4) {
         // Dropped the derived `program` badge — it's redundant with name/desc.
-        await m.database.customStatement('ALTER TABLE jobs DROP COLUMN program');
+        await m.database.customStatement(
+          'ALTER TABLE jobs DROP COLUMN program',
+        );
         await m.database.customStatement(
           'ALTER TABLE launch_configs DROP COLUMN program',
         );
@@ -90,6 +92,12 @@ class AppDatabase extends _$AppDatabase {
         // are now started from the Benchmark tab's terminals).
         await m.database.customStatement('DROP TABLE IF EXISTS jobs');
         await m.database.customStatement('DROP TABLE IF EXISTS launch_configs');
+      }
+      if (from < 12) {
+        // Saved runs keep their request settings, for "Copy results".
+        await m.addColumn(savedBenchmarks, savedBenchmarks.model);
+        await m.addColumn(savedBenchmarks, savedBenchmarks.maxTokens);
+        await m.addColumn(savedBenchmarks, savedBenchmarks.temperature);
       }
     },
   );

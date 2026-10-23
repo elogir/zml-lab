@@ -6,6 +6,7 @@ import '../../../core/widgets/widgets.dart';
 import '../../../models/perf_report.dart';
 import '../../../models/settings.dart';
 import '../application/settings_controller.dart';
+import 'copy_template_editor.dart';
 
 /// App-wide preferences, grouped into panels. Every control writes through to
 /// the settings store immediately — there is no save button.
@@ -22,6 +23,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _maxTokens;
   late final TextEditingController _temperature;
   late final TextEditingController _benchModel;
+  late final TextEditingController _copyTemplate;
   late final TextEditingController _perfToolDir;
   late final TextEditingController _perfDataset;
   late final TextEditingController _perfDuration;
@@ -39,16 +41,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final s = ref.read(settingsControllerProvider);
     _prompt = TextEditingController(text: s.benchPrompt);
     _batch = TextEditingController(text: '${s.benchBatchSize}');
-    _maxTokens = TextEditingController(text: s.benchMaxTokens?.toString() ?? '');
-    _temperature =
-        TextEditingController(text: s.benchTemperature?.toString() ?? '');
+    _maxTokens = TextEditingController(
+      text: s.benchMaxTokens?.toString() ?? '',
+    );
+    _temperature = TextEditingController(
+      text: s.benchTemperature?.toString() ?? '',
+    );
     _benchModel = TextEditingController(text: s.benchModel);
+    _copyTemplate = TextEditingController(text: s.benchCopyTemplate);
     _perfToolDir = TextEditingController(text: s.perfToolDir);
     _perfDataset = TextEditingController(text: s.perfDatasetPath);
-    _perfDuration =
-        TextEditingController(text: '${s.perfParams.durationSeconds}');
-    _perfConcurrency =
-        TextEditingController(text: '${s.perfParams.concurrency}');
+    _perfDuration = TextEditingController(
+      text: '${s.perfParams.durationSeconds}',
+    );
+    _perfConcurrency = TextEditingController(
+      text: '${s.perfParams.concurrency}',
+    );
     _perfMaxTokens = TextEditingController(
       text: s.perfParams.maxCompletionTokens?.toString() ?? '',
     );
@@ -63,6 +71,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _maxTokens.dispose();
     _temperature.dispose();
     _benchModel.dispose();
+    _copyTemplate.dispose();
     _perfToolDir.dispose();
     _perfDataset.dispose();
     _perfDuration.dispose();
@@ -92,6 +101,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _maxTokens.text = '';
       _temperature.text = '';
       _benchModel.text = '';
+      _copyTemplate.text = s.benchCopyTemplate;
       _perfToolDir.text = s.perfToolDir;
       _perfDataset.text = s.perfDatasetPath;
       _perfDuration.text = '${s.perfParams.durationSeconds}';
@@ -176,15 +186,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     description: 'Applies to open terminals right away.',
                     control: _Stepper(
                       value: '${s.terminalFontSize.round()} px',
-                      onDecrement: s.terminalFontSize >
-                              SettingsLimits.minTerminalFont
-                          ? () => _controller
-                                .setTerminalFontSize(s.terminalFontSize - 1)
+                      onDecrement:
+                          s.terminalFontSize > SettingsLimits.minTerminalFont
+                          ? () => _controller.setTerminalFontSize(
+                              s.terminalFontSize - 1,
+                            )
                           : null,
-                      onIncrement: s.terminalFontSize <
-                              SettingsLimits.maxTerminalFont
-                          ? () => _controller
-                                .setTerminalFontSize(s.terminalFontSize + 1)
+                      onIncrement:
+                          s.terminalFontSize < SettingsLimits.maxTerminalFont
+                          ? () => _controller.setTerminalFontSize(
+                              s.terminalFontSize + 1,
+                            )
                           : null,
                     ),
                   ),
@@ -249,8 +261,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         controller: _maxTokens,
                         mono: true,
                         placeholder: '∞',
-                        onChanged: (v) => _controller
-                            .setBenchMaxTokens(int.tryParse(v.trim())),
+                        onChanged: (v) => _controller.setBenchMaxTokens(
+                          int.tryParse(v.trim()),
+                        ),
                       ),
                     ),
                   ),
@@ -263,8 +276,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         controller: _temperature,
                         mono: true,
                         placeholder: 'auto',
-                        onChanged: (v) => _controller
-                            .setBenchTemperature(double.tryParse(v.trim())),
+                        onChanged: (v) => _controller.setBenchTemperature(
+                          double.tryParse(v.trim()),
+                        ),
                       ),
                     ),
                   ),
@@ -279,6 +293,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       mono: true,
                       placeholder: 'zml_model',
                       onChanged: _controller.setBenchModel,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xl),
+
+              _Group(
+                label: 'Copy results',
+                children: [
+                  _SettingRow(
+                    title: 'Format',
+                    description:
+                        'What "Copy results" puts on the clipboard after a '
+                        'run (live or saved). Placeholders are filled from '
+                        'the run; empty restores the default.',
+                    stacked: true,
+                    control: CopyTemplateEditor(
+                      controller: _copyTemplate,
+                      onChanged: _controller.setBenchCopyTemplate,
                     ),
                   ),
                 ],
@@ -315,7 +348,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   _SettingRow(
                     title: 'Duration',
-                    description: 'How long each run generates load, in seconds.',
+                    description:
+                        'How long each run generates load, in seconds.',
                     control: SizedBox(
                       width: 72,
                       child: AppTextField(
@@ -364,7 +398,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           final n = int.tryParse(v.trim());
                           _patchPerf(
                             (p) => p.copyWith(
-                              maxCompletionTokens: n != null && n > 0 ? n : null,
+                              maxCompletionTokens: n != null && n > 0
+                                  ? n
+                                  : null,
                             ),
                           );
                         },

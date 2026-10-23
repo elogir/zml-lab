@@ -7,9 +7,11 @@ import '../../../core/widgets/widgets.dart';
 import '../../../models/benchmark.dart';
 import '../../../models/saved_benchmark.dart';
 import '../../../repositories/saved_benchmark_repository.dart';
+import '../../benchmark/domain/result_template.dart';
 import '../../benchmark/presentation/benchmark_charts.dart';
 import '../../benchmark/presentation/benchmark_request_card.dart';
 import '../../benchmark/presentation/reasoning_view.dart';
+import '../../settings/application/settings_controller.dart';
 
 /// Opens a saved benchmark: its headline stats, the prompt, and every saved
 /// response.
@@ -136,9 +138,8 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                                       AppIconButton(
                                         icon: AppIcons.edit,
                                         size: 13,
-                                        onPressed: () => setState(
-                                          () => _editingName = true,
-                                        ),
+                                        onPressed: () =>
+                                            setState(() => _editingName = true),
                                       ),
                                     ],
                                   ),
@@ -173,7 +174,17 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                _Stats(benchmark: b),
+                _Stats(
+                  benchmark: b,
+                  copyText: renderResult(
+                    ref.watch(
+                      settingsControllerProvider.select(
+                        (s) => s.benchCopyTemplate,
+                      ),
+                    ),
+                    BenchmarkResult.fromSaved(b),
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 AppPanel(
                   color: c.surfaceMuted,
@@ -301,9 +312,12 @@ class _DetailViewState extends ConsumerState<_DetailView> {
 }
 
 class _Stats extends StatelessWidget {
-  const _Stats({required this.benchmark});
+  const _Stats({required this.benchmark, required this.copyText});
 
   final SavedBenchmark benchmark;
+
+  /// The run rendered through the user's copy template.
+  final String copyText;
 
   @override
   Widget build(BuildContext context) {
@@ -315,40 +329,52 @@ class _Stats extends StatelessWidget {
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
       ),
-      // Scrolls rather than clipping its last stats on a narrow window.
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _Stat(
-              label: 'AGGREGATE',
-              value: b.aggregateTokensPerSecond.toStringAsFixed(1),
-              unit: 'tok/s',
+      child: Row(
+        children: [
+          Expanded(
+            // Scrolls rather than clipping its last stats on a narrow window.
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _Stat(
+                    label: 'AGGREGATE',
+                    value: b.aggregateTokensPerSecond.toStringAsFixed(1),
+                    unit: 'tok/s',
+                  ),
+                  const SizedBox(width: AppSpacing.xxl),
+                  _Stat(
+                    label: 'AVG / REQ',
+                    value: b.averageTokensPerSecond.toStringAsFixed(1),
+                    unit: 'tok/s',
+                  ),
+                  const SizedBox(width: AppSpacing.xxl),
+                  _Stat(label: 'BATCH', value: '${b.batchSize}', unit: ''),
+                  const SizedBox(width: AppSpacing.xxl),
+                  _Stat(
+                    label: 'COMPLETED',
+                    value: '${b.completed}',
+                    unit: '/${b.batchSize}',
+                  ),
+                  const SizedBox(width: AppSpacing.xxl),
+                  _Stat(
+                    label: 'MEDIAN TTFT',
+                    value: '${b.medianTtftMs}',
+                    unit: 'ms',
+                  ),
+                  const SizedBox(width: AppSpacing.xxl),
+                  _Stat(
+                    label: 'ELAPSED',
+                    value: (b.elapsedMs / 1000).toStringAsFixed(1),
+                    unit: 's',
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: AppSpacing.xxl),
-            _Stat(
-              label: 'AVG / REQ',
-              value: b.averageTokensPerSecond.toStringAsFixed(1),
-              unit: 'tok/s',
-            ),
-            const SizedBox(width: AppSpacing.xxl),
-            _Stat(label: 'BATCH', value: '${b.batchSize}', unit: ''),
-            const SizedBox(width: AppSpacing.xxl),
-            _Stat(
-              label: 'COMPLETED',
-              value: '${b.completed}',
-              unit: '/${b.batchSize}',
-            ),
-            const SizedBox(width: AppSpacing.xxl),
-            _Stat(label: 'MEDIAN TTFT', value: '${b.medianTtftMs}', unit: 'ms'),
-            const SizedBox(width: AppSpacing.xxl),
-            _Stat(
-              label: 'ELAPSED',
-              value: (b.elapsedMs / 1000).toStringAsFixed(1),
-              unit: 's',
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: AppSpacing.lg),
+          CopyButton(text: copyText, label: 'Copy results'),
+        ],
       ),
     );
   }
@@ -546,7 +572,10 @@ void _showResponsePopup(BuildContext context, BenchmarkRequest request) {
       transitionDuration: AppDurations.normal,
       pageBuilder: (context, _, _) => _ResponsePopup(request: request),
       transitionsBuilder: (context, anim, _, child) {
-        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
+        final curved = CurvedAnimation(
+          parent: anim,
+          curve: Curves.easeOutCubic,
+        );
         return FadeTransition(
           opacity: curved,
           child: ScaleTransition(

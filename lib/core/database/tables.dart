@@ -34,6 +34,12 @@ class SavedBenchmarks extends Table {
   /// The launch command at save time (empty for runs saved without one).
   TextColumn get command => text().withDefault(const Constant(''))();
   TextColumn get prompt => text()();
+
+  /// The run's request settings. Nullable: rows saved before they were
+  /// tracked (and, for the last two, runs that left them to the server).
+  TextColumn get model => text().nullable()();
+  IntColumn get maxTokens => integer().nullable()();
+  RealColumn get temperature => real().nullable()();
   IntColumn get batchSize => integer()();
   RealColumn get aggregateTokensPerSecond => real()();
   IntColumn get completed => integer()();

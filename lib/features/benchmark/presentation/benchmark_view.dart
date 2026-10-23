@@ -5,7 +5,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/benchmark.dart';
 import '../../saved_benchmarks/presentation/save_benchmark_dialog.dart';
+import '../../settings/application/settings_controller.dart';
 import '../application/benchmark_controller.dart';
+import '../domain/result_template.dart';
 import 'benchmark_charts.dart';
 import 'benchmark_focus.dart';
 import 'benchmark_prompt_editor.dart';
@@ -122,6 +124,19 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
   @override
   Widget build(BuildContext context) {
     final run = ref.watch(benchmarkControllerProvider(widget.jobId));
+    final copyTemplate = ref.watch(
+      settingsControllerProvider.select((s) => s.benchCopyTemplate),
+    );
+    final copyText = run.isRunning || run.requests.isEmpty
+        ? null
+        : renderResult(
+            copyTemplate,
+            BenchmarkResult.fromRun(
+              run,
+              machine: widget.machineName,
+              endpoint: widget.endpoint,
+            ),
+          );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -148,7 +163,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
           onModelChanged: _controller.setModel,
         ),
         const SizedBox(height: AppSpacing.lg),
-        _AggregateBar(run: run),
+        _AggregateBar(run: run, copyText: copyText),
         // Truncation callout — some replies were cut off by a token limit
         // rather than finishing, so the numbers describe clipped responses.
         if (!run.isRunning && run.truncatedCount > 0) ...[
@@ -417,13 +432,16 @@ class _TruncationNotice extends StatelessWidget {
   }
 }
 
-/// The run's headline numbers. Nothing but stats and the live indicator rides
-/// here — the actions and the view switcher live in the [_FooterBar], so a
-/// narrow window squeezes neither.
+/// The run's headline numbers, with the live indicator while it streams and
+/// "Copy results" once it settles (the numbers it copies are right here).
+/// Save, Clear and the view switcher live in the [_FooterBar].
 class _AggregateBar extends StatelessWidget {
-  const _AggregateBar({required this.run});
+  const _AggregateBar({required this.run, this.copyText});
 
   final BenchmarkRun run;
+
+  /// The run rendered through the user's copy template; null hides the button.
+  final String? copyText;
 
   @override
   Widget build(BuildContext context) {
@@ -480,8 +498,13 @@ class _AggregateBar extends StatelessWidget {
               ],
             ),
           ),
-          if (run.isRunning) const SizedBox(width: AppSpacing.lg),
-          if (run.isRunning) _StreamingPill(),
+          if (run.isRunning) ...[
+            const SizedBox(width: AppSpacing.lg),
+            _StreamingPill(),
+          ] else if (copyText != null) ...[
+            const SizedBox(width: AppSpacing.lg),
+            CopyButton(text: copyText!, label: 'Copy results'),
+          ],
         ],
       ),
     );

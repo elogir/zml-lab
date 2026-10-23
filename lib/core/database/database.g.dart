@@ -884,6 +884,37 @@ class $SavedBenchmarksTable extends SavedBenchmarks
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _modelMeta = const VerificationMeta('model');
+  @override
+  late final GeneratedColumn<String> model = GeneratedColumn<String>(
+    'model',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _maxTokensMeta = const VerificationMeta(
+    'maxTokens',
+  );
+  @override
+  late final GeneratedColumn<int> maxTokens = GeneratedColumn<int>(
+    'max_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _temperatureMeta = const VerificationMeta(
+    'temperature',
+  );
+  @override
+  late final GeneratedColumn<double> temperature = GeneratedColumn<double>(
+    'temperature',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _batchSizeMeta = const VerificationMeta(
     'batchSize',
   );
@@ -982,6 +1013,9 @@ class $SavedBenchmarksTable extends SavedBenchmarks
     machineName,
     command,
     prompt,
+    model,
+    maxTokens,
+    temperature,
     batchSize,
     aggregateTokensPerSecond,
     completed,
@@ -1046,6 +1080,27 @@ class $SavedBenchmarksTable extends SavedBenchmarks
       );
     } else if (isInserting) {
       context.missing(_promptMeta);
+    }
+    if (data.containsKey('model')) {
+      context.handle(
+        _modelMeta,
+        model.isAcceptableOrUnknown(data['model']!, _modelMeta),
+      );
+    }
+    if (data.containsKey('max_tokens')) {
+      context.handle(
+        _maxTokensMeta,
+        maxTokens.isAcceptableOrUnknown(data['max_tokens']!, _maxTokensMeta),
+      );
+    }
+    if (data.containsKey('temperature')) {
+      context.handle(
+        _temperatureMeta,
+        temperature.isAcceptableOrUnknown(
+          data['temperature']!,
+          _temperatureMeta,
+        ),
+      );
     }
     if (data.containsKey('batch_size')) {
       context.handle(
@@ -1152,6 +1207,18 @@ class $SavedBenchmarksTable extends SavedBenchmarks
         DriftSqlType.string,
         data['${effectivePrefix}prompt'],
       )!,
+      model: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model'],
+      ),
+      maxTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}max_tokens'],
+      ),
+      temperature: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}temperature'],
+      ),
       batchSize: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}batch_size'],
@@ -1206,6 +1273,12 @@ class SavedBenchmarkRow extends DataClass
   /// The launch command at save time (empty for runs saved without one).
   final String command;
   final String prompt;
+
+  /// The run's request settings. Nullable: rows saved before they were
+  /// tracked (and, for the last two, runs that left them to the server).
+  final String? model;
+  final int? maxTokens;
+  final double? temperature;
   final int batchSize;
   final double aggregateTokensPerSecond;
   final int completed;
@@ -1225,6 +1298,9 @@ class SavedBenchmarkRow extends DataClass
     this.machineName,
     required this.command,
     required this.prompt,
+    this.model,
+    this.maxTokens,
+    this.temperature,
     required this.batchSize,
     required this.aggregateTokensPerSecond,
     required this.completed,
@@ -1245,6 +1321,15 @@ class SavedBenchmarkRow extends DataClass
     }
     map['command'] = Variable<String>(command);
     map['prompt'] = Variable<String>(prompt);
+    if (!nullToAbsent || model != null) {
+      map['model'] = Variable<String>(model);
+    }
+    if (!nullToAbsent || maxTokens != null) {
+      map['max_tokens'] = Variable<int>(maxTokens);
+    }
+    if (!nullToAbsent || temperature != null) {
+      map['temperature'] = Variable<double>(temperature);
+    }
     map['batch_size'] = Variable<int>(batchSize);
     map['aggregate_tokens_per_second'] = Variable<double>(
       aggregateTokensPerSecond,
@@ -1268,6 +1353,15 @@ class SavedBenchmarkRow extends DataClass
           : Value(machineName),
       command: Value(command),
       prompt: Value(prompt),
+      model: model == null && nullToAbsent
+          ? const Value.absent()
+          : Value(model),
+      maxTokens: maxTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(maxTokens),
+      temperature: temperature == null && nullToAbsent
+          ? const Value.absent()
+          : Value(temperature),
       batchSize: Value(batchSize),
       aggregateTokensPerSecond: Value(aggregateTokensPerSecond),
       completed: Value(completed),
@@ -1291,6 +1385,9 @@ class SavedBenchmarkRow extends DataClass
       machineName: serializer.fromJson<String?>(json['machineName']),
       command: serializer.fromJson<String>(json['command']),
       prompt: serializer.fromJson<String>(json['prompt']),
+      model: serializer.fromJson<String?>(json['model']),
+      maxTokens: serializer.fromJson<int?>(json['maxTokens']),
+      temperature: serializer.fromJson<double?>(json['temperature']),
       batchSize: serializer.fromJson<int>(json['batchSize']),
       aggregateTokensPerSecond: serializer.fromJson<double>(
         json['aggregateTokensPerSecond'],
@@ -1313,6 +1410,9 @@ class SavedBenchmarkRow extends DataClass
       'machineName': serializer.toJson<String?>(machineName),
       'command': serializer.toJson<String>(command),
       'prompt': serializer.toJson<String>(prompt),
+      'model': serializer.toJson<String?>(model),
+      'maxTokens': serializer.toJson<int?>(maxTokens),
+      'temperature': serializer.toJson<double?>(temperature),
       'batchSize': serializer.toJson<int>(batchSize),
       'aggregateTokensPerSecond': serializer.toJson<double>(
         aggregateTokensPerSecond,
@@ -1333,6 +1433,9 @@ class SavedBenchmarkRow extends DataClass
     Value<String?> machineName = const Value.absent(),
     String? command,
     String? prompt,
+    Value<String?> model = const Value.absent(),
+    Value<int?> maxTokens = const Value.absent(),
+    Value<double?> temperature = const Value.absent(),
     int? batchSize,
     double? aggregateTokensPerSecond,
     int? completed,
@@ -1348,6 +1451,9 @@ class SavedBenchmarkRow extends DataClass
     machineName: machineName.present ? machineName.value : this.machineName,
     command: command ?? this.command,
     prompt: prompt ?? this.prompt,
+    model: model.present ? model.value : this.model,
+    maxTokens: maxTokens.present ? maxTokens.value : this.maxTokens,
+    temperature: temperature.present ? temperature.value : this.temperature,
     batchSize: batchSize ?? this.batchSize,
     aggregateTokensPerSecond:
         aggregateTokensPerSecond ?? this.aggregateTokensPerSecond,
@@ -1368,6 +1474,11 @@ class SavedBenchmarkRow extends DataClass
           : this.machineName,
       command: data.command.present ? data.command.value : this.command,
       prompt: data.prompt.present ? data.prompt.value : this.prompt,
+      model: data.model.present ? data.model.value : this.model,
+      maxTokens: data.maxTokens.present ? data.maxTokens.value : this.maxTokens,
+      temperature: data.temperature.present
+          ? data.temperature.value
+          : this.temperature,
       batchSize: data.batchSize.present ? data.batchSize.value : this.batchSize,
       aggregateTokensPerSecond: data.aggregateTokensPerSecond.present
           ? data.aggregateTokensPerSecond.value
@@ -1396,6 +1507,9 @@ class SavedBenchmarkRow extends DataClass
           ..write('machineName: $machineName, ')
           ..write('command: $command, ')
           ..write('prompt: $prompt, ')
+          ..write('model: $model, ')
+          ..write('maxTokens: $maxTokens, ')
+          ..write('temperature: $temperature, ')
           ..write('batchSize: $batchSize, ')
           ..write('aggregateTokensPerSecond: $aggregateTokensPerSecond, ')
           ..write('completed: $completed, ')
@@ -1416,6 +1530,9 @@ class SavedBenchmarkRow extends DataClass
     machineName,
     command,
     prompt,
+    model,
+    maxTokens,
+    temperature,
     batchSize,
     aggregateTokensPerSecond,
     completed,
@@ -1435,6 +1552,9 @@ class SavedBenchmarkRow extends DataClass
           other.machineName == this.machineName &&
           other.command == this.command &&
           other.prompt == this.prompt &&
+          other.model == this.model &&
+          other.maxTokens == this.maxTokens &&
+          other.temperature == this.temperature &&
           other.batchSize == this.batchSize &&
           other.aggregateTokensPerSecond == this.aggregateTokensPerSecond &&
           other.completed == this.completed &&
@@ -1452,6 +1572,9 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
   final Value<String?> machineName;
   final Value<String> command;
   final Value<String> prompt;
+  final Value<String?> model;
+  final Value<int?> maxTokens;
+  final Value<double?> temperature;
   final Value<int> batchSize;
   final Value<double> aggregateTokensPerSecond;
   final Value<int> completed;
@@ -1468,6 +1591,9 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     this.machineName = const Value.absent(),
     this.command = const Value.absent(),
     this.prompt = const Value.absent(),
+    this.model = const Value.absent(),
+    this.maxTokens = const Value.absent(),
+    this.temperature = const Value.absent(),
     this.batchSize = const Value.absent(),
     this.aggregateTokensPerSecond = const Value.absent(),
     this.completed = const Value.absent(),
@@ -1485,6 +1611,9 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     this.machineName = const Value.absent(),
     this.command = const Value.absent(),
     required String prompt,
+    this.model = const Value.absent(),
+    this.maxTokens = const Value.absent(),
+    this.temperature = const Value.absent(),
     required int batchSize,
     required double aggregateTokensPerSecond,
     required int completed,
@@ -1511,6 +1640,9 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     Expression<String>? machineName,
     Expression<String>? command,
     Expression<String>? prompt,
+    Expression<String>? model,
+    Expression<int>? maxTokens,
+    Expression<double>? temperature,
     Expression<int>? batchSize,
     Expression<double>? aggregateTokensPerSecond,
     Expression<int>? completed,
@@ -1528,6 +1660,9 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
       if (machineName != null) 'machine_name': machineName,
       if (command != null) 'command': command,
       if (prompt != null) 'prompt': prompt,
+      if (model != null) 'model': model,
+      if (maxTokens != null) 'max_tokens': maxTokens,
+      if (temperature != null) 'temperature': temperature,
       if (batchSize != null) 'batch_size': batchSize,
       if (aggregateTokensPerSecond != null)
         'aggregate_tokens_per_second': aggregateTokensPerSecond,
@@ -1548,6 +1683,9 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     Value<String?>? machineName,
     Value<String>? command,
     Value<String>? prompt,
+    Value<String?>? model,
+    Value<int?>? maxTokens,
+    Value<double?>? temperature,
     Value<int>? batchSize,
     Value<double>? aggregateTokensPerSecond,
     Value<int>? completed,
@@ -1565,6 +1703,9 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
       machineName: machineName ?? this.machineName,
       command: command ?? this.command,
       prompt: prompt ?? this.prompt,
+      model: model ?? this.model,
+      maxTokens: maxTokens ?? this.maxTokens,
+      temperature: temperature ?? this.temperature,
       batchSize: batchSize ?? this.batchSize,
       aggregateTokensPerSecond:
           aggregateTokensPerSecond ?? this.aggregateTokensPerSecond,
@@ -1598,6 +1739,15 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     }
     if (prompt.present) {
       map['prompt'] = Variable<String>(prompt.value);
+    }
+    if (model.present) {
+      map['model'] = Variable<String>(model.value);
+    }
+    if (maxTokens.present) {
+      map['max_tokens'] = Variable<int>(maxTokens.value);
+    }
+    if (temperature.present) {
+      map['temperature'] = Variable<double>(temperature.value);
     }
     if (batchSize.present) {
       map['batch_size'] = Variable<int>(batchSize.value);
@@ -1640,6 +1790,9 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
           ..write('machineName: $machineName, ')
           ..write('command: $command, ')
           ..write('prompt: $prompt, ')
+          ..write('model: $model, ')
+          ..write('maxTokens: $maxTokens, ')
+          ..write('temperature: $temperature, ')
           ..write('batchSize: $batchSize, ')
           ..write('aggregateTokensPerSecond: $aggregateTokensPerSecond, ')
           ..write('completed: $completed, ')
@@ -2997,6 +3150,9 @@ typedef $$SavedBenchmarksTableCreateCompanionBuilder =
       Value<String?> machineName,
       Value<String> command,
       required String prompt,
+      Value<String?> model,
+      Value<int?> maxTokens,
+      Value<double?> temperature,
       required int batchSize,
       required double aggregateTokensPerSecond,
       required int completed,
@@ -3015,6 +3171,9 @@ typedef $$SavedBenchmarksTableUpdateCompanionBuilder =
       Value<String?> machineName,
       Value<String> command,
       Value<String> prompt,
+      Value<String?> model,
+      Value<int?> maxTokens,
+      Value<double?> temperature,
       Value<int> batchSize,
       Value<double> aggregateTokensPerSecond,
       Value<int> completed,
@@ -3062,6 +3221,21 @@ class $$SavedBenchmarksTableFilterComposer
 
   ColumnFilters<String> get prompt => $composableBuilder(
     column: $table.prompt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get maxTokens => $composableBuilder(
+    column: $table.maxTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get temperature => $composableBuilder(
+    column: $table.temperature,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3145,6 +3319,21 @@ class $$SavedBenchmarksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get maxTokens => $composableBuilder(
+    column: $table.maxTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get temperature => $composableBuilder(
+    column: $table.temperature,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get batchSize => $composableBuilder(
     column: $table.batchSize,
     builder: (column) => ColumnOrderings(column),
@@ -3214,6 +3403,17 @@ class $$SavedBenchmarksTableAnnotationComposer
 
   GeneratedColumn<String> get prompt =>
       $composableBuilder(column: $table.prompt, builder: (column) => column);
+
+  GeneratedColumn<String> get model =>
+      $composableBuilder(column: $table.model, builder: (column) => column);
+
+  GeneratedColumn<int> get maxTokens =>
+      $composableBuilder(column: $table.maxTokens, builder: (column) => column);
+
+  GeneratedColumn<double> get temperature => $composableBuilder(
+    column: $table.temperature,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get batchSize =>
       $composableBuilder(column: $table.batchSize, builder: (column) => column);
@@ -3291,6 +3491,9 @@ class $$SavedBenchmarksTableTableManager
                 Value<String?> machineName = const Value.absent(),
                 Value<String> command = const Value.absent(),
                 Value<String> prompt = const Value.absent(),
+                Value<String?> model = const Value.absent(),
+                Value<int?> maxTokens = const Value.absent(),
+                Value<double?> temperature = const Value.absent(),
                 Value<int> batchSize = const Value.absent(),
                 Value<double> aggregateTokensPerSecond = const Value.absent(),
                 Value<int> completed = const Value.absent(),
@@ -3307,6 +3510,9 @@ class $$SavedBenchmarksTableTableManager
                 machineName: machineName,
                 command: command,
                 prompt: prompt,
+                model: model,
+                maxTokens: maxTokens,
+                temperature: temperature,
                 batchSize: batchSize,
                 aggregateTokensPerSecond: aggregateTokensPerSecond,
                 completed: completed,
@@ -3325,6 +3531,9 @@ class $$SavedBenchmarksTableTableManager
                 Value<String?> machineName = const Value.absent(),
                 Value<String> command = const Value.absent(),
                 required String prompt,
+                Value<String?> model = const Value.absent(),
+                Value<int?> maxTokens = const Value.absent(),
+                Value<double?> temperature = const Value.absent(),
                 required int batchSize,
                 required double aggregateTokensPerSecond,
                 required int completed,
@@ -3341,6 +3550,9 @@ class $$SavedBenchmarksTableTableManager
                 machineName: machineName,
                 command: command,
                 prompt: prompt,
+                model: model,
+                maxTokens: maxTokens,
+                temperature: temperature,
                 batchSize: batchSize,
                 aggregateTokensPerSecond: aggregateTokensPerSecond,
                 completed: completed,

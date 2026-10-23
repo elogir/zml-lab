@@ -21,12 +21,13 @@ class DriftSavedBenchmarkRepository implements SavedBenchmarkRepository {
   final AppDatabase _db;
 
   @override
-  Stream<List<SavedBenchmark>> watchBenchmarks() => (_db.select(
-    _db.savedBenchmarks,
-  )..orderBy([
-    (t) =>
-        OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
-  ])).watch().map((rows) => rows.map((r) => r.toModel()).toList());
+  Stream<List<SavedBenchmark>> watchBenchmarks() =>
+      (_db.select(_db.savedBenchmarks)..orderBy([
+            (t) =>
+                OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+          ]))
+          .watch()
+          .map((rows) => rows.map((r) => r.toModel()).toList());
 
   @override
   Future<void> save(SavedBenchmark b) => _db
@@ -39,6 +40,9 @@ class DriftSavedBenchmarkRepository implements SavedBenchmarkRepository {
           machineName: Value(b.machineName),
           command: Value(b.command),
           prompt: b.prompt,
+          model: Value(b.model),
+          maxTokens: Value(b.maxTokens),
+          temperature: Value(b.temperature),
           batchSize: b.batchSize,
           aggregateTokensPerSecond: b.aggregateTokensPerSecond,
           completed: b.completed,

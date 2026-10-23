@@ -32,7 +32,10 @@ Future<void> showSaveBenchmarkDialog(
         defaultName: defaultName,
       ),
       transitionsBuilder: (context, anim, _, child) {
-        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
+        final curved = CurvedAnimation(
+          parent: anim,
+          curve: Curves.easeOutCubic,
+        );
         return FadeTransition(
           opacity: curved,
           child: ScaleTransition(
@@ -89,6 +92,9 @@ class _SaveDialogState extends ConsumerState<_SaveDialog> {
             machineName: widget.machineName,
             command: widget.command,
             prompt: run.prompt,
+            model: run.model,
+            maxTokens: run.maxTokens,
+            temperature: run.temperature,
             batchSize: run.requests.length,
             aggregateTokensPerSecond: run.aggregateTokensPerSecond,
             completed: run.completed,

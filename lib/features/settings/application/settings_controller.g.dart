@@ -54,7 +54,7 @@ final class SettingsControllerProvider
 }
 
 String _$settingsControllerHash() =>
-    r'e3569d11f5255ed04132c63d580734dedc2de531';
+    r'effa6f2b12dccdcd79005ffa2575a60c237454e1';
 
 /// The live app settings. Starts from built-in defaults; [load] (called once
 /// at startup, before the first frame) patches in whatever was persisted.

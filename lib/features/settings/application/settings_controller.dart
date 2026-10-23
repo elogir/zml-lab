@@ -36,18 +36,16 @@ class SettingsController extends _$SettingsController {
             SettingsLimits.maxTerminalFont,
           ) ??
           def.terminalFontSize,
-      terminalOptionAsMeta:
-          switch (raw['terminalOptionAsMeta']) {
-            'true' => true,
-            'false' => false,
-            _ => def.terminalOptionAsMeta,
-          },
-      blurHost:
-          switch (raw['blurHost']) {
-            'true' => true,
-            'false' => false,
-            _ => def.blurHost,
-          },
+      terminalOptionAsMeta: switch (raw['terminalOptionAsMeta']) {
+        'true' => true,
+        'false' => false,
+        _ => def.terminalOptionAsMeta,
+      },
+      blurHost: switch (raw['blurHost']) {
+        'true' => true,
+        'false' => false,
+        _ => def.blurHost,
+      },
       benchPrompt: raw['benchPrompt'] ?? def.benchPrompt,
       benchBatchSize: switch (i('benchBatchSize')) {
         null => def.benchBatchSize,
@@ -56,6 +54,7 @@ class SettingsController extends _$SettingsController {
       benchMaxTokens: i('benchMaxTokens'),
       benchTemperature: d('benchTemperature')?.clamp(0.0, 2.0),
       benchModel: raw['benchModel'] ?? def.benchModel,
+      benchCopyTemplate: raw['benchCopyTemplate'] ?? def.benchCopyTemplate,
       perfToolDir: raw['perfToolDir'] ?? def.perfToolDir,
       perfDatasetPath: raw['perfDatasetPath'] ?? def.perfDatasetPath,
       perfDuckdbCommand: raw['perfDuckdbCommand'] ?? def.perfDuckdbCommand,
@@ -112,7 +111,9 @@ class SettingsController extends _$SettingsController {
   void setBenchMaxTokens(int? tokens) {
     final v = tokens == null || tokens < 1 ? null : tokens;
     state = state.copyWith(benchMaxTokens: v);
-    v == null ? _repo.remove('benchMaxTokens') : _repo.put('benchMaxTokens', '$v');
+    v == null
+        ? _repo.remove('benchMaxTokens')
+        : _repo.put('benchMaxTokens', '$v');
   }
 
   void setBenchTemperature(double? temperature) {
@@ -128,6 +129,17 @@ class SettingsController extends _$SettingsController {
     final v = model.trim();
     state = state.copyWith(benchModel: v);
     v.isEmpty ? _repo.remove('benchModel') : _repo.put('benchModel', v);
+  }
+
+  /// Stored verbatim (whitespace is part of the format). Empty = back to the
+  /// default.
+  void setBenchCopyTemplate(String template) {
+    state = state.copyWith(
+      benchCopyTemplate: template.isEmpty ? defaultResultTemplate : template,
+    );
+    template.isEmpty
+        ? _repo.remove('benchCopyTemplate')
+        : _repo.put('benchCopyTemplate', template);
   }
 
   void setPerfToolDir(String dir) {

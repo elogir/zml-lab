@@ -17,6 +17,15 @@ const defaultBenchmarkPrompt =
     'Summarize the tradeoffs between tensor and pipeline parallelism '
     'for large models.';
 
+/// What "Copy results" fills in until the user writes their own (Slack
+/// markdown). Placeholders are listed in `result_template.dart`.
+const defaultResultTemplate =
+    '*{model}* on {machine}, batch {batch}\n'
+    '• Aggregate: *{aggregate_tps} tok/s*\n'
+    '• Per request: {avg_tps} tok/s\n'
+    '• TTFT: {ttft_ms} ms median, {ttft_p90_ms} ms p90\n'
+    '• {ok}/{batch} ok in {elapsed_s} s';
+
 /// How the app picks its palette.
 enum AppThemeMode {
   system,
@@ -62,6 +71,10 @@ abstract class AppSettings with _$AppSettings {
     /// Model name sent in benchmark requests (vLLM requires the real one;
     /// llmd ignores it). Empty = send `zml_model`.
     @Default('') String benchModel,
+
+    /// The text "Copy results" puts on the clipboard, with `{placeholders}`
+    /// filled from the run — so each person can match their team's format.
+    @Default(defaultResultTemplate) String benchCopyTemplate,
 
     // Perf benchmark (Go benchmarker) integration.
     @Default(defaultPerfToolDir) String perfToolDir,
