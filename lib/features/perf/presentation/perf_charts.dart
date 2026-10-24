@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/chart_trackball.dart';
 import '../../../models/perf_report.dart';
 
 /// Chart styling shared with the chat-benchmark charts: flat area fills,
@@ -129,56 +130,51 @@ class PerfSeriesChart extends StatelessWidget {
     }
     final label = context.text.monoSmall.copyWith(color: c.textFaint);
     final maxSec = series.last.elapsedMs / 1000.0;
-    return SfCartesianChart(
-      backgroundColor: const Color(0x00000000),
-      plotAreaBorderWidth: 0,
-      margin: EdgeInsets.zero,
-      primaryXAxis: NumericAxis(
-        minimum: 0,
-        interval: _niceStep(maxSec),
-        labelFormat: '{value}s',
-        labelStyle: label,
-        axisLine: AxisLine(width: 0.5, color: c.borderMuted),
-        majorTickLines: const MajorTickLines(size: 0),
-        majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
-      ),
-      primaryYAxis: NumericAxis(
-        labelStyle: label,
-        axisLine: const AxisLine(width: 0),
-        majorTickLines: const MajorTickLines(size: 0),
-        majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
-      ),
-      trackballBehavior: TrackballBehavior(
-        enable: true,
-        activationMode: ActivationMode.singleTap,
-        lineColor: c.borderStrong,
-        tooltipSettings: InteractiveTooltip(
-          color: c.surface,
-          textStyle: context.text.monoSmall.copyWith(color: c.textPrimary),
-          borderColor: c.borderStrong,
-          borderWidth: 1,
+    return ChartTrackball(
+      builder: (context, trackball) => SfCartesianChart(
+        backgroundColor: const Color(0x00000000),
+        plotAreaBorderWidth: 0,
+        margin: EdgeInsets.zero,
+        primaryXAxis: NumericAxis(
+          minimum: 0,
+          interval: _niceStep(maxSec),
+          labelFormat: '{value}s',
+          labelStyle: label,
+          axisLine: AxisLine(width: 0.5, color: c.borderMuted),
+          majorTickLines: const MajorTickLines(size: 0),
+          majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
         ),
+        primaryYAxis: NumericAxis(
+          labelStyle: label,
+          axisLine: const AxisLine(width: 0),
+          majorTickLines: const MajorTickLines(size: 0),
+          majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
+        ),
+        trackballBehavior: trackball,
+        // No animation: shown as is, live or finished (see ChartTrackball).
+        series: <CartesianSeries<PerfSeriesPoint, double>>[
+          if (stepped)
+            StepAreaSeries<PerfSeriesPoint, double>(
+              dataSource: series,
+              xValueMapper: (s, _) => s.elapsedMs / 1000.0,
+              yValueMapper: (s, _) => value(s),
+              color: color.withValues(alpha: 0.14),
+              borderColor: color,
+              borderWidth: 2,
+              animationDuration: 0,
+            )
+          else
+            AreaSeries<PerfSeriesPoint, double>(
+              dataSource: series,
+              xValueMapper: (s, _) => s.elapsedMs / 1000.0,
+              yValueMapper: (s, _) => value(s),
+              color: color.withValues(alpha: 0.14),
+              borderColor: color,
+              borderWidth: 2,
+              animationDuration: 0,
+            ),
+        ],
       ),
-      series: <CartesianSeries<PerfSeriesPoint, double>>[
-        if (stepped)
-          StepAreaSeries<PerfSeriesPoint, double>(
-            dataSource: series,
-            xValueMapper: (s, _) => s.elapsedMs / 1000.0,
-            yValueMapper: (s, _) => value(s),
-            color: color.withValues(alpha: 0.14),
-            borderColor: color,
-            borderWidth: 2,
-          )
-        else
-          AreaSeries<PerfSeriesPoint, double>(
-            dataSource: series,
-            xValueMapper: (s, _) => s.elapsedMs / 1000.0,
-            yValueMapper: (s, _) => value(s),
-            color: color.withValues(alpha: 0.14),
-            borderColor: color,
-            borderWidth: 2,
-          ),
-      ],
     );
   }
 }
@@ -212,50 +208,41 @@ class PerfHistogramChart extends StatelessWidget {
     final c = context.colors;
     final bins = _bins;
     if (bins.isEmpty) {
-      return Center(
-        child: Text('No data', style: context.text.smallMuted),
-      );
+      return Center(child: Text('No data', style: context.text.smallMuted));
     }
     final label = context.text.monoSmall.copyWith(color: c.textFaint);
-    return SfCartesianChart(
-      backgroundColor: const Color(0x00000000),
-      plotAreaBorderWidth: 0,
-      margin: EdgeInsets.zero,
-      primaryXAxis: NumericAxis(
-        labelFormat: '{value}ms',
-        labelStyle: label,
-        axisLine: AxisLine(width: 0.5, color: c.borderMuted),
-        majorTickLines: const MajorTickLines(size: 0),
-        majorGridLines: const MajorGridLines(width: 0),
-      ),
-      primaryYAxis: NumericAxis(
-        labelStyle: label,
-        axisLine: const AxisLine(width: 0),
-        majorTickLines: const MajorTickLines(size: 0),
-        majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
-      ),
-      trackballBehavior: TrackballBehavior(
-        enable: true,
-        activationMode: ActivationMode.singleTap,
-        lineColor: c.borderStrong,
-        tooltipSettings: InteractiveTooltip(
-          color: c.surface,
-          textStyle: context.text.monoSmall.copyWith(color: c.textPrimary),
-          borderColor: c.borderStrong,
-          borderWidth: 1,
+    return ChartTrackball(
+      builder: (context, trackball) => SfCartesianChart(
+        backgroundColor: const Color(0x00000000),
+        plotAreaBorderWidth: 0,
+        margin: EdgeInsets.zero,
+        primaryXAxis: NumericAxis(
+          labelFormat: '{value}ms',
+          labelStyle: label,
+          axisLine: AxisLine(width: 0.5, color: c.borderMuted),
+          majorTickLines: const MajorTickLines(size: 0),
+          majorGridLines: const MajorGridLines(width: 0),
         ),
-      ),
-      series: <CartesianSeries<_Bin, double>>[
-        ColumnSeries<_Bin, double>(
-          dataSource: bins,
-          xValueMapper: (b, _) => b.x,
-          yValueMapper: (b, _) => b.count,
-          color: color.withValues(alpha: 0.45),
-          borderColor: color,
-          borderWidth: 1,
-          width: 0.92,
+        primaryYAxis: NumericAxis(
+          labelStyle: label,
+          axisLine: const AxisLine(width: 0),
+          majorTickLines: const MajorTickLines(size: 0),
+          majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
         ),
-      ],
+        trackballBehavior: trackball,
+        series: <CartesianSeries<_Bin, double>>[
+          ColumnSeries<_Bin, double>(
+            dataSource: bins,
+            xValueMapper: (b, _) => b.x,
+            yValueMapper: (b, _) => b.count,
+            color: color.withValues(alpha: 0.45),
+            borderColor: color,
+            borderWidth: 1,
+            width: 0.92,
+            animationDuration: 0,
+          ),
+        ],
+      ),
     );
   }
 }

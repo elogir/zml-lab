@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/chart_trackball.dart';
 import '../../../models/benchmark.dart';
 
 /// A whole-number-ish axis step giving ~5 ticks over a [maxSec]-long run, so
@@ -124,49 +125,43 @@ class _ThroughputChart extends StatelessWidget {
     }
     final label = context.text.monoSmall.copyWith(color: c.textFaint);
     final maxSec = samples.last.elapsedMs / 1000.0;
-    return SfCartesianChart(
-      backgroundColor: const Color(0x00000000),
-      plotAreaBorderWidth: 0,
-      margin: EdgeInsets.zero,
-      primaryXAxis: NumericAxis(
-        // Start at 0 with a whole-number interval so labels read 0s, 1s, 2s…
-        // rather than the axis's data-driven 0.11s / 0.61s.
-        minimum: 0,
-        interval: _niceStep(maxSec),
-        labelFormat: '{value}s',
-        labelStyle: label,
-        axisLine: AxisLine(width: 0.5, color: c.borderMuted),
-        majorTickLines: const MajorTickLines(size: 0),
-        majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
-      ),
-      primaryYAxis: NumericAxis(
-        labelStyle: label,
-        axisLine: const AxisLine(width: 0),
-        majorTickLines: const MajorTickLines(size: 0),
-        majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
-      ),
-      trackballBehavior: TrackballBehavior(
-        enable: true,
-        activationMode: ActivationMode.singleTap,
-        lineColor: c.borderStrong,
-        tooltipSettings: InteractiveTooltip(
-          color: c.surface,
-          textStyle: context.text.monoSmall.copyWith(color: c.textPrimary),
-          borderColor: c.borderStrong,
-          borderWidth: 1,
+    return ChartTrackball(
+      builder: (context, trackball) => SfCartesianChart(
+        backgroundColor: const Color(0x00000000),
+        plotAreaBorderWidth: 0,
+        margin: EdgeInsets.zero,
+        primaryXAxis: NumericAxis(
+          // Start at 0 with a whole-number interval so labels read 0s, 1s,
+          // 2s… rather than the axis's data-driven 0.11s / 0.61s.
+          minimum: 0,
+          interval: _niceStep(maxSec),
+          labelFormat: '{value}s',
+          labelStyle: label,
+          axisLine: AxisLine(width: 0.5, color: c.borderMuted),
+          majorTickLines: const MajorTickLines(size: 0),
+          majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
         ),
-      ),
-      series: <CartesianSeries<BenchmarkSample, double>>[
-        AreaSeries<BenchmarkSample, double>(
-          dataSource: samples,
-          xValueMapper: (s, _) => s.elapsedMs / 1000.0,
-          yValueMapper: (s, _) => value(s),
-          name: 'tok/s',
-          color: color.withValues(alpha: 0.14),
-          borderColor: color,
-          borderWidth: 2,
+        primaryYAxis: NumericAxis(
+          labelStyle: label,
+          axisLine: const AxisLine(width: 0),
+          majorTickLines: const MajorTickLines(size: 0),
+          majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
         ),
-      ],
+        trackballBehavior: trackball,
+        series: <CartesianSeries<BenchmarkSample, double>>[
+          AreaSeries<BenchmarkSample, double>(
+            dataSource: samples,
+            xValueMapper: (s, _) => s.elapsedMs / 1000.0,
+            yValueMapper: (s, _) => value(s),
+            name: 'tok/s',
+            color: color.withValues(alpha: 0.14),
+            borderColor: color,
+            borderWidth: 2,
+            // Live and readable (see ChartTrackball).
+            animationDuration: 0,
+          ),
+        ],
+      ),
     );
   }
 }
