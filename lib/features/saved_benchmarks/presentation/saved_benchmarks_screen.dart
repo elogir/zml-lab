@@ -10,6 +10,7 @@ import '../../../models/perf_report.dart';
 import '../../../models/saved_benchmark.dart';
 import '../../../repositories/perf_report_repository.dart';
 import '../../../repositories/saved_benchmark_repository.dart';
+import '../../perf/domain/run_recorder.dart';
 import '../../perf/presentation/perf_report_detail.dart';
 import '../application/saved_benchmarks_providers.dart';
 import 'saved_benchmark_detail.dart';
@@ -142,7 +143,10 @@ class _PerfReportCard extends ConsumerWidget {
 
     return AppCard(
       onTap: () => showPerfReportDetail(context, r),
-      onDelete: () => ref.read(perfReportRepositoryProvider).delete(r.id),
+      onDelete: () {
+        ref.read(perfReportRepositoryProvider).delete(r.id);
+        deleteRun(r.id);
+      },
       topRight: Text(formatAgo(r.createdAt), style: context.text.smallMuted),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

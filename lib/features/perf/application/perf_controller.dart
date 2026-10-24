@@ -157,6 +157,9 @@ class PerfController extends _$PerfController {
   List<ChipReading> _chipsSeen = const [];
   String? _serverVersion;
 
+  /// Runs saved as reports: their recordings stay when the run is cleared.
+  final _savedRunIds = <String>{};
+
   /// How often zml-smi is sampled (it refreshes every 500 ms by default).
   static const chipIntervalMs = 500;
 
@@ -214,6 +217,11 @@ class PerfController extends _$PerfController {
     String? hardware,
   }) async {
     if (state.phase.isActive) return;
+    // A new run replaces an unsaved one, recording included.
+    final previous = state.report;
+    if (previous != null && !_savedRunIds.contains(previous.id)) {
+      unawaited(deleteRun(previous.id));
+    }
     final seq = ++_runSeq;
     final params = state.params;
     _jobName = jobName;
@@ -379,7 +387,9 @@ class PerfController extends _$PerfController {
       final path = await spool.finish(_autoMeta(report));
       if (seq != _runSeq || state.report?.id != report.id) {
         // Discarded (or another run started) while it was being written.
-        if (path != null && !state.saved) await deleteRun(report.id);
+        if (path != null && !_savedRunIds.contains(report.id)) {
+          await deleteRun(report.id);
+        }
         return;
       }
       state = state.copyWith(runFile: path);
@@ -590,6 +600,7 @@ class PerfController extends _$PerfController {
     final report = state.report;
     if (report == null) return;
     final toSave = report.copyWith(name: name);
+    _savedRunIds.add(report.id);
     await ref.read(perfReportRepositoryProvider).save(toSave);
     if (state.report?.id == report.id) {
       state = state.copyWith(report: toSave, saved: true);
@@ -601,7 +612,9 @@ class PerfController extends _$PerfController {
   void discard() {
     if (state.phase.isActive) return;
     final report = state.report;
-    if (report != null && !state.saved) unawaited(deleteRun(report.id));
+    if (report != null && !_savedRunIds.contains(report.id)) {
+      unawaited(deleteRun(report.id));
+    }
     state = state.copyWith(
       phase: PerfPhase.idle,
       message: null,

@@ -8,6 +8,8 @@ import '../../../models/perf_report.dart';
 import '../../../repositories/perf_report_repository.dart';
 import '../domain/bench_runner.dart';
 import '../domain/report_text.dart';
+import '../domain/run_recorder.dart';
+import 'export_run_dialog.dart';
 import 'perf_report_view.dart';
 
 /// Opens a saved perf report as a popup over the current screen (same pattern
@@ -65,6 +67,19 @@ class _DetailViewState extends ConsumerState<_DetailView> {
       _editingName = false;
     });
     ref.read(perfReportRepositoryProvider).save(updated);
+  }
+
+  /// The run's recording, for reports recorded since runs are kept (older
+  /// ones only have their CSV).
+  late final String? _runFile = runFileExists(_report.id)
+      ? runFilePath(_report.id)
+      : null;
+
+  Future<void> _exportRun() async {
+    final dest = await showExportRunDialog(context, runFile: _runFile!);
+    if (dest == null) return;
+    await revealInFinder(dest);
+    if (mounted) setState(() => _exportedTo = dest);
   }
 
   Future<void> _export() async {
@@ -140,9 +155,8 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                                       AppIconButton(
                                         icon: AppIcons.edit,
                                         size: 13,
-                                        onPressed: () => setState(
-                                          () => _editingName = true,
-                                        ),
+                                        onPressed: () =>
+                                            setState(() => _editingName = true),
                                       ),
                                     ],
                                   ),
@@ -187,10 +201,10 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     AppButton(
-                      label: 'Export CSV',
+                      label: _runFile != null ? 'Export run…' : 'Export CSV',
                       icon: AppIcons.download,
                       dense: true,
-                      onPressed: _export,
+                      onPressed: _runFile != null ? _exportRun : _export,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     AppIconButton(

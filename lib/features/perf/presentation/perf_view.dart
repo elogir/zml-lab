@@ -12,7 +12,7 @@ import '../../settings/application/settings_controller.dart';
 import '../application/sharegpt_dataset.dart';
 import '../domain/bench_runner.dart';
 import '../domain/sharegpt.dart';
-import '../domain/report_text.dart';
+import 'export_run_dialog.dart';
 import 'perf_charts.dart';
 import 'perf_report_view.dart';
 import 'save_perf_report_dialog.dart';
@@ -140,22 +140,11 @@ class _PerfViewState extends ConsumerState<PerfView> {
         .setPerfDatasetPath('$dir/${ShareGpt.fileName}');
   }
 
-  Future<void> _export(PerfReport report) async {
-    final stamp = report.createdAt;
-    final name =
-        '${report.name} '
-        '${stamp.year}-${stamp.month.toString().padLeft(2, '0')}-'
-        '${stamp.day.toString().padLeft(2, '0')}';
-    try {
-      final dest = await exportTextFile(
-        content: perfReportCsv(report),
-        name: name,
-      );
-      await revealInFinder(dest);
-      if (mounted) setState(() => _exportedTo = dest);
-    } catch (e) {
-      if (mounted) setState(() => _exportedTo = 'export failed: $e');
-    }
+  Future<void> _export(String runFile) async {
+    final dest = await showExportRunDialog(context, runFile: runFile);
+    if (dest == null) return;
+    await revealInFinder(dest);
+    if (mounted) setState(() => _exportedTo = dest);
   }
 
   @override
@@ -219,8 +208,9 @@ class _PerfViewState extends ConsumerState<PerfView> {
                           : '${widget.jobName} · ${widget.jobDescription.trim()}',
                     )
                   : null,
-              onExport: run.phase == PerfPhase.done && report != null
-                  ? () => _export(report)
+              // Once the recording is written (a moment after the run ends).
+              onExport: run.phase == PerfPhase.done && run.runFile != null
+                  ? () => _export(run.runFile!)
                   : null,
               onDiscard:
                   run.phase == PerfPhase.done || run.phase == PerfPhase.failed
@@ -693,7 +683,7 @@ class _StatusBar extends StatelessWidget {
           AsyncCopyButton(textBuilder: copyText!, label: 'Copy results'),
         if (onExport != null)
           AppButton(
-            label: 'Export CSV',
+            label: 'Export run…',
             icon: AppIcons.download,
             dense: true,
             onPressed: onExport,
