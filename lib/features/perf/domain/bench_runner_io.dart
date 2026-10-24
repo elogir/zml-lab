@@ -13,6 +13,17 @@ String expandUserPath(String path) {
   return path;
 }
 
+bool directoryExists(String path) => Directory(path).existsSync();
+
+/// The home directory written back as `~`, for display.
+String abbreviateUserPath(String path) {
+  final home = Platform.environment['HOME'];
+  if (home == null || home.isEmpty) return path;
+  if (path == home) return '~';
+  if (path.startsWith('$home/')) return '~${path.substring(home.length)}';
+  return path;
+}
+
 /// Why the ShareGPT dataset at [datasetPath] can't be used; null when it's
 /// there.
 Future<String?> datasetProblem(String datasetPath) async =>

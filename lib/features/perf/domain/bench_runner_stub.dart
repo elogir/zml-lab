@@ -3,6 +3,10 @@
 
 String expandUserPath(String path) => path;
 
+String abbreviateUserPath(String path) => path;
+
+bool directoryExists(String path) => false;
+
 Future<String?> datasetProblem(String datasetPath) async =>
     'perf benchmarks need the desktop app';
 

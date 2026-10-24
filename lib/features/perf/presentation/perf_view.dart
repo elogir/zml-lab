@@ -1,3 +1,5 @@
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,8 +8,10 @@ import '../../../core/widgets/widgets.dart';
 import '../../../models/perf_report.dart';
 import '../../../core/shell/app_fullscreen.dart';
 import '../application/perf_controller.dart';
+import '../../settings/application/settings_controller.dart';
 import '../application/sharegpt_dataset.dart';
 import '../domain/bench_runner.dart';
+import '../domain/sharegpt.dart';
 import '../domain/report_text.dart';
 import 'perf_charts.dart';
 import 'perf_report_view.dart';
@@ -95,6 +99,25 @@ class _PerfViewState extends ConsumerState<PerfView> {
       jobCommand: widget.jobCommand,
       machineName: widget.machineName,
     );
+  }
+
+  static String _folderOf(String path) {
+    final slash = path.lastIndexOf('/');
+    return slash <= 0 ? path : path.substring(0, slash);
+  }
+
+  /// Picks where ShareGPT goes (a Finder folder dialog) and saves it as the
+  /// dataset path in Settings — a copy already in that folder is used as is.
+  Future<void> _chooseFolder(DatasetState dataset) async {
+    final current = expandUserPath(_folderOf(dataset.path));
+    final dir = await getDirectoryPath(
+      initialDirectory: directoryExists(current) ? current : null,
+      confirmButtonText: 'Save here',
+    );
+    if (dir == null || !mounted) return;
+    ref
+        .read(settingsControllerProvider.notifier)
+        .setPerfDatasetPath('$dir/${ShareGpt.fileName}');
   }
 
   Future<void> _export(PerfReport report) async {
@@ -203,10 +226,14 @@ class _PerfViewState extends ConsumerState<PerfView> {
           DatasetPhase.checking => const SizedBox.shrink(),
           _ => Center(
             child: SingleChildScrollView(
-              child: ShareGptDownloadCard(
+              child: ShareGptDownload(
                 state: dataset,
+                folder: abbreviateUserPath(
+                  expandUserPath(_folderOf(dataset.path)),
+                ),
                 onDownload: ref.read(shareGptDatasetProvider.notifier).download,
                 onCancel: ref.read(shareGptDatasetProvider.notifier).cancel,
+                onChooseFolder: kIsWeb ? null : () => _chooseFolder(dataset),
               ),
             ),
           ),

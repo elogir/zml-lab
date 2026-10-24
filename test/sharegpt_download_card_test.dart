@@ -8,8 +8,10 @@ import 'package:zml_lab/features/perf/presentation/sharegpt_download_card.dart';
 
 void main() {
   const path = '~/Library/Application Support/ZML-Lab/${ShareGpt.fileName}';
+  const folder = '~/Library/Application Support/ZML-Lab';
 
-  Future<void> show(WidgetTester tester, DatasetState state) async {
+  Future<int> show(WidgetTester tester, DatasetState state) async {
+    var chose = 0;
     // As narrow as the tools get beside the terminal.
     tester.view.physicalSize = const Size(340, 700);
     tester.view.devicePixelRatio = 1;
@@ -20,10 +22,12 @@ void main() {
         child: AppTheme(
           colors: AppColors.dark,
           child: Center(
-            child: ShareGptDownloadCard(
+            child: ShareGptDownload(
               state: state,
+              folder: folder,
               onDownload: () {},
               onCancel: () {},
+              onChooseFolder: () => chose++,
             ),
           ),
         ),
@@ -31,24 +35,26 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 300));
     expect(tester.takeException(), isNull);
+    if (find.text('Change…').evaluate().isNotEmpty) {
+      await tester.tap(find.text('Change…'));
+    }
+    return chose;
   }
 
-  testWidgets('first time: one download button', (tester) async {
-    await show(
+  testWidgets('first time: a button, the size and where it saves', (
+    tester,
+  ) async {
+    final chose = await show(
       tester,
       const DatasetState(phase: DatasetPhase.missing, path: path),
     );
     expect(find.text('Download ShareGPT'), findsOneWidget);
+    expect(find.text('673 MB  ·  to $folder'), findsOneWidget);
+    expect(chose, 1); // Change… opens the folder picker
     expect(find.textContaining('%'), findsNothing);
-    expect(
-      find.text('saved to ~/Library/Application Support/ZML-Lab'),
-      findsOneWidget,
-    );
   });
 
-  testWidgets('downloading: progress, speed, time left, cancel', (
-    tester,
-  ) async {
+  testWidgets('downloading: one line of figures and a cancel', (tester) async {
     await show(
       tester,
       const DatasetState(
@@ -59,10 +65,18 @@ void main() {
         bytesPerSecond: 40e6,
       ),
     );
-    expect(find.text('50%'), findsOneWidget);
-    expect(find.text('40.0 MB/s  ·  9 s left'), findsOneWidget);
-    expect(find.text('336.4 MB of 672.8 MB'), findsOneWidget);
-    expect(find.text('Cancel'), findsOneWidget);
+    expect(
+      find.text('50%  ·  336.4 MB of 672.8 MB  ·  40.0 MB/s  ·  9 s left'),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is AppIconButton && w.icon == AppIcons.close,
+      ),
+      findsOneWidget,
+    );
+    // No folder change mid-download.
+    expect(find.text('Change…'), findsNothing);
   });
 
   testWidgets('interrupted: resume from where it stopped', (tester) async {
@@ -76,7 +90,7 @@ void main() {
       ),
     );
     expect(find.text('Resume download'), findsOneWidget);
-    expect(find.text('14%'), findsOneWidget);
+    expect(find.text('14%  ·  100.0 MB of 672.8 MB'), findsOneWidget);
   });
 
   testWidgets('failed: the reason and a retry', (tester) async {

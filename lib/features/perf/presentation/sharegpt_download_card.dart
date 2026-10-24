@@ -5,167 +5,131 @@ import '../../../core/widgets/widgets.dart';
 import '../application/sharegpt_dataset.dart';
 import '../domain/sharegpt.dart';
 
-/// The Perf tab's first screen until ShareGPT is on disk: what it is, one
-/// button, then live progress (resumable, verified).
-class ShareGptDownloadCard extends StatelessWidget {
-  const ShareGptDownloadCard({
+/// What the Perf tab shows (centred) until ShareGPT is on disk: a download
+/// button and where it saves — then a thin progress bar with one line of
+/// figures. Resumable, verified.
+class ShareGptDownload extends StatelessWidget {
+  const ShareGptDownload({
     super.key,
     required this.state,
+    required this.folder,
     required this.onDownload,
     required this.onCancel,
+    this.onChooseFolder,
   });
 
   final DatasetState state;
+
+  /// Where it saves, as shown (e.g. `~/Library/Application Support/…`).
+  final String folder;
   final VoidCallback onDownload;
   final VoidCallback onCancel;
+
+  /// Opens a folder picker; null where there's none (web).
+  final VoidCallback? onChooseFolder;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final downloading = state.phase == DatasetPhase.downloading;
     final failed = state.phase == DatasetPhase.failed;
-    final partial = state.received > 0;
+    final started = downloading || failed || state.received > 0;
+    final mono = context.text.monoSmall.copyWith(color: c.textMuted);
+    final total = state.total ?? ShareGpt.bytes;
+
+    final destination = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: Text(
+            '${_mb(ShareGpt.bytes, digits: 0)}  ·  to $folder',
+            style: mono.copyWith(color: c.textFaint),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (onChooseFolder != null) ...[
+          const SizedBox(width: AppSpacing.sm),
+          HoverRegion(
+            onTap: onChooseFolder,
+            builder: (context, hovered) => Text(
+              'Change…',
+              style: context.text.small.copyWith(
+                color: hovered ? c.textPrimary : c.accent,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 440),
-      child: AppPanel(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: c.accent.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
+      constraints: const BoxConstraints(maxWidth: 380),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (started) ...[
+            _Bar(
+              fraction: state.fraction ?? 0,
+              color: failed ? c.statusFailed : c.accent,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    failed
+                        ? (state.error ?? 'the download failed')
+                        : [
+                            '${((state.fraction ?? 0) * 100).floor()}%',
+                            '${_mb(state.received)} of ${_mb(total)}',
+                            if (downloading && state.bytesPerSecond != null)
+                              '${_mb(state.bytesPerSecond!.round())}/s',
+                            if (downloading && state.remaining != null)
+                              _left(state.remaining!),
+                          ].join('  ·  '),
+                    style: failed
+                        ? context.text.small.copyWith(color: c.statusFailed)
+                        : mono,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                child: Icon(AppIcons.download, size: 20, color: c.accent),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'ShareGPT dataset',
-              style: context.text.bodyStrong,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'The benchmarker replays ~94k real ChatGPT conversations '
-              'shared on ShareGPT. A one-time '
-              '${_mb(ShareGpt.bytes, digits: 0)} download.',
-              style: context.text.smallMuted,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            if (downloading || partial || failed) ...[
-              _Progress(state: state),
-              const SizedBox(height: AppSpacing.lg),
-            ],
-            if (failed) ...[
-              Text(
-                state.error ?? 'the download failed',
-                style: context.text.small.copyWith(color: c.statusFailed),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.md),
-            ],
-            Center(
-              child: downloading
-                  ? AppButton(
-                      label: 'Cancel',
-                      variant: AppButtonVariant.ghost,
-                      onPressed: onCancel,
-                    )
-                  : AppButton(
-                      label: failed
-                          ? 'Retry'
-                          : partial
-                          ? 'Resume download'
-                          : 'Download ShareGPT',
-                      icon: AppIcons.download,
-                      variant: AppButtonVariant.primary,
-                      onPressed: onDownload,
-                    ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            // The folder (the file name is long and always the same; the
-            // full path is in Settings).
-            Text(
-              'saved to ${state.path.substring(0, state.path.lastIndexOf('/').clamp(0, state.path.length))}',
-              style: context.text.monoSmall.copyWith(color: c.textFaint),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+                if (downloading)
+                  AppIconButton(
+                    icon: AppIcons.close,
+                    size: 13,
+                    padding: const EdgeInsets.all(4),
+                    onPressed: onCancel,
+                  ),
+              ],
             ),
           ],
-        ),
+          if (!downloading) ...[
+            if (started) const SizedBox(height: AppSpacing.lg),
+            Center(
+              child: AppButton(
+                label: failed
+                    ? 'Retry'
+                    : started
+                    ? 'Resume download'
+                    : 'Download ShareGPT',
+                icon: AppIcons.download,
+                variant: AppButtonVariant.primary,
+                onPressed: onDownload,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Center(child: destination),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _Progress extends StatelessWidget {
-  const _Progress({required this.state});
-
-  final DatasetState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final fraction = state.fraction ?? 0;
-    final downloading = state.phase == DatasetPhase.downloading;
-    final speed = state.bytesPerSecond;
-    final remaining = state.remaining;
-    final mono = context.text.monoSmall;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              '${(fraction * 100).floor()}%',
-              style: context.text.mono.copyWith(
-                fontWeight: FontWeight.w600,
-                color: c.textPrimary,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Text(
-                downloading
-                    ? [
-                        if (speed != null) '${_mb(speed.round())}/s',
-                        if (remaining != null) _left(remaining),
-                      ].join('  ·  ')
-                    : '',
-                style: mono.copyWith(color: c.textMuted),
-                textAlign: TextAlign.right,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _Bar(
-          fraction: fraction,
-          color: state.phase == DatasetPhase.failed ? c.statusFailed : c.accent,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          '${_mb(state.received)} of ${_mb(state.total ?? ShareGpt.bytes)}',
-          style: mono.copyWith(color: c.textFaint),
-        ),
-      ],
-    );
-  }
-}
-
-/// A rounded track and fill that glides between updates.
+/// A thin track and fill that glides between updates.
 class _Bar extends StatelessWidget {
   const _Bar({required this.fraction, required this.color});
 
@@ -174,12 +138,11 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(2),
       child: Container(
-        height: 8,
-        color: c.surfaceSelected,
+        height: 4,
+        color: context.colors.borderMuted,
         alignment: Alignment.centerLeft,
         child: TweenAnimationBuilder<double>(
           tween: Tween(end: fraction),
@@ -188,12 +151,7 @@ class _Bar extends StatelessWidget {
           builder: (context, value, _) => FractionallySizedBox(
             widthFactor: value,
             heightFactor: 1,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
+            child: ColoredBox(color: color),
           ),
         ),
       ),
