@@ -18,6 +18,7 @@ Stream<ChatToken> streamChat(
   int? maxTokens,
   double? temperature,
   String model = '',
+  bool ignoreEos = false,
 }) async* {
   // No dart:io on web — benchmarking is native-only.
 }
@@ -44,6 +45,7 @@ Stream<List<ChatBatchDelta>> streamChatBatch(
   int? maxTokens,
   double? temperature,
   String model = '',
+  bool ignoreEos = false,
   Duration interval = const Duration(milliseconds: 50),
 }) {
   final now = DateTime.now().microsecondsSinceEpoch;

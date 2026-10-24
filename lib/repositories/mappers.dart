@@ -100,6 +100,7 @@ extension SavedBenchmarkRowMapper on SavedBenchmarkRow {
     model: model,
     maxTokens: maxTokens,
     temperature: temperature,
+    ignoreEos: ignoreEos,
     batchSize: batchSize,
     aggregateTokensPerSecond: aggregateTokensPerSecond,
     completed: completed,

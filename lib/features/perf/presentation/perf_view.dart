@@ -391,9 +391,24 @@ class _Controls extends StatelessWidget {
       SegmentOption(value: 'all', label: 'All'),
       SegmentOption(value: 'first', label: 'First'),
     ], (v) => onPatch((p) => p.copyWith(mode: v)));
-    final warmup = _WarmupToggle(
+    final warmup = CheckToggle(
+      label: 'Warm-up',
       value: run.params.warmup,
       onChanged: (v) => onPatch((p) => p.copyWith(warmup: v)),
+    );
+    // Every reply runs to the token cap: comparable runs.
+    final ignoreEos = CheckToggle(
+      label: 'Ignore EOS',
+      value: run.params.ignoreEos,
+      onChanged: (v) => onPatch((p) => p.copyWith(ignoreEos: v)),
+    );
+    final toggles = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        warmup,
+        const SizedBox(width: AppSpacing.md),
+        ignoreEos,
+      ],
     );
     // Empty model sends the benchmarker's default name — llmd ignores it,
     // vLLM needs the real one (prefilled from /v1/models).
@@ -404,7 +419,7 @@ class _Controls extends StatelessWidget {
       onChanged: (v) => onPatch((p) => p.copyWith(model: v.trim())),
     );
     // The model field with the run controls beside it at its height:
-    // [withWarmup] puts the warm-up toggle first (when it isn't elsewhere).
+    // [withWarmup] puts the toggles first (when they aren't elsewhere).
     Widget modelAndActions({required bool withWarmup}) => LabeledControl(
       label: 'Model',
       child: FieldWithActions(
@@ -415,7 +430,7 @@ class _Controls extends StatelessWidget {
               ? CrossAxisAlignment.stretch
               : CrossAxisAlignment.center,
           children: [
-            if (withWarmup) ...[warmup, const SizedBox(width: AppSpacing.md)],
+            if (withWarmup) ...[toggles, const SizedBox(width: AppSpacing.md)],
             RunActions(
               label: 'Run benchmark',
               icon: AppIcons.play,
@@ -505,7 +520,7 @@ class _Controls extends StatelessWidget {
               children: [
                 prompts,
                 turns,
-                FieldHeight(child: warmup),
+                FieldHeight(child: toggles),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -522,56 +537,6 @@ class _Controls extends StatelessWidget {
   /// Below this the run controls get their own line (and below
   /// [_twoLineWidth], the choices too).
   static const _twoLineWidth = 600.0;
-}
-
-/// Check toggle for the warm-up request, vertically centred in whatever
-/// height it's given.
-class _WarmupToggle extends StatelessWidget {
-  const _WarmupToggle({required this.value, required this.onChanged});
-
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return HoverRegion(
-      onTap: () => onChanged(!value),
-      builder: (context, hovered) => Align(
-        alignment: Alignment.centerLeft,
-        widthFactor: 1,
-        heightFactor: 1,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: AppDurations.fast,
-              width: 15,
-              height: 15,
-              decoration: BoxDecoration(
-                color: value ? c.accent : const Color(0x00000000),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: value
-                      ? c.accent
-                      : (hovered ? c.borderStrong : c.border),
-                ),
-              ),
-              child: value
-                  ? const Icon(
-                      AppIcons.check,
-                      size: 11,
-                      color: Color(0xFFFFFFFF),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Text('Warm-up', style: context.text.small),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// Live stats while running; save/export actions once done.

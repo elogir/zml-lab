@@ -87,10 +87,21 @@ void main() {
       }
       // No trailing gap: Send ends where the row ends (the settings fill it).
       expect(send.right, closeTo(width, 1));
-      // Send follows the prompt on the one-row layout, the model otherwise;
-      // Batch always starts the settings at the left edge.
+      // Send follows the prompt on the one-row layout, the model otherwise,
+      // with Ignore EOS between them; narrow, Ignore EOS gets a line of its
+      // own above the model. Batch always starts the settings at the left
+      // edge.
       final beforeSend = width >= 1150 ? prompt : model;
-      expect(send.left - beforeSend.right, lessThan(20));
+      final toggle = rect(find.widgetWithText(CheckToggle, 'Ignore EOS').last);
+      if (width >= 600) {
+        expect(toggle.left - beforeSend.right, lessThan(20));
+        expect(send.left - toggle.right, lessThan(20));
+        expect(toggle.center.dy, closeTo(send.center.dy, 1));
+      } else {
+        expect(send.left - beforeSend.right, lessThan(20));
+        expect(toggle.top, greaterThan(batch.bottom));
+        expect(toggle.bottom, lessThan(model.top));
+      }
       expect(batch.left, closeTo(0, 1));
       // Room for a 4-digit batch size beside the dropdown segment (128 px
       // on one line; an equal share of the row when stacked).

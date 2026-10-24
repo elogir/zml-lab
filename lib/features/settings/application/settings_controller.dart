@@ -54,6 +54,7 @@ class SettingsController extends _$SettingsController {
       benchMaxTokens: i('benchMaxTokens'),
       benchTemperature: d('benchTemperature')?.clamp(0.0, 2.0),
       benchModel: raw['benchModel'] ?? def.benchModel,
+      benchIgnoreEos: raw['benchIgnoreEos'] == 'true',
       benchCopyTemplate: raw['benchCopyTemplate'] ?? def.benchCopyTemplate,
       perfDatasetPath: raw['perfDatasetPath'] ?? def.perfDatasetPath,
       perfChipMetricsUrl: raw['perfChipMetricsUrl'] ?? def.perfChipMetricsUrl,
@@ -139,6 +140,11 @@ class SettingsController extends _$SettingsController {
     final v = model.trim();
     state = state.copyWith(benchModel: v);
     v.isEmpty ? _repo.remove('benchModel') : _repo.put('benchModel', v);
+  }
+
+  void setBenchIgnoreEos(bool on) {
+    state = state.copyWith(benchIgnoreEos: on);
+    on ? _repo.put('benchIgnoreEos', 'true') : _repo.remove('benchIgnoreEos');
   }
 
   /// Stored verbatim (whitespace is part of the format). Empty = back to the

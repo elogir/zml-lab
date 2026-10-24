@@ -8,14 +8,17 @@ import 'package:zml_lab/features/benchmark/application/benchmark_controller.dart
 import 'package:zml_lab/models/benchmark.dart';
 
 /// A minimal OpenAI-style streaming endpoint: every request gets [words]
-/// content deltas ("w0 ", "w1 ", …), a stop, then [DONE].
+/// content deltas ("w0 ", "w1 ", …), a stop, then [DONE]. Request bodies go
+/// to [bodies] when given.
 Future<HttpServer> _fakeServer({
   required int words,
   Duration pace = const Duration(milliseconds: 3),
+  List<Map<String, dynamic>>? bodies,
 }) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   server.listen((req) async {
-    await utf8.decoder.bind(req).join();
+    final body = await utf8.decoder.bind(req).join();
+    bodies?.add(jsonDecode(body) as Map<String, dynamic>);
     // Unbuffered, so each delta goes out as written (like a real server).
     final res = req.response
       ..bufferOutput = false
@@ -61,7 +64,9 @@ void main() {
       addTearDown(container.dispose);
       final provider = benchmarkControllerProvider('t');
       final controller = container.read(provider.notifier)..setBatchSize(batch);
-      controller.start(endpoint: ChatEndpoint.hostPort('127.0.0.1', server.port));
+      controller.start(
+        endpoint: ChatEndpoint.hostPort('127.0.0.1', server.port),
+      );
 
       final deadline = DateTime.now().add(const Duration(seconds: 30));
       while (container.read(provider).isRunning &&
@@ -134,6 +139,51 @@ void main() {
         run.requests.where((r) => r.tokens > 10).length,
         greaterThan(batch ~/ 2),
       );
+    });
+  });
+
+  testWidgets('Ignore EOS rides on every request, and only when on', (
+    tester,
+  ) async {
+    final mocked = HttpOverrides.current;
+    HttpOverrides.global = null;
+    addTearDown(() => HttpOverrides.global = mocked);
+
+    await tester.runAsync(() async {
+      final bodies = <Map<String, dynamic>>[];
+      final server = await _fakeServer(words: 3, bodies: bodies);
+      addTearDown(() => server.close(force: true));
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final provider = benchmarkControllerProvider('t');
+      final controller = container.read(provider.notifier)
+        ..setBatchSize(4)
+        ..setMaxTokens(64)
+        ..setIgnoreEos(true);
+      final endpoint = ChatEndpoint.hostPort('127.0.0.1', server.port);
+
+      Future<void> runBatch() async {
+        controller.start(endpoint: endpoint);
+        final deadline = DateTime.now().add(const Duration(seconds: 10));
+        while (container.read(provider).isRunning &&
+            DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+      }
+
+      await runBatch();
+      expect(bodies, hasLength(4));
+      for (final b in bodies) {
+        expect(b['ignore_eos'], isTrue);
+        expect(b['max_tokens'], 64);
+      }
+
+      // Off: not sent at all (hosted APIs reject unknown fields).
+      bodies.clear();
+      controller.setIgnoreEos(false);
+      await runBatch();
+      expect(bodies, hasLength(4));
+      expect(bodies.any((b) => b.containsKey('ignore_eos')), isFalse);
     });
   });
 }

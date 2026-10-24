@@ -333,6 +333,7 @@ class PerfController extends _$PerfController {
     concurrency: p.concurrency,
     durationSeconds: p.durationSeconds,
     maxCompletionTokens: p.maxCompletionTokens,
+    ignoreEos: p.ignoreEos,
     mode: p.mode,
     sequenceType: p.sequenceType,
   );
@@ -461,6 +462,7 @@ class PerfController extends _$PerfController {
         'duration_s': p.durationSeconds,
         'concurrency': p.concurrency,
         'max_completion_tokens': p.maxCompletionTokens,
+        'ignore_eos': p.ignoreEos,
         'prompts': p.sequenceType,
         'turns': p.mode,
         'warmup': p.warmup,

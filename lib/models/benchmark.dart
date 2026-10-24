@@ -117,6 +117,10 @@ abstract class BenchmarkRun with _$BenchmarkRun {
     /// ignores it). Empty = send `zml_model`.
     @Default('') String model,
 
+    /// Generate past EOS up to [maxTokens] (`ignore_eos`; llmd, vLLM,
+    /// SGLang): every reply the same length, for comparable runs.
+    @Default(false) bool ignoreEos,
+
     /// Bumped each time a new batch is started. Chats opened from a request
     /// key their seed to this, so they reset when the run they came from is
     /// replaced.

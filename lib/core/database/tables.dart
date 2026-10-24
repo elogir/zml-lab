@@ -37,6 +37,7 @@ class SavedBenchmarks extends Table {
   TextColumn get model => text().nullable()();
   IntColumn get maxTokens => integer().nullable()();
   RealColumn get temperature => real().nullable()();
+  BoolColumn get ignoreEos => boolean().withDefault(const Constant(false))();
   IntColumn get batchSize => integer()();
   RealColumn get aggregateTokensPerSecond => real()();
   IntColumn get completed => integer()();

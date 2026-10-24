@@ -77,6 +77,9 @@ abstract class AppSettings with _$AppSettings {
     /// llmd ignores it). Empty = send `zml_model`.
     @Default('') String benchModel,
 
+    /// Benchmark requests generate past EOS up to the token cap.
+    @Default(false) bool benchIgnoreEos,
+
     /// The text "Copy results" puts on the clipboard, with `{placeholders}`
     /// filled from the run — so each person can match their team's format.
     @Default(defaultResultTemplate) String benchCopyTemplate,

@@ -164,6 +164,8 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
           maxTokens: _maxTokens,
           temperature: _temperature,
           model: _model,
+          ignoreEos: run.ignoreEos,
+          onIgnoreEosChanged: _controller.setIgnoreEos,
           running: run.isRunning,
           onSend: _send,
           onCancel: _controller.cancel,
@@ -183,7 +185,8 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
         _AggregateBar(run: run, copyText: copyText),
         // Truncation callout — some replies were cut off by a token limit
         // rather than finishing, so the numbers describe clipped responses.
-        if (!run.isRunning && run.truncatedCount > 0) ...[
+        // Not when ignoring EOS: hitting the cap is the point then.
+        if (!run.isRunning && !run.ignoreEos && run.truncatedCount > 0) ...[
           const SizedBox(height: AppSpacing.sm),
           _TruncationNotice(run: run),
         ],
@@ -229,6 +232,8 @@ class _Controls extends StatelessWidget {
     required this.maxTokens,
     required this.temperature,
     required this.model,
+    required this.ignoreEos,
+    required this.onIgnoreEosChanged,
     required this.running,
     required this.onSend,
     required this.onCancel,
@@ -245,6 +250,8 @@ class _Controls extends StatelessWidget {
   final TextEditingController maxTokens;
   final TextEditingController temperature;
   final TextEditingController model;
+  final bool ignoreEos;
+  final ValueChanged<bool> onIgnoreEosChanged;
   final bool running;
   final VoidCallback onSend;
   final VoidCallback onCancel;
@@ -332,26 +339,50 @@ class _Controls extends StatelessWidget {
           placeholder: 'zml_model',
           onChanged: onModelChanged,
         );
-        // [field] with Send (and Stop) beside it at exactly its height.
-        Widget withActions(String label, Widget field) => LabeledControl(
+        // Every reply runs to the token cap: comparable runs.
+        final ignoreEosToggle = CheckToggle(
+          label: 'Ignore EOS',
+          value: ignoreEos,
+          onChanged: onIgnoreEosChanged,
+        );
+        // [field] with Send (and Stop) beside it at exactly its height —
+        // and Ignore EOS before them when [withToggle].
+        Widget withActions(
+          String label,
+          Widget field, {
+          bool withToggle = true,
+        }) => LabeledControl(
           label: label,
           child: FieldWithActions(
             field: field,
-            actions: ({required stretch}) => RunActions(
-              label: 'Send batch',
-              icon: AppIcons.send,
-              running: running,
-              onRun: onSend,
-              onStop: onCancel,
-              stretch: stretch,
+            actions: ({required stretch}) => Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: stretch
+                  ? CrossAxisAlignment.stretch
+                  : CrossAxisAlignment.center,
+              children: [
+                if (withToggle) ...[
+                  ignoreEosToggle,
+                  const SizedBox(width: AppSpacing.md),
+                ],
+                RunActions(
+                  label: 'Send batch',
+                  icon: AppIcons.send,
+                  running: running,
+                  onRun: onSend,
+                  onStop: onCancel,
+                  stretch: stretch,
+                ),
+              ],
             ),
           ),
         );
         // Empty model sends `zml_model` — llmd ignores the name, vLLM
         // requires a real one.
+        // Narrow: Ignore EOS gets its own line, so Send keeps its room.
         final send = Expanded(
           flex: wide ? 5 : 1,
-          child: withActions('Model', modelField),
+          child: withActions('Model', modelField, withToggle: wide),
         );
         // Labels sit above their fields, so fields line up and the
         // button aligns with them at the bottom.
@@ -388,6 +419,11 @@ class _Controls extends StatelessWidget {
               )
             else ...[
               Row(children: numbers),
+              const SizedBox(height: AppSpacing.sm),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FieldHeight(child: ignoreEosToggle),
+              ),
               const SizedBox(height: AppSpacing.sm),
               Row(children: [send]),
             ],

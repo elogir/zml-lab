@@ -34,6 +34,9 @@ abstract class SavedBenchmark with _$SavedBenchmark {
 
     /// Sampling temperature; null = the server's default (or not tracked).
     double? temperature,
+
+    /// Whether the run ignored EOS (replies ran to the token cap).
+    @Default(false) bool ignoreEos,
     required int batchSize,
     required double aggregateTokensPerSecond,
     required int completed,

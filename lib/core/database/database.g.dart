@@ -770,6 +770,21 @@ class $SavedBenchmarksTable extends SavedBenchmarks
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _ignoreEosMeta = const VerificationMeta(
+    'ignoreEos',
+  );
+  @override
+  late final GeneratedColumn<bool> ignoreEos = GeneratedColumn<bool>(
+    'ignore_eos',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("ignore_eos" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _batchSizeMeta = const VerificationMeta(
     'batchSize',
   );
@@ -871,6 +886,7 @@ class $SavedBenchmarksTable extends SavedBenchmarks
     model,
     maxTokens,
     temperature,
+    ignoreEos,
     batchSize,
     aggregateTokensPerSecond,
     completed,
@@ -955,6 +971,12 @@ class $SavedBenchmarksTable extends SavedBenchmarks
           data['temperature']!,
           _temperatureMeta,
         ),
+      );
+    }
+    if (data.containsKey('ignore_eos')) {
+      context.handle(
+        _ignoreEosMeta,
+        ignoreEos.isAcceptableOrUnknown(data['ignore_eos']!, _ignoreEosMeta),
       );
     }
     if (data.containsKey('batch_size')) {
@@ -1074,6 +1096,10 @@ class $SavedBenchmarksTable extends SavedBenchmarks
         DriftSqlType.double,
         data['${effectivePrefix}temperature'],
       ),
+      ignoreEos: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}ignore_eos'],
+      )!,
       batchSize: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}batch_size'],
@@ -1134,6 +1160,7 @@ class SavedBenchmarkRow extends DataClass
   final String? model;
   final int? maxTokens;
   final double? temperature;
+  final bool ignoreEos;
   final int batchSize;
   final double aggregateTokensPerSecond;
   final int completed;
@@ -1156,6 +1183,7 @@ class SavedBenchmarkRow extends DataClass
     this.model,
     this.maxTokens,
     this.temperature,
+    required this.ignoreEos,
     required this.batchSize,
     required this.aggregateTokensPerSecond,
     required this.completed,
@@ -1185,6 +1213,7 @@ class SavedBenchmarkRow extends DataClass
     if (!nullToAbsent || temperature != null) {
       map['temperature'] = Variable<double>(temperature);
     }
+    map['ignore_eos'] = Variable<bool>(ignoreEos);
     map['batch_size'] = Variable<int>(batchSize);
     map['aggregate_tokens_per_second'] = Variable<double>(
       aggregateTokensPerSecond,
@@ -1217,6 +1246,7 @@ class SavedBenchmarkRow extends DataClass
       temperature: temperature == null && nullToAbsent
           ? const Value.absent()
           : Value(temperature),
+      ignoreEos: Value(ignoreEos),
       batchSize: Value(batchSize),
       aggregateTokensPerSecond: Value(aggregateTokensPerSecond),
       completed: Value(completed),
@@ -1243,6 +1273,7 @@ class SavedBenchmarkRow extends DataClass
       model: serializer.fromJson<String?>(json['model']),
       maxTokens: serializer.fromJson<int?>(json['maxTokens']),
       temperature: serializer.fromJson<double?>(json['temperature']),
+      ignoreEos: serializer.fromJson<bool>(json['ignoreEos']),
       batchSize: serializer.fromJson<int>(json['batchSize']),
       aggregateTokensPerSecond: serializer.fromJson<double>(
         json['aggregateTokensPerSecond'],
@@ -1268,6 +1299,7 @@ class SavedBenchmarkRow extends DataClass
       'model': serializer.toJson<String?>(model),
       'maxTokens': serializer.toJson<int?>(maxTokens),
       'temperature': serializer.toJson<double?>(temperature),
+      'ignoreEos': serializer.toJson<bool>(ignoreEos),
       'batchSize': serializer.toJson<int>(batchSize),
       'aggregateTokensPerSecond': serializer.toJson<double>(
         aggregateTokensPerSecond,
@@ -1291,6 +1323,7 @@ class SavedBenchmarkRow extends DataClass
     Value<String?> model = const Value.absent(),
     Value<int?> maxTokens = const Value.absent(),
     Value<double?> temperature = const Value.absent(),
+    bool? ignoreEos,
     int? batchSize,
     double? aggregateTokensPerSecond,
     int? completed,
@@ -1309,6 +1342,7 @@ class SavedBenchmarkRow extends DataClass
     model: model.present ? model.value : this.model,
     maxTokens: maxTokens.present ? maxTokens.value : this.maxTokens,
     temperature: temperature.present ? temperature.value : this.temperature,
+    ignoreEos: ignoreEos ?? this.ignoreEos,
     batchSize: batchSize ?? this.batchSize,
     aggregateTokensPerSecond:
         aggregateTokensPerSecond ?? this.aggregateTokensPerSecond,
@@ -1334,6 +1368,7 @@ class SavedBenchmarkRow extends DataClass
       temperature: data.temperature.present
           ? data.temperature.value
           : this.temperature,
+      ignoreEos: data.ignoreEos.present ? data.ignoreEos.value : this.ignoreEos,
       batchSize: data.batchSize.present ? data.batchSize.value : this.batchSize,
       aggregateTokensPerSecond: data.aggregateTokensPerSecond.present
           ? data.aggregateTokensPerSecond.value
@@ -1365,6 +1400,7 @@ class SavedBenchmarkRow extends DataClass
           ..write('model: $model, ')
           ..write('maxTokens: $maxTokens, ')
           ..write('temperature: $temperature, ')
+          ..write('ignoreEos: $ignoreEos, ')
           ..write('batchSize: $batchSize, ')
           ..write('aggregateTokensPerSecond: $aggregateTokensPerSecond, ')
           ..write('completed: $completed, ')
@@ -1388,6 +1424,7 @@ class SavedBenchmarkRow extends DataClass
     model,
     maxTokens,
     temperature,
+    ignoreEos,
     batchSize,
     aggregateTokensPerSecond,
     completed,
@@ -1410,6 +1447,7 @@ class SavedBenchmarkRow extends DataClass
           other.model == this.model &&
           other.maxTokens == this.maxTokens &&
           other.temperature == this.temperature &&
+          other.ignoreEos == this.ignoreEos &&
           other.batchSize == this.batchSize &&
           other.aggregateTokensPerSecond == this.aggregateTokensPerSecond &&
           other.completed == this.completed &&
@@ -1430,6 +1468,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
   final Value<String?> model;
   final Value<int?> maxTokens;
   final Value<double?> temperature;
+  final Value<bool> ignoreEos;
   final Value<int> batchSize;
   final Value<double> aggregateTokensPerSecond;
   final Value<int> completed;
@@ -1449,6 +1488,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     this.model = const Value.absent(),
     this.maxTokens = const Value.absent(),
     this.temperature = const Value.absent(),
+    this.ignoreEos = const Value.absent(),
     this.batchSize = const Value.absent(),
     this.aggregateTokensPerSecond = const Value.absent(),
     this.completed = const Value.absent(),
@@ -1469,6 +1509,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     this.model = const Value.absent(),
     this.maxTokens = const Value.absent(),
     this.temperature = const Value.absent(),
+    this.ignoreEos = const Value.absent(),
     required int batchSize,
     required double aggregateTokensPerSecond,
     required int completed,
@@ -1498,6 +1539,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     Expression<String>? model,
     Expression<int>? maxTokens,
     Expression<double>? temperature,
+    Expression<bool>? ignoreEos,
     Expression<int>? batchSize,
     Expression<double>? aggregateTokensPerSecond,
     Expression<int>? completed,
@@ -1518,6 +1560,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
       if (model != null) 'model': model,
       if (maxTokens != null) 'max_tokens': maxTokens,
       if (temperature != null) 'temperature': temperature,
+      if (ignoreEos != null) 'ignore_eos': ignoreEos,
       if (batchSize != null) 'batch_size': batchSize,
       if (aggregateTokensPerSecond != null)
         'aggregate_tokens_per_second': aggregateTokensPerSecond,
@@ -1541,6 +1584,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     Value<String?>? model,
     Value<int?>? maxTokens,
     Value<double?>? temperature,
+    Value<bool>? ignoreEos,
     Value<int>? batchSize,
     Value<double>? aggregateTokensPerSecond,
     Value<int>? completed,
@@ -1561,6 +1605,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
       model: model ?? this.model,
       maxTokens: maxTokens ?? this.maxTokens,
       temperature: temperature ?? this.temperature,
+      ignoreEos: ignoreEos ?? this.ignoreEos,
       batchSize: batchSize ?? this.batchSize,
       aggregateTokensPerSecond:
           aggregateTokensPerSecond ?? this.aggregateTokensPerSecond,
@@ -1603,6 +1648,9 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     }
     if (temperature.present) {
       map['temperature'] = Variable<double>(temperature.value);
+    }
+    if (ignoreEos.present) {
+      map['ignore_eos'] = Variable<bool>(ignoreEos.value);
     }
     if (batchSize.present) {
       map['batch_size'] = Variable<int>(batchSize.value);
@@ -1648,6 +1696,7 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
           ..write('model: $model, ')
           ..write('maxTokens: $maxTokens, ')
           ..write('temperature: $temperature, ')
+          ..write('ignoreEos: $ignoreEos, ')
           ..write('batchSize: $batchSize, ')
           ..write('aggregateTokensPerSecond: $aggregateTokensPerSecond, ')
           ..write('completed: $completed, ')
@@ -3314,6 +3363,7 @@ typedef $$SavedBenchmarksTableCreateCompanionBuilder =
       Value<String?> model,
       Value<int?> maxTokens,
       Value<double?> temperature,
+      Value<bool> ignoreEos,
       required int batchSize,
       required double aggregateTokensPerSecond,
       required int completed,
@@ -3335,6 +3385,7 @@ typedef $$SavedBenchmarksTableUpdateCompanionBuilder =
       Value<String?> model,
       Value<int?> maxTokens,
       Value<double?> temperature,
+      Value<bool> ignoreEos,
       Value<int> batchSize,
       Value<double> aggregateTokensPerSecond,
       Value<int> completed,
@@ -3397,6 +3448,11 @@ class $$SavedBenchmarksTableFilterComposer
 
   ColumnFilters<double> get temperature => $composableBuilder(
     column: $table.temperature,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get ignoreEos => $composableBuilder(
+    column: $table.ignoreEos,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3495,6 +3551,11 @@ class $$SavedBenchmarksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get ignoreEos => $composableBuilder(
+    column: $table.ignoreEos,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get batchSize => $composableBuilder(
     column: $table.batchSize,
     builder: (column) => ColumnOrderings(column),
@@ -3576,6 +3637,9 @@ class $$SavedBenchmarksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get ignoreEos =>
+      $composableBuilder(column: $table.ignoreEos, builder: (column) => column);
+
   GeneratedColumn<int> get batchSize =>
       $composableBuilder(column: $table.batchSize, builder: (column) => column);
 
@@ -3655,6 +3719,7 @@ class $$SavedBenchmarksTableTableManager
                 Value<String?> model = const Value.absent(),
                 Value<int?> maxTokens = const Value.absent(),
                 Value<double?> temperature = const Value.absent(),
+                Value<bool> ignoreEos = const Value.absent(),
                 Value<int> batchSize = const Value.absent(),
                 Value<double> aggregateTokensPerSecond = const Value.absent(),
                 Value<int> completed = const Value.absent(),
@@ -3674,6 +3739,7 @@ class $$SavedBenchmarksTableTableManager
                 model: model,
                 maxTokens: maxTokens,
                 temperature: temperature,
+                ignoreEos: ignoreEos,
                 batchSize: batchSize,
                 aggregateTokensPerSecond: aggregateTokensPerSecond,
                 completed: completed,
@@ -3695,6 +3761,7 @@ class $$SavedBenchmarksTableTableManager
                 Value<String?> model = const Value.absent(),
                 Value<int?> maxTokens = const Value.absent(),
                 Value<double?> temperature = const Value.absent(),
+                Value<bool> ignoreEos = const Value.absent(),
                 required int batchSize,
                 required double aggregateTokensPerSecond,
                 required int completed,
@@ -3714,6 +3781,7 @@ class $$SavedBenchmarksTableTableManager
                 model: model,
                 maxTokens: maxTokens,
                 temperature: temperature,
+                ignoreEos: ignoreEos,
                 batchSize: batchSize,
                 aggregateTokensPerSecond: aggregateTokensPerSecond,
                 completed: completed,

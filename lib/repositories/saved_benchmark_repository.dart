@@ -43,6 +43,7 @@ class DriftSavedBenchmarkRepository implements SavedBenchmarkRepository {
           model: Value(b.model),
           maxTokens: Value(b.maxTokens),
           temperature: Value(b.temperature),
+          ignoreEos: Value(b.ignoreEos),
           batchSize: b.batchSize,
           aggregateTokensPerSecond: b.aggregateTokensPerSecond,
           completed: b.completed,

@@ -101,6 +101,7 @@ detect; the rest is entered (or corrected) in the export dialog.
     "duration_s": 30,
     "concurrency": 16,
     "max_completion_tokens": 256,            // null = server default
+    "ignore_eos": false,                     // true: every reply runs to max_completion_tokens
     "prompts": "long",                       // long | short (capped at 512 chars)
     "turns": "all",                          // all | first
     "warmup": true

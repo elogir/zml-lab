@@ -227,7 +227,8 @@ class BenchmarkChatController extends _$BenchmarkChatController {
       }
     }
 
-    // Chat replies follow the run's settings, read fresh per send.
+    // Chat replies follow the run's settings, read fresh per send — except
+    // Ignore EOS: a chat is for reading the model's answers, not past them.
     final run = ref.read(benchmarkControllerProvider(_jobId));
     _sub =
         streamChat(

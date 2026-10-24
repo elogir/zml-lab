@@ -32,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -122,6 +122,14 @@ class AppDatabase extends _$AppDatabase {
               'ALTER TABLE machines DROP COLUMN "$col"',
             );
           }
+        }
+      }
+      if (from < 15) {
+        // Saved runs record whether they ignored EOS.
+        if (!(await _columns(
+          'saved_benchmarks',
+        )).contains(savedBenchmarks.ignoreEos.name)) {
+          await m.addColumn(savedBenchmarks, savedBenchmarks.ignoreEos);
         }
       }
     },

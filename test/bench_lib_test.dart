@@ -19,14 +19,20 @@ import 'package:zml_lab/models/perf_report.dart';
 /// deltas ("w0 ", "w1 ", …) [pace] apart, then a stop and [DONE]. With
 /// [reasoning], they come after an empty role chunk and two thinking chunks
 /// (one as `reasoning_content`, one as `reasoning`), as vLLM streams them.
+/// Request bodies go to [bodies] when given.
 Future<HttpServer> _fakeServer({
   required int words,
   Duration pace = const Duration(milliseconds: 2),
   bool reasoning = false,
+  List<Map<String, dynamic>>? bodies,
 }) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   server.listen((req) async {
-    await utf8.decoder.bind(req).join();
+    final body = await utf8.decoder.bind(req).join();
+    // Chat completions only (the library also probes the server).
+    if (req.method == 'POST' && body.isNotEmpty) {
+      bodies?.add(jsonDecode(body) as Map<String, dynamic>);
+    }
     final res = req.response
       ..bufferOutput = false
       ..headers.contentType = ContentType('text', 'event-stream');
@@ -135,7 +141,12 @@ void main() {
     await real(tester, () async {
       const conversations = 12;
       const words = 20;
-      final server = await _fakeServer(words: words, reasoning: true);
+      final bodies = <Map<String, dynamic>>[];
+      final server = await _fakeServer(
+        words: words,
+        reasoning: true,
+        bodies: bodies,
+      );
       addTearDown(() => server.close(force: true));
 
       final csv = StringBuffer();
@@ -154,6 +165,9 @@ void main() {
 
       expect(summary.error, isNull);
       expect(summary.errors, 0);
+      // Ignore EOS off: not sent at all (hosted APIs reject unknown fields).
+      expect(bodies, isNotEmpty);
+      expect(bodies.any((b) => b.containsKey('ignore_eos')), isFalse);
       expect(logs, contains('Number of conversations: $conversations'));
       expect(logs, contains('Starting 4 workers'));
 
@@ -230,9 +244,11 @@ void main() {
   testWidgets('the perf tab runs the library to a report', (tester) async {
     await real(tester, () async {
       // Slow enough (~3 s) for several zml-smi samples.
+      final bodies = <Map<String, dynamic>>[];
       final server = await _fakeServer(
         words: 20,
         pace: const Duration(milliseconds: 30),
+        bodies: bodies,
       );
       addTearDown(() => server.close(force: true));
       final db = AppDatabase(NativeDatabase.memory());
@@ -284,6 +300,7 @@ void main() {
             durationSeconds: 10,
             concurrency: 4,
             maxCompletionTokens: 32,
+            ignoreEos: true,
             warmup: false,
           ),
         );
@@ -308,6 +325,12 @@ void main() {
       expect(report.tokensPerSecond, greaterThan(0));
       expect(report.cancelled, isFalse);
       expect(run.chips, isTrue);
+      // Ignore EOS reached the server on every request, with the cap.
+      expect(bodies, hasLength(24));
+      for (final b in bodies) {
+        expect(b['ignore_eos'], isTrue);
+        expect(b['max_completion_tokens'], 32);
+      }
       // The chip, summed up over the run (zml-smi said the same each time).
       final chip = report.chips.single;
       expect(chip.name, 'NVIDIA GeForce RTX 4090');
@@ -355,6 +378,7 @@ void main() {
         'interval_ms': 500,
       });
       expect((meta['params'] as Map)['concurrency'], 4);
+      expect((meta['params'] as Map)['ignore_eos'], isTrue);
       expect((meta['summary'] as Map)['requests'], 24);
       expect(
         (meta['summary'] as Map)['joules_per_token'],

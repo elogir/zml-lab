@@ -200,6 +200,7 @@ class PerfParams {
     this.sequenceType = 'long',
     this.mode = 'all',
     this.maxCompletionTokens,
+    this.ignoreEos = false,
     this.model = '',
     this.warmup = true,
   });
@@ -217,6 +218,10 @@ class PerfParams {
   /// own default. Set to cap each request's output.
   final int? maxCompletionTokens;
 
+  /// Generate past EOS up to the token cap: every reply is the same length,
+  /// so runs compare like for like (`ignore_eos`, llmd/vLLM/SGLang).
+  final bool ignoreEos;
+
   /// Model name sent in requests (vLLM requires the real one; llmd ignores it).
   final String model;
 
@@ -231,6 +236,7 @@ class PerfParams {
     String? sequenceType,
     String? mode,
     Object? maxCompletionTokens = _unset,
+    bool? ignoreEos,
     String? model,
     bool? warmup,
   }) => PerfParams(
@@ -241,6 +247,7 @@ class PerfParams {
     maxCompletionTokens: identical(maxCompletionTokens, _unset)
         ? this.maxCompletionTokens
         : maxCompletionTokens as int?,
+    ignoreEos: ignoreEos ?? this.ignoreEos,
     model: model ?? this.model,
     warmup: warmup ?? this.warmup,
   );
@@ -251,6 +258,7 @@ class PerfParams {
     'st': sequenceType,
     'm': mode,
     if (maxCompletionTokens != null) 'mt': maxCompletionTokens,
+    if (ignoreEos) 'ie': true,
     'model': model,
     'w': warmup,
   };
@@ -261,6 +269,7 @@ class PerfParams {
     sequenceType: m['st'] as String? ?? 'long',
     mode: m['m'] as String? ?? 'all',
     maxCompletionTokens: (m['mt'] as num?)?.toInt(),
+    ignoreEos: m['ie'] as bool? ?? false,
     model: m['model'] as String? ?? '',
     warmup: m['w'] as bool? ?? true,
   );
@@ -273,6 +282,7 @@ class PerfParams {
       other.sequenceType == sequenceType &&
       other.mode == mode &&
       other.maxCompletionTokens == maxCompletionTokens &&
+      other.ignoreEos == ignoreEos &&
       other.model == model &&
       other.warmup == warmup;
 
@@ -283,6 +293,7 @@ class PerfParams {
     sequenceType,
     mode,
     maxCompletionTokens,
+    ignoreEos,
     model,
     warmup,
   );

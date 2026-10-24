@@ -95,6 +95,7 @@ class _SaveDialogState extends ConsumerState<_SaveDialog> {
             model: run.model,
             maxTokens: run.maxTokens,
             temperature: run.temperature,
+            ignoreEos: run.ignoreEos,
             batchSize: run.requests.length,
             aggregateTokensPerSecond: run.aggregateTokensPerSecond,
             completed: run.completed,

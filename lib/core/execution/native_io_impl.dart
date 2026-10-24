@@ -30,12 +30,15 @@ typedef ChatToken = ({
 /// sequence length. A null [temperature] leaves sampling at the server default.
 /// An empty [model] sends `zml_model` (llmd ignores the name; vLLM rejects a
 /// request whose model it doesn't serve, so it must be set for those).
+/// [ignoreEos] sends `ignore_eos` — generate past EOS up to [maxTokens]; an
+/// OpenAI-spec extension (llmd, vLLM, SGLang) hosted APIs reject.
 Stream<ChatToken> streamChat(
   ChatEndpoint endpoint,
   List<Map<String, String>> messages, {
   int? maxTokens,
   double? temperature,
   String model = '',
+  bool ignoreEos = false,
 }) async* {
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
   try {
@@ -53,6 +56,7 @@ Stream<ChatToken> streamChat(
           'messages': messages,
           'max_tokens': ?maxTokens,
           'temperature': ?temperature,
+          if (ignoreEos) 'ignore_eos': true,
           'stream': true,
           'stream_options': {
             'include_usage': true,
@@ -194,6 +198,7 @@ Stream<List<ChatBatchDelta>> streamChatBatch(
   int? maxTokens,
   double? temperature,
   String model = '',
+  bool ignoreEos = false,
   Duration interval = const Duration(milliseconds: 50),
 }) {
   final fromWorker = ReceivePort();
@@ -219,6 +224,7 @@ Stream<List<ChatBatchDelta>> streamChatBatch(
           maxTokens,
           temperature,
           model,
+          ignoreEos,
           interval.inMicroseconds,
         ), debugName: 'benchmark batch');
       } catch (e) {
@@ -288,12 +294,22 @@ Future<void> _chatBatchWorker(
     int?,
     double?,
     String,
+    bool,
     int,
   )
   args,
 ) async {
-  final (out, endpoint, messages, count, maxTokens, temperature, model, us) =
-      args;
+  final (
+    out,
+    endpoint,
+    messages,
+    count,
+    maxTokens,
+    temperature,
+    model,
+    ignoreEos,
+    us,
+  ) = args;
   final progress = [for (var i = 1; i <= count; i++) _BatchProgress(i)];
   var remaining = count;
   int now() => DateTime.now().microsecondsSinceEpoch;
@@ -335,6 +351,7 @@ Future<void> _chatBatchWorker(
       maxTokens: maxTokens,
       temperature: temperature,
       model: model,
+      ignoreEos: ignoreEos,
     ).listen(
       (tok) {
         final content = tok.content;

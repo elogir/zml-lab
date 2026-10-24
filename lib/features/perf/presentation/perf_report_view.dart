@@ -137,6 +137,7 @@ class _Headline extends StatelessWidget {
       'mode ${r.params.mode}',
       if (r.params.maxCompletionTokens != null)
         'max ${r.params.maxCompletionTokens} tok',
+      if (r.params.ignoreEos) 'ignore EOS',
     ].join('  ·  ');
     return AppPanel(
       color: c.surfaceMuted,

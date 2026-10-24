@@ -352,3 +352,59 @@ class _PresetRow extends StatelessWidget {
     );
   }
 }
+
+/// A labelled checkbox (Warm-up, Ignore EOS), vertically centred in whatever
+/// height it's given.
+class CheckToggle extends StatelessWidget {
+  const CheckToggle({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return HoverRegion(
+      onTap: () => onChanged(!value),
+      builder: (context, hovered) => Align(
+        alignment: Alignment.centerLeft,
+        widthFactor: 1,
+        heightFactor: 1,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: AppDurations.fast,
+              width: 15,
+              height: 15,
+              decoration: BoxDecoration(
+                color: value ? c.accent : const Color(0x00000000),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: value
+                      ? c.accent
+                      : (hovered ? c.borderStrong : c.border),
+                ),
+              ),
+              child: value
+                  ? const Icon(
+                      AppIcons.check,
+                      size: 11,
+                      color: Color(0xFFFFFFFF),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(label, style: context.text.small, maxLines: 1),
+          ],
+        ),
+      ),
+    );
+  }
+}

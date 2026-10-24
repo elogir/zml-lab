@@ -101,6 +101,7 @@ class BenchmarkController extends _$BenchmarkController {
       maxTokens: s.benchMaxTokens,
       temperature: s.benchTemperature,
       model: s.benchModel,
+      ignoreEos: s.benchIgnoreEos,
     );
   }
 
@@ -146,6 +147,9 @@ class BenchmarkController extends _$BenchmarkController {
   void setTemperature(double? temperature) =>
       state = state.copyWith(temperature: temperature?.clamp(0.0, 2.0));
 
+  /// Replies run to the token cap, past EOS.
+  void setIgnoreEos(bool on) => state = state.copyWith(ignoreEos: on);
+
   /// Fires the batch at [endpoint]'s `/chat/completions`.
   void start({required ChatEndpoint endpoint}) {
     _teardown();
@@ -186,6 +190,7 @@ class BenchmarkController extends _$BenchmarkController {
           maxTokens: state.maxTokens,
           temperature: state.temperature,
           model: state.model,
+          ignoreEos: state.ignoreEos,
           // Token-by-token for a small batch; coarser merges for a big one,
           // whose flushes back off anyway (see [_flushInterval]).
           interval: Duration(milliseconds: n <= 128 ? 16 : 33),

@@ -294,6 +294,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onChanged: _controller.setBenchModel,
                     ),
                   ),
+                  _SettingRow(
+                    title: 'Ignore EOS',
+                    description:
+                        'Every reply runs to the max output tokens, so runs '
+                        'compare like for like. Sends ignore_eos (llmd, vLLM, '
+                        'SGLang).',
+                    control: SegmentedControl<bool>(
+                      value: s.benchIgnoreEos,
+                      onChanged: _controller.setBenchIgnoreEos,
+                      options: const [
+                        SegmentOption(value: true, label: 'On'),
+                        SegmentOption(value: false, label: 'Off'),
+                      ],
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -461,6 +476,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       value: s.perfParams.warmup,
                       onChanged: (v) =>
                           _patchPerf((p) => p.copyWith(warmup: v)),
+                      options: const [
+                        SegmentOption(value: true, label: 'On'),
+                        SegmentOption(value: false, label: 'Off'),
+                      ],
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'Ignore EOS',
+                    description:
+                        'Every reply runs to the max output tokens, so runs '
+                        'compare like for like. Sends ignore_eos (llmd, vLLM, '
+                        'SGLang).',
+                    control: SegmentedControl<bool>(
+                      value: s.perfParams.ignoreEos,
+                      onChanged: (v) =>
+                          _patchPerf((p) => p.copyWith(ignoreEos: v)),
                       options: const [
                         SegmentOption(value: true, label: 'On'),
                         SegmentOption(value: false, label: 'Off'),

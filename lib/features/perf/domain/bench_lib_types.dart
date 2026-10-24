@@ -8,6 +8,7 @@ class BenchLibConfig {
     this.concurrency = 128,
     this.durationSeconds = 0,
     this.maxCompletionTokens,
+    this.ignoreEos = false,
     this.mode = 'all',
     this.sequenceType = 'long',
   });
@@ -25,6 +26,10 @@ class BenchLibConfig {
   /// 0 runs until stopped (or the dataset runs out).
   final int durationSeconds;
   final int? maxCompletionTokens;
+
+  /// Generate past EOS up to [maxCompletionTokens] (sends `ignore_eos`: an
+  /// OpenAI-spec extension llmd, vLLM and SGLang support).
+  final bool ignoreEos;
   final String mode;
   final String sequenceType;
 
@@ -36,6 +41,7 @@ class BenchLibConfig {
     'concurrency': concurrency,
     'duration_s': durationSeconds,
     'max_completion_tokens': ?maxCompletionTokens,
+    if (ignoreEos) 'ignore_eos': true,
     'mode': mode,
     'sequence_type': sequenceType,
   };
