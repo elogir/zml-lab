@@ -210,13 +210,16 @@ void main() {
     tester,
   ) async {
     await real(tester, () async {
+      final bodies = <Map<String, dynamic>>[];
       final server = await _fakeServer(
         words: 10000,
         pace: const Duration(milliseconds: 5),
+        bodies: bodies,
       );
       addTearDown(() => server.close(force: true));
 
       final csv = StringBuffer();
+      // No max tokens: no cap is sent, the server decides.
       final run = startBenchLib(
         BenchLibConfig(
           url: 'http://127.0.0.1:${server.port}/v1/',
@@ -235,6 +238,11 @@ void main() {
       expect(summary.error, isNull);
       // Cancelled requests aren't errors (as with the CLI's Ctrl-C).
       expect(summary.errors, 0);
+      expect(bodies, isNotEmpty);
+      expect(
+        bodies.any((b) => b.containsKey('max_completion_tokens')),
+        isFalse,
+      );
       final events = PerfCsvParser().add(csv.toString());
       expect(events, hasLength(summary.events));
       expect(events.length, greaterThan(100));

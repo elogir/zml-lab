@@ -354,12 +354,12 @@ class _Controls extends StatelessWidget {
         }
       },
     );
-    // Empty = the benchmarker's own default (256). Shared with the Settings
-    // default.
+    // Empty = no cap: the server stops at EOS (or its max sequence length).
+    // Shared with the Settings default.
     final maxTokensField = SettingField(
       label: 'Max tokens',
       controller: maxTokens,
-      placeholder: '256',
+      placeholder: '∞',
       presets: const ['64', '128', '256', '512', '1024', '2048', '4096'],
       onChanged: (v) =>
           onPatch((p) => p.copyWith(maxCompletionTokens: positive(v))),

@@ -417,14 +417,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _SettingRow(
                     title: 'Max output tokens',
                     description:
-                        'Per request. Empty = the benchmarker\'s default '
-                        '(256).',
+                        'Per request. Empty = no cap: the server stops at '
+                        'EOS or its max sequence length.',
                     control: SizedBox(
                       width: 96,
                       child: AppTextField(
                         controller: _perfMaxTokens,
                         mono: true,
-                        placeholder: '256',
+                        placeholder: '∞',
                         onChanged: (v) {
                           final n = int.tryParse(v.trim());
                           _patchPerf(

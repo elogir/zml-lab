@@ -214,8 +214,8 @@ class PerfParams {
   /// 'first' | 'all' — only each conversation's first prompt, or every turn.
   final String mode;
 
-  /// Null = don't pass `--max-completion-tokens`, so the benchmarker uses its
-  /// own default. Set to cap each request's output.
+  /// Null = no cap: the server stops at EOS (or its max sequence length).
+  /// Set to cap each request's output.
   final int? maxCompletionTokens;
 
   /// Generate past EOS up to the token cap: every reply is the same length,
