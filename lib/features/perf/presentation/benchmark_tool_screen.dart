@@ -736,11 +736,6 @@ class _KeyMenuState extends State<_KeyMenu> {
                       onChanged: widget.onChanged,
                       onSubmitted: (_) => _close(),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'Sent as a Bearer token; kept in the macOS Keychain.',
-                      style: context.text.smallMuted,
-                    ),
                     ListenableBuilder(
                       listenable: widget.controller,
                       builder: (context, _) =>
