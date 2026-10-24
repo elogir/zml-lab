@@ -30,9 +30,46 @@ SELECT request_id,
        max(ts_ns)                                                       AS last_ns,
        max(output_tokens)                                               AS output_tokens,
        max(input_tokens)                                                AS input_tokens,
-       bool_or(error <> '')                                             AS failed
+       bool_or(error <> '')                                             AS failed,
+       bool_or(input_tokens > 0 OR error <> '')                         AS ended
 FROM events GROUP BY request_id;
+
+CREATE VIEW points AS
+WITH t AS (SELECT min(request_ts_ns) AS t0 FROM events)
+SELECT range AS i, t0 + (range + 1) * 100000000 AS t_ns
+FROM t, range((SELECT max(greatest(0, (ts_ns - t0) // 100000000)) + 1
+               FROM events, t));
 ''';
+
+// The doc's time series, verbatim.
+const _throughputSeries = '''
+WITH t AS (SELECT min(request_ts_ns) AS t0 FROM events),
+buckets AS (
+  SELECT greatest(0, (ts_ns - t0) // 100000000) AS b, count(*) AS tokens
+  FROM tokens, t GROUP BY 1
+)
+SELECT p.i, (p.i + 1) * 100 AS elapsed_ms,
+       coalesce(sum(b.tokens), 0) / ((p.i - greatest(0, p.i - 9) + 1) * 0.1)
+         AS tokens_per_second
+FROM points p LEFT JOIN buckets b ON b.b BETWEEN greatest(0, p.i - 9) AND p.i
+GROUP BY p.i ORDER BY p.i''';
+
+const _inFlightSeries = '''
+WITH r AS (
+  SELECT sent_ns, first_token_ns, last_ns,
+         ended OR NOT (SELECT bool_or(ended) FROM requests) AS ends_at_last
+  FROM requests
+)
+SELECT p.i, (p.i + 1) * 100 AS elapsed_ms,
+       count(*) FILTER (WHERE r.sent_ns <= p.t_ns
+                          AND (NOT r.ends_at_last OR p.t_ns < r.last_ns))
+         AS in_flight,
+       count(*) FILTER (WHERE r.sent_ns <= p.t_ns
+                          AND (NOT r.ends_at_last OR p.t_ns < r.last_ns)
+                          AND (r.first_token_ns IS NULL OR p.t_ns < r.first_token_ns))
+         AS waiting
+FROM points p, r
+GROUP BY p.i ORDER BY p.i''';
 
 // Each statistic's values, as the doc defines them.
 const _values = {
@@ -179,8 +216,12 @@ void main() {
   }
 
   /// Records [csv] as a run and runs the doc's SQL on it: per statistic
-  /// [avg, min, max, p50, p75, p90, p95, p99, p999], plus throughput.
-  Future<(Map<String, List<double>>, List<double>)> contract(String csv) async {
+  /// [avg, min, max, p50, p75, p90, p95, p99, p999], throughput, and the
+  /// time series as (elapsed ms, tok/s, in flight, waiting) per point.
+  Future<
+    (Map<String, List<double>>, List<double>, List<(int, double, int, int)>)
+  >
+  contract(String csv) async {
     final spool = await RunSpool.create('run');
     spool.addEvents(csv);
     final file = (await spool.finish({'schema_version': 1}))!;
@@ -202,13 +243,25 @@ void main() {
       final throughput = [
         for (final v in await one(_throughput)) (v! as num).toDouble(),
       ];
-      return (stats, throughput);
+      final rates = (await conn.query(_throughputSeries)).fetchAll();
+      final inFlight = (await conn.query(_inFlightSeries)).fetchAll();
+      expect(inFlight, hasLength(rates.length));
+      final series = [
+        for (final (k, rate) in rates.indexed)
+          (
+            (rate[1]! as num).toInt(),
+            (rate[2]! as num).toDouble(),
+            (inFlight[k][2]! as num).toInt(),
+            (inFlight[k][3]! as num).toInt(),
+          ),
+      ];
+      return (stats, throughput, series);
     });
   }
 
   Future<PerfAccumulator> expectParity(String csv) async {
     final acc = PerfAccumulator()..addAll(PerfCsvParser().add(csv));
-    final (want, throughput) = await contract(csv);
+    final (want, throughput, series) = await contract(csv);
     final got = {
       for (final r in acc.statRows())
         r.label: [r.avg, r.min, r.max, ...r.percentiles],
@@ -225,6 +278,16 @@ void main() {
     }
     expect(acc.tokensPerSecond, closeTo(throughput[0], 1e-6));
     expect(acc.requestsPerSecond, closeTo(throughput[1], 1e-6));
+    // The charts' series, point by point.
+    final points = acc.series(includeLast: true);
+    expect(points, hasLength(series.length));
+    for (final (i, (elapsedMs, tps, inFlight, waiting)) in series.indexed) {
+      final p = points[i];
+      expect(p.elapsedMs, elapsedMs, reason: 'point $i');
+      expect(p.tps, closeTo(tps, 1e-9), reason: 'tok/s at point $i');
+      expect(p.active, inFlight, reason: 'in flight at point $i');
+      expect(p.waiting, waiting, reason: 'waiting at point $i');
+    }
     return acc;
   }
 

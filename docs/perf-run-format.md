@@ -139,7 +139,11 @@ SELECT request_id,
        max(ts_ns)                                                       AS last_ns,
        max(output_tokens)                                               AS output_tokens,
        max(input_tokens)                                                AS input_tokens,
-       bool_or(error <> '')                                             AS failed
+       bool_or(error <> '')                                             AS failed,
+       -- Its stream ended: the usage chunk (the only row with prompt
+       -- tokens) or an error came. Requests the run's duration cut off
+       -- never end.
+       bool_or(input_tokens > 0 OR error <> '')                         AS ended
 FROM events GROUP BY request_id;
 
 -- Time to first token, per request.
@@ -196,6 +200,58 @@ The benchmarker's own `duckdb/report.sql` differs: it takes TTFT from
 empty role chunk) and counts every chunk, empty ones included, for ITL and
 throughput. `output_tokens` counts chunks with a choice, so OSL includes the
 role and finish chunks.
+
+## Time series (DuckDB SQL)
+
+The run as ZML-Lab charts it, a point every 100 ms (checked against the
+app's series in `test/perf_contract_test.dart`). Time is measured from `t0`,
+the run's first request; point `i` sits at the end of 100 ms bucket `i`,
+`t0 + (i + 1) × 100 ms`. Buckets run from `t0` to the bucket of the run's
+last event, whatever its kind. While a run streams, the app leaves out the
+newest bucket, which is still filling.
+
+```sql
+CREATE VIEW points AS
+WITH t AS (SELECT min(request_ts_ns) AS t0 FROM events)
+SELECT range AS i, t0 + (range + 1) * 100000000 AS t_ns
+FROM t, range((SELECT max(greatest(0, (ts_ns - t0) // 100000000)) + 1
+               FROM events, t));
+
+-- Throughput: tokens per second over the trailing second (10 buckets;
+-- fewer at the start, averaged over what they cover). Not smoothed beyond
+-- that, so a stall shows.
+WITH t AS (SELECT min(request_ts_ns) AS t0 FROM events),
+buckets AS (
+  SELECT greatest(0, (ts_ns - t0) // 100000000) AS b, count(*) AS tokens
+  FROM tokens, t GROUP BY 1
+)
+SELECT p.i, (p.i + 1) * 100 AS elapsed_ms,
+       coalesce(sum(b.tokens), 0) / ((p.i - greatest(0, p.i - 9) + 1) * 0.1)
+         AS tokens_per_second
+FROM points p LEFT JOIN buckets b ON b.b BETWEEN greatest(0, p.i - 9) AND p.i
+GROUP BY p.i ORDER BY p.i;
+
+-- Requests in flight at each point — sent, stream not ended — and, of those,
+-- the ones still waiting for a first token (queued, or in prefill). A
+-- request that never ended (cut off at the run's end) stays in flight to
+-- the last point. If no request ever ended (a server that reports no
+-- usage), each one ends at its last chunk instead.
+WITH r AS (
+  SELECT sent_ns, first_token_ns, last_ns,
+         ended OR NOT (SELECT bool_or(ended) FROM requests) AS ends_at_last
+  FROM requests
+)
+SELECT p.i, (p.i + 1) * 100 AS elapsed_ms,
+       count(*) FILTER (WHERE r.sent_ns <= p.t_ns
+                          AND (NOT r.ends_at_last OR p.t_ns < r.last_ns))
+         AS in_flight,
+       count(*) FILTER (WHERE r.sent_ns <= p.t_ns
+                          AND (NOT r.ends_at_last OR p.t_ns < r.last_ns)
+                          AND (r.first_token_ns IS NULL OR p.t_ns < r.first_token_ns))
+         AS waiting
+FROM points p, r
+GROUP BY p.i ORDER BY p.i;
+```
 
 ## In ZML-Lab
 
