@@ -47,6 +47,7 @@ void main() {
       'server.commit': 'a1b2c3d',
       'server.version': '',
       'model.name': 'Qwen/Qwen3-8B-FP8',
+      'hardware.description': '1× RTX 4090 (power-capped 300 W)',
       'tags': ' llmd, , fp8 ,',
       'notes': '',
     });
@@ -57,9 +58,9 @@ void main() {
       'tags': ['llmd', 'fp8'],
       'server': {'kind': 'vllm', 'commit': 'a1b2c3d'},
       'model': {'name': 'Qwen/Qwen3-8B-FP8'},
-      // What the dialog doesn't edit (the detected hardware) is kept.
+      // What the dialog doesn't edit (the detected chips) is kept.
       'hardware': {
-        'description': '1× RTX 4090',
+        'description': '1× RTX 4090 (power-capped 300 W)',
         'chips': [
           {'device': 0, 'kind': 'cuda'},
         ],
@@ -133,10 +134,10 @@ void main() {
     expect(text('Server version'), '0.11.0');
     expect(text('Commit'), '');
     expect(text('Tags'), 'a, b');
-    // Not asked: the hardware is shown as recorded.
+    // Prefilled with what was recorded, still editable.
+    expect(text('Hardware'), '1× RTX 4090');
     expect(find.text('Quantization'), findsNothing);
     expect(find.byType(AppTextField), findsNWidgets(runMetaFields.length));
-    expect(find.text('1× RTX 4090'), findsOneWidget);
     expect(find.text('Export'), findsOneWidget);
   }, skip: !File(_libduckdb).existsSync());
 }

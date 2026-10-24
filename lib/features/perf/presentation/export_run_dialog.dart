@@ -5,10 +5,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../domain/run_recorder.dart';
 
-/// "Export run": the run's meta.json, prefilled with what was detected, to
-/// complete (label, server version and commit, notes, tags…); then where to
-/// save the `.zmlrun.parquet`. Resolves to the exported path, or null. The
-/// hardware isn't asked: it's the target machine's, or what zml-smi saw.
+/// "Export run": the run's meta.json, prefilled with what was detected (the
+/// hardware from the target machine or zml-smi), to correct and complete
+/// (label, server version and commit, notes, tags…); then where to save the
+/// `.zmlrun.parquet`. Resolves to the exported path, or null.
 Future<String?> showExportRunDialog(
   BuildContext context, {
   required String runFile,
@@ -24,6 +24,7 @@ const runMetaFields = [
   'model.name',
   'server.version',
   'server.commit',
+  'hardware.description',
   'tags',
   'notes',
 ];
@@ -214,19 +215,14 @@ class _ExportRunDialogState extends State<ExportRunDialog> {
                     placeholder: 'a1b2c3d',
                   ),
                 ),
+                // Prefilled from the target machine, or what zml-smi saw.
+                field(
+                  'Hardware',
+                  'hardware.description',
+                  placeholder: '1× RTX 4090, 64 GB',
+                ),
                 field('Tags', 'tags', placeholder: 'comma-separated'),
                 field('Notes', 'notes', lines: 3),
-                const FieldLabel('Hardware'),
-                Text(switch (runMetaField(
-                  _meta ?? const {},
-                  'hardware.description',
-                )) {
-                  '' =>
-                    'not recorded — pick the target machine, or run '
-                        'zml-smi on it',
-                  final hardware => hardware,
-                }, style: context.text.small.copyWith(color: c.textSecondary)),
-                const SizedBox(height: AppSpacing.md),
                 if (_error != null)
                   Text(
                     _error!,

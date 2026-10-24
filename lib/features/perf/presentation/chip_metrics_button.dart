@@ -9,18 +9,15 @@ import '../../settings/application/settings_controller.dart';
 import '../domain/chip_metrics.dart';
 import '../domain/run_recorder.dart';
 
-/// The Perf tab's chip metrics: a chip icon, green while zml-smi answers for
-/// the target, opening a popover with what it found and where it looks —
-/// the target's host unless told otherwise.
+/// The Perf tool's chip metrics, in the target bar: a "Metrics" button whose
+/// dot turns green while zml-smi answers for the target, opening a popover
+/// with what it found and where it looks — the target's host unless told
+/// otherwise.
 class ChipMetricsButton extends ConsumerStatefulWidget {
-  const ChipMetricsButton({super.key, required String this.host});
+  const ChipMetricsButton({super.key, required this.host});
 
-  /// The same button, inert: for a layout's hidden sizing copy (it doesn't
-  /// probe zml-smi).
-  const ChipMetricsButton.standIn({super.key}) : host = null;
-
-  /// The benchmark target's host; null for [ChipMetricsButton.standIn].
-  final String? host;
+  /// The benchmark target's host.
+  final String host;
 
   @override
   ConsumerState<ChipMetricsButton> createState() => _ChipMetricsButtonState();
@@ -53,7 +50,6 @@ class _ChipMetricsButtonState extends ConsumerState<ChipMetricsButton> {
     super.initState();
     _setting = ref.read(settingsControllerProvider).perfChipMetricsUrl;
     _field = TextEditingController(text: _setting);
-    if (_standIn) return;
     // Not during initState: probing sets state.
     scheduleMicrotask(_probe);
     _poll = Timer.periodic(_pollEvery, (_) => _probe());
@@ -62,12 +58,10 @@ class _ChipMetricsButtonState extends ConsumerState<ChipMetricsButton> {
   @override
   void didUpdateWidget(ChipMetricsButton old) {
     super.didUpdateWidget(old);
-    if (old.host != widget.host && !_standIn) scheduleMicrotask(_probe);
+    if (old.host != widget.host) scheduleMicrotask(_probe);
   }
 
-  bool get _standIn => widget.host == null;
-
-  String get _host => widget.host?.trim() ?? '';
+  String get _host => widget.host.trim();
 
   @override
   void dispose() {
@@ -110,14 +104,39 @@ class _ChipMetricsButtonState extends ConsumerState<ChipMetricsButton> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final icon = AppIconButton(
-      icon: AppIcons.gpu,
-      size: 15,
-      padding: const EdgeInsets.all(9),
-      color: _answering ? c.statusRunning : null,
-      onPressed: _standIn ? null : _toggle,
+    // Styled like the target picker beside it.
+    final button = HoverRegion(
+      onTap: _toggle,
+      builder: (context, hovered) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: hovered ? c.surfaceHover : c.surfaceMuted,
+          borderRadius: AppRadius.smAll,
+          border: Border.all(color: c.borderMuted),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(AppIcons.gpu, size: 12, color: c.textFaint),
+            const SizedBox(width: 6),
+            Text(
+              'Metrics',
+              style: context.text.small.copyWith(color: c.textSecondary),
+            ),
+            const SizedBox(width: 8),
+            AnimatedContainer(
+              duration: AppDurations.fast,
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: _answering ? c.statusRunning : c.borderStrong,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
-    if (_standIn) return icon;
     final blur = ref.watch(
       settingsControllerProvider.select((s) => s.blurHost),
     );
@@ -135,7 +154,7 @@ class _ChipMetricsButtonState extends ConsumerState<ChipMetricsButton> {
       child: OverlayPortal(
         controller: _menu,
         overlayChildBuilder: (context) => _buildOverlay(context, blur: blur),
-        child: icon,
+        child: button,
       ),
     );
   }

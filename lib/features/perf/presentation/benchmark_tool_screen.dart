@@ -20,6 +20,7 @@ import '../../settings/application/settings_controller.dart';
 import '../../terminal/presentation/terminal_mux.dart';
 import '../application/benchmark_target.dart';
 import '../application/benchmark_terminal_panel.dart';
+import 'chip_metrics_button.dart';
 import 'perf_view.dart';
 
 /// Bullets in place of an address, when the Blur host setting is on. Matches
@@ -193,6 +194,9 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
           onHostEdited: _target.setHostText,
           onPortEdited: _target.setPortText,
           onKeyEdited: _target.setCustomKey,
+          metricsHost: target.tool == BenchmarkTool.perf && !target.isEndpoint
+              ? host
+              : null,
         ),
         const SizedBox(height: AppSpacing.lg),
         Expanded(child: body),
@@ -458,6 +462,7 @@ class _EndpointBar extends ConsumerWidget {
     required this.onPortEdited,
     required this.apiKey,
     required this.onKeyEdited,
+    this.metricsHost,
   });
 
   final TextEditingController host;
@@ -475,6 +480,10 @@ class _EndpointBar extends ConsumerWidget {
   /// The custom host's key (sent as Bearer when set).
   final TextEditingController apiKey;
   final ValueChanged<String> onKeyEdited;
+
+  /// The host whose chip metrics (zml-smi) the Perf tool records — shows the
+  /// Metrics button. Null: no button (the Benchmark tool, an API endpoint).
+  final String? metricsHost;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -568,6 +577,12 @@ class _EndpointBar extends ConsumerWidget {
       ),
     );
     Widget label(String text) => Text(text, style: context.text.smallMuted);
+    final metrics = [
+      if (metricsHost case final host?) ...[
+        const SizedBox(width: AppSpacing.md),
+        ChipMetricsButton(host: host),
+      ],
+    ];
 
     return AppPanel(
       padding: const EdgeInsets.symmetric(
@@ -603,6 +618,7 @@ class _EndpointBar extends ConsumerWidget {
                     const SizedBox(width: AppSpacing.sm),
                     portField,
                   ],
+                  ...metrics,
                 ],
               ],
             );
@@ -619,6 +635,8 @@ class _EndpointBar extends ConsumerWidget {
                 children: [
                   labelled('Target'),
                   Expanded(child: dropdown()),
+                  // Here, not on the host line: that one's full already.
+                  ...metrics,
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),

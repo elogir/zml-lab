@@ -90,8 +90,8 @@ detect; the rest is entered (or corrected) in the export dialog.
     "name": "Qwen/Qwen3-8B"                  // auto — sent in requests / from /v1/models
   },
   "hardware": {
-    "description": "1× RTX 4090, 64 GB",     // auto — the target machine's hardware field, else
-                                             //   the chips zml-smi saw ("1× NVIDIA GeForce RTX 4090")
+    "description": "1× RTX 4090, 64 GB",     // auto, editable — the target machine's hardware field,
+                                             //   else the chips zml-smi saw ("1× NVIDIA GeForce RTX 4090")
     "chips": [                               // auto — from zml-smi, when it answered
       { "device": 0, "kind": "cuda", "name": "NVIDIA GeForce RTX 4090", "driver_version": "580.82" }
     ]
@@ -199,7 +199,7 @@ role and finish chunks.
 ## In ZML-Lab
 
 - During a run the benchmarker's event stream is spooled to disk, and — when
-  `zml-smi --api` answers (the chip button in the Perf tab: the target's
+  `zml-smi --api` answers (Metrics, in the Perf tool's target bar: the target's
   host on port 9090 unless set otherwise) — chip samples too, shown live and
   summed up in the report (per chip, and energy per token).
 - When the run ends, embedded DuckDB (`dart_duckdb`) turns the spools into
@@ -207,6 +207,6 @@ role and finish chunks.
   automatic `meta.json`, kept under `~/Library/Application Support/ZML-Lab/runs/`.
   Saving the report keeps it; discarding the run deletes it.
 - **Export run** opens a dialog with `meta.json` prefilled — label, model,
-  server version and commit, notes, tags; the hardware comes from the target
-  machine or zml-smi — and writes the final `.zmlrun.parquet` where you
-  choose. Uploading to the website comes later.
+  server version and commit, hardware (from the target machine or zml-smi),
+  notes, tags, all editable — and writes the final `.zmlrun.parquet` where
+  you choose. Uploading to the website comes later.
