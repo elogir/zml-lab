@@ -7,7 +7,8 @@ thousands of concurrent streams.
     python3 tool/fake_llm_server.py --port 8000 --tokens 2000 --rate 40
 
 Then point the Benchmark tab at 127.0.0.1:8000. Every request streams
---tokens tokens (capped by the request's max_tokens) at --rate tok/s each,
+--tokens tokens (capped by the request's max_tokens or max_completion_tokens)
+at --rate tok/s each,
 after --ttft-ms. --reasoning N streams N "thinking" tokens first.
 
 macOS caps a listen backlog at kern.ipc.somaxconn (128 by default), so a burst
@@ -102,8 +103,10 @@ def respond(writer, status, content_type, payload):
 async def stream_reply(writer, args, req):
     model = req.get("model") or "fake-model"
     n = args.tokens
-    if isinstance(req.get("max_tokens"), int) and req["max_tokens"] > 0:
-        n = min(n, req["max_tokens"])
+    # max_completion_tokens is what openai-go (the perf benchmarker) sends.
+    for key in ("max_tokens", "max_completion_tokens"):
+        if isinstance(req.get(key), int) and req[key] > 0:
+            n = min(n, req[key])
     writer.write(
         b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"
         b"Cache-Control: no-cache\r\nConnection: close\r\n\r\n"
