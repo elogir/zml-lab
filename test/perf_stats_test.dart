@@ -1,8 +1,10 @@
-// Parity test for the perf-stats pipeline: the fixture CSV was produced by
-// the real benchmarker (tools/benchmark) against a mock server, and the
-// expected numbers below are the output of its own `duckdb/report.sql` on
-// that exact CSV (duckdb v1 CLI). If these match, the app's report shows the
-// same numbers the CLI pipeline would.
+// The perf-stats pipeline on a real run: the fixture CSV was produced by the
+// benchmarker (tools/benchmark) against a mock server. The expected numbers
+// are the run format's definitions (perf_contract_test.dart checks the app
+// against its SQL). On this run TTFT, request latency, OSL and ISL are also
+// what the benchmarker's own `duckdb/report.sql` gives (every request is a
+// single turn whose seq 0 has text); ITL and throughput aren't, since
+// report.sql counts each request's empty finish chunk.
 import 'dart:io';
 import 'dart:math';
 
@@ -12,7 +14,7 @@ import 'package:zml_lab/features/perf/domain/perf_stats.dart';
 import 'package:zml_lab/features/perf/domain/report_text.dart';
 import 'package:zml_lab/models/perf_report.dart';
 
-// report.sql output (ROUND(x, 2)) for test/fixtures/perf_events.csv:
+// Rounded to 2 decimals, for test/fixtures/perf_events.csv:
 //                            avg     min    max     p50     p75     p90     p95     p99     p999
 const _expected = <String, List<double>>{
   'Time to first token': [
@@ -27,15 +29,15 @@ const _expected = <String, List<double>>{
     252.43,
   ],
   'Inter-token latency': [
-    22.57,
-    0.04,
+    25.19,
+    5.96,
     44.79,
-    23.31,
-    33.38,
-    39.59,
-    42.01,
-    44.02,
-    44.68,
+    25.12,
+    34.92,
+    40.54,
+    42.47,
+    44.09,
+    44.69,
   ],
   'Request latency': [
     387.48,
@@ -71,7 +73,7 @@ const _expected = <String, List<double>>{
     881.88,
   ],
 };
-const _expectedTokensPerSecond = 116.8277256025044;
+const _expectedTokensPerSecond = 96.82868555642662;
 const _expectedRequestsPerSecond = 10.166178690089541;
 const _expectedRequests = 61;
 const _expectedEvents = 701;
@@ -107,7 +109,7 @@ void main() {
     expect(acc.errorCount, 0);
   });
 
-  test('statistics match duckdb report.sql on the same CSV', () {
+  test('statistics on the fixture run', () {
     final acc = accumulate([csv]);
     final rows = {for (final r in acc.statRows()) r.label: r};
     expect(rows.keys, containsAll(_expected.keys));
@@ -148,6 +150,7 @@ void main() {
               timestampNs: t * ms,
               requestId: id,
               seq: t ~/ 50,
+              hasText: true,
               requestTimestampNs: 0,
               inputTokens: 0,
               outputTokens: t ~/ 50,
@@ -159,6 +162,7 @@ void main() {
           timestampNs: 2000 * ms,
           requestId: 'a',
           seq: 99,
+          hasText: true,
           requestTimestampNs: 0,
           inputTokens: 0,
           outputTokens: 99,
@@ -202,13 +206,16 @@ void main() {
     expect(series.last.requests, _expectedRequests);
     final itl = acc.itlHistogram();
     expect(itl.counts.fold<int>(0, (a, b) => a + b), greaterThan(0));
-    // Mode 'first': every request has a seq-0 event, so every one lands in
-    // the TTFT histogram.
+    // Every request streamed text, so every one lands in the TTFT
+    // histogram.
     final ttft = acc.ttftHistogram();
     expect(ttft.counts.fold<int>(0, (a, b) => a + b), _expectedRequests);
   });
 
-  test('CSV export matches duckdb -csv on the same run byte for byte', () {
+  // The reference is duckdb -csv's output of report.sql on the fixture (its
+  // layout and number rendering), with the ITL row and tokens_per_second
+  // updated to the run format's definitions.
+  test('CSV export has duckdb -csv\'s layout', () {
     final acc = accumulate([csv]);
     final report = PerfReport(
       id: 'test',
@@ -241,6 +248,6 @@ void main() {
     final table = perfReportTable(report);
     expect(table, contains('│ Time to first token (ms) │ 148.87 │'));
     expect(table, contains('THROUGHPUT'));
-    expect(table, contains('116.8277256025044'));
+    expect(table, contains('96.82868555642662'));
   });
 }

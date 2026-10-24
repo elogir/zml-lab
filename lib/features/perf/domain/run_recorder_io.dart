@@ -118,6 +118,7 @@ class RunSpool {
       await _copyToParquet(
         source: _runQuery(
           eventsCsv: events.path,
+          reasoning: await _hasReasoningColumn(events),
           chipsCsv: _chipRows > 0 ? '${_dir.path}/chips.csv' : null,
         ),
         meta: meta,
@@ -159,7 +160,15 @@ Future<Map<String, Object?>?> readRunMeta(String runFile) async {
       .cast<String, Object?>();
 }
 
-// The benchmarker's CSV columns (tools/benchmark), typed.
+/// Whether the benchmarker's CSV has the `reasoning` column (builds from
+/// before it was added don't).
+Future<bool> _hasReasoningColumn(File csv) async {
+  final head = await csv.openRead(0, 1024).transform(utf8.decoder).join();
+  return head.split('\n').first.trim().split(',').contains('reasoning');
+}
+
+// The benchmarker's CSV columns (tools/benchmark), typed; `reasoning` comes
+// after them when the build has it.
 const _eventColumns = {
   'timestamp': 'BIGINT',
   'request_id': 'VARCHAR',
@@ -194,7 +203,12 @@ const _chipColumns = {
 
 /// The run table (docs/perf-run-format.md): events with their text reduced
 /// to its length, chip samples alongside.
-String _runQuery({required String eventsCsv, String? chipsCsv}) {
+String _runQuery({
+  required String eventsCsv,
+  required bool reasoning,
+  String? chipsCsv,
+}) {
+  final columns = {..._eventColumns, if (reasoning) 'reasoning': 'VARCHAR'};
   final events =
       '''
 SELECT 'event' AS source,
@@ -203,12 +217,14 @@ SELECT 'event' AS source,
        seq,
        request_timestamp AS request_ts_ns,
        CAST(length(coalesce(token, '')) AS INTEGER) AS token_chars,
+       CAST(${reasoning ? "length(coalesce(reasoning, ''))" : '0'} AS INTEGER)
+         AS reasoning_chars,
        outputs_tokens AS output_tokens,
        inputs_tokens AS input_tokens,
        coalesce(error, '') AS error
 FROM read_csv(${_sqlString(eventsCsv)}, header = true, quote = '"',
               escape = '"', parallel = false,
-              columns = ${_columnsStruct(_eventColumns)})''';
+              columns = ${_columnsStruct(columns)})''';
   if (chipsCsv == null) return events;
   return '''
 $events

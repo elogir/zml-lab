@@ -35,7 +35,8 @@ line up without any sync with the server.
 | `request_id`         | VARCHAR | ✓ |   | `<conversation>-<turn>`: one HTTP request |
 | `seq`                | INTEGER | ✓ |   | Chunk number within the **conversation** (keeps counting across its turns) |
 | `request_ts_ns`      | BIGINT  | ✓ |   | When the request was sent |
-| `token_chars`        | INTEGER | ✓ |   | Length of the chunk's text (characters); `0` for empty chunks (the role chunk, the final usage chunk). The text itself is not kept |
+| `token_chars`        | INTEGER | ✓ |   | Length of the chunk's answer text (characters); `0` for empty chunks (the role chunk, the final usage chunk). The text itself is not kept |
+| `reasoning_chars`    | INTEGER | ✓ |   | Length of the chunk's reasoning (thinking) text, streamed as `reasoning_content` or `reasoning`; `0` for other chunks |
 | `output_tokens`      | INTEGER | ✓ |   | Chunks with a choice received so far for this request |
 | `input_tokens`       | INTEGER | ✓ |   | Prompt tokens, if the server reports usage (else `0`) |
 | `error`              | VARCHAR | ✓ |   | Empty, or the request's error (on its last row) |
@@ -119,46 +120,58 @@ detect; the rest is entered (or corrected) in the export dialog.
 
 ## Metrics (DuckDB SQL)
 
-Per run, over `events`:
+Per run, over `events`. A **token** is a chunk carrying text, answer or
+reasoning; servers also stream empty chunks (the opening role, the finish
+reason, usage), which don't count. ZML-Lab's report uses exactly these
+definitions (checked against this SQL in `test/perf_contract_test.dart`).
 
 ```sql
--- One row per request.
+CREATE VIEW tokens AS
+SELECT * FROM events WHERE token_chars + reasoning_chars > 0;
+
+-- One row per request (each turn of a conversation is its own request).
 CREATE VIEW requests AS
 SELECT request_id,
-       min(request_ts_ns)                                            AS sent_ns,
-       min(ts_ns) FILTER (WHERE token_chars > 0)                     AS first_token_ns,
-       max(ts_ns)                                                    AS last_ns,
-       max(output_tokens)                                            AS output_tokens,
-       max(input_tokens)                                             AS input_tokens,
-       bool_or(error <> '')                                          AS failed
+       min(request_ts_ns)                                               AS sent_ns,
+       min(ts_ns) FILTER (WHERE token_chars + reasoning_chars > 0)      AS first_token_ns,
+       max(ts_ns)                                                       AS last_ns,
+       max(output_tokens)                                               AS output_tokens,
+       max(input_tokens)                                                AS input_tokens,
+       bool_or(error <> '')                                             AS failed
 FROM events GROUP BY request_id;
 
--- Time to first token: first chunk with text, per request (every turn).
+-- Time to first token, per request.
 SELECT quantile_cont((first_token_ns - sent_ns) / 1e6, [0.5, 0.9, 0.99]) AS ttft_ms
 FROM requests WHERE first_token_ns IS NOT NULL;
 
--- Inter-token latency: gaps between consecutive text chunks of a request.
-SELECT quantile_cont(gap_ms, [0.5, 0.9, 0.99]) FROM (
+-- Inter-token latency: gaps between consecutive tokens of a request.
+SELECT quantile_cont(gap_ms, [0.5, 0.9, 0.99]) AS itl_ms FROM (
   SELECT (ts_ns - lag(ts_ns) OVER (PARTITION BY request_id ORDER BY ts_ns)) / 1e6 AS gap_ms
-  FROM events WHERE token_chars > 0
+  FROM tokens
 ) WHERE gap_ms IS NOT NULL;
 
--- Request latency, and throughput over the run.
+-- Request latency, output and input lengths (input 0 = not reported).
 SELECT quantile_cont((last_ns - sent_ns) / 1e6, [0.5, 0.9, 0.99]) AS latency_ms FROM requests;
-SELECT count(*) FILTER (WHERE token_chars > 0)
-       / ((max(ts_ns) - min(request_ts_ns)) / 1e9)                    AS tokens_per_second
+SELECT quantile_cont(output_tokens, [0.5, 0.9, 0.99]) AS osl FROM requests;
+SELECT quantile_cont(input_tokens, [0.5, 0.9, 0.99]) AS isl FROM requests WHERE input_tokens > 0;
+
+-- Throughput over the run.
+SELECT (SELECT count(*) FROM tokens)
+         / ((max(ts_ns) - min(request_ts_ns)) / 1e9)                    AS tokens_per_second,
+       count(DISTINCT request_id)
+         / ((max(ts_ns) - min(request_ts_ns)) / 1e9)                    AS requests_per_second
 FROM events;
 ```
 
 Joining chips: they share the clock with events, so e.g. energy per token is
 `∫ power_w dt` over the run (sum of `power_w × Δt` between a device's
-samples) divided by the text chunks.
+samples) divided by the tokens.
 
-**Differences from ZML-Lab's current report** (to be aligned): it takes TTFT
-from `seq = 0` rows — the first turn of each conversation only, and possibly
-the empty role chunk — and counts every chunk (empty ones included) as a
-token. The definitions above fix both; `token_chars` is what makes that
-possible.
+The benchmarker's own `duckdb/report.sql` differs: it takes TTFT from
+`seq = 0` rows (only a conversation's first turn has one, and it can be the
+empty role chunk) and counts every chunk, empty ones included, for ITL and
+throughput. `output_tokens` counts chunks with a choice, so OSL includes the
+role and finish chunks.
 
 ## In ZML-Lab
 
@@ -166,7 +179,7 @@ possible.
   `zml-smi --api` answers at the configured URL (default
   `http://<target host>:9090`) — chip samples too.
 - When the run ends, embedded DuckDB (`dart_duckdb`) turns the spools into
-  the run's Parquet file (token text dropped, `token_chars` kept) with the
+  the run's Parquet file (text dropped, its length kept) with the
   automatic `meta.json`, kept under `~/Library/Application Support/ZML-Lab/runs/`.
   Saving the report keeps it; discarding the run deletes it.
 - **Export run…** opens a dialog with `meta.json` prefilled — label, commit,

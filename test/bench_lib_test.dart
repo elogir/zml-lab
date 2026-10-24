@@ -16,10 +16,13 @@ import 'package:zml_lab/features/settings/application/settings_controller.dart';
 import 'package:zml_lab/models/perf_report.dart';
 
 /// An OpenAI-style streaming endpoint: every request gets [words] content
-/// deltas ("w0 ", "w1 ", …) [pace] apart, then a stop and [DONE].
+/// deltas ("w0 ", "w1 ", …) [pace] apart, then a stop and [DONE]. With
+/// [reasoning], they come after an empty role chunk and two thinking chunks
+/// (one as `reasoning_content`, one as `reasoning`), as vLLM streams them.
 Future<HttpServer> _fakeServer({
   required int words,
   Duration pace = const Duration(milliseconds: 2),
+  bool reasoning = false,
 }) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   server.listen((req) async {
@@ -34,6 +37,17 @@ Future<HttpServer> _fakeServer({
           'choices': [choice],
         })}\n\n';
     try {
+      if (reasoning) {
+        for (final delta in [
+          {'role': 'assistant', 'content': ''},
+          {'reasoning_content': 'hmm, "x"\n'},
+          {'reasoning': 'so'},
+        ]) {
+          res.write(event({'index': 0, 'delta': delta}));
+          await res.flush();
+          await Future<void>.delayed(pace);
+        }
+      }
       for (var i = 0; i < words; i++) {
         res.write(
           event({
@@ -121,7 +135,7 @@ void main() {
     await real(tester, () async {
       const conversations = 12;
       const words = 20;
-      final server = await _fakeServer(words: words);
+      final server = await _fakeServer(words: words, reasoning: true);
       addTearDown(() => server.close(force: true));
 
       final csv = StringBuffer();
@@ -147,8 +161,10 @@ void main() {
       expect(
         text.split('\n').first,
         'timestamp,request_id,seq,token,request_timestamp,inputs_tokens,'
-        'outputs_tokens,concurrency,server,session_id,error',
+        'outputs_tokens,concurrency,server,session_id,error,reasoning',
       );
+      // The thinking text is kept, quoting intact.
+      expect(text, contains('"hmm, ""x""\n"'));
       final events = PerfCsvParser().add(text);
       expect(events, hasLength(summary.events));
       // Both human turns of every conversation were sent ("all" mode).
@@ -158,11 +174,19 @@ void main() {
       // Quotes, commas and newlines in tokens survived the CSV round trip:
       // one event per streamed chunk, numbered in order.
       for (final id in requests) {
-        final seqs = [
+        final chunks = [
           for (final e in events)
-            if (e.requestId == id) e.seq,
+            if (e.requestId == id) e,
         ];
-        expect(seqs.length, greaterThanOrEqualTo(words), reason: id);
+        expect(chunks.length, greaterThanOrEqualTo(words + 3), reason: id);
+        // The role chunk isn't a token; both thinking chunks and every word
+        // are.
+        expect(chunks.first.hasText, isFalse, reason: id);
+        expect(
+          chunks.where((e) => e.hasText),
+          hasLength(words + 2),
+          reason: id,
+        );
       }
       expect(events.every((e) => e.concurrency == 4), isTrue);
     });

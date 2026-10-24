@@ -395,6 +395,12 @@ class PerfController extends _$PerfController {
       state = state.copyWith(runFile: path);
     } catch (e) {
       AppLog.write('perf recording failed: $e');
+      // Said in the status bar, or the missing Export run… is a mystery.
+      if (seq == _runSeq && state.report?.id == report.id) {
+        state = state.copyWith(
+          message: '${state.message ?? 'run complete'} — not recorded: $e',
+        );
+      }
     }
   }
 

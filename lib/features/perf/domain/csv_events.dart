@@ -10,12 +10,14 @@ library;
 
 /// One row of the benchmarker's CSV output.
 /// Header: timestamp,request_id,seq,token,request_timestamp,inputs_tokens,
-///         outputs_tokens,concurrency,server,session_id,error
+///         outputs_tokens,concurrency,server,session_id,error,reasoning
+/// (`reasoning` is missing from benchmarkers built before it was added).
 class PerfEvent {
   const PerfEvent({
     required this.timestampNs,
     required this.requestId,
     required this.seq,
+    required this.hasText,
     required this.requestTimestampNs,
     required this.inputTokens,
     required this.outputTokens,
@@ -27,6 +29,11 @@ class PerfEvent {
   final int timestampNs;
   final String requestId;
   final int seq;
+
+  /// Whether the chunk carried generated text, answer or reasoning — a
+  /// token, as the stats count them. Servers also stream empty chunks (the
+  /// opening role, the finish reason, usage).
+  final bool hasText;
   final int requestTimestampNs;
   final int inputTokens;
   final int outputTokens;
@@ -113,7 +120,8 @@ class PerfCsvParser {
       timestampNs: ts,
       requestId: f[1],
       seq: int.tryParse(f[2]) ?? 0,
-      // f[3] is the token text — not needed for stats.
+      // f[3] is the answer text, f[11] the reasoning text.
+      hasText: f[3].isNotEmpty || (f.length > 11 && f[11].isNotEmpty),
       requestTimestampNs: reqTs,
       inputTokens: int.tryParse(f[5]) ?? 0,
       outputTokens: int.tryParse(f[6]) ?? 0,

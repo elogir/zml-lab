@@ -1,15 +1,19 @@
 /// Statistics over the benchmarker's event stream.
 ///
-/// Definitions mirror the tool's own `duckdb/report.sql` exactly (verified
-/// against duckdb on the same CSV in test/perf_stats_test.dart), so numbers
-/// shown here match what the team quotes from the CLI pipeline:
-///  - TTFT        = (timestamp - request_timestamp) of events with seq == 0
-///  - ITL         = gaps between consecutive seq > 0 events within a request
-///                  (the seq0→seq1 gap is excluded, as in the SQL's LAG over
-///                  the seq > 0 subset)
+/// Definitions are the run format's (docs/perf-run-format.md; checked
+/// against its SQL on the same run in test/perf_contract_test.dart), so the
+/// app and anything reading a run file agree. A token is a streamed chunk
+/// carrying text, answer or reasoning ([PerfEvent.hasText]):
+///  - TTFT        = first token's timestamp - request_timestamp, per request
+///                  (every turn of a conversation)
+///  - ITL         = gaps between consecutive tokens of a request
 ///  - Req latency = max(timestamp) - request_timestamp, per request
 ///  - OSL / ISL   = max outputs/inputs_tokens per request (ISL skips zeros)
-///  - Throughput  = total events / (max timestamp - min request_timestamp)
+///  - Throughput  = tokens / (max timestamp - min request_timestamp)
+///
+/// The benchmarker's own `duckdb/report.sql` takes TTFT from seq 0 (which
+/// can be an empty chunk, and only a conversation's first turn has one) and
+/// ITL and throughput over every chunk, empty ones included.
 library;
 
 import 'dart:math' as math;
@@ -54,8 +58,8 @@ class _RequestState {
   int maxOutputTokens = 0;
   double? ttftMs;
 
-  /// Timestamp of the previous seq > 0 event, for the ITL gaps.
-  int? lastPositiveSeqTs;
+  /// Timestamp of the request's previous token, for the ITL gaps.
+  int? lastTokenTs;
 }
 
 /// Ingests [PerfEvent]s as they stream in and produces both the live series
@@ -73,15 +77,16 @@ class PerfAccumulator {
   final List<double> _itlGapsMs = [];
 
   int _events = 0;
+  int _tokens = 0;
   int _errors = 0;
   int _maxSeq = 0;
   int? _minRequestTsNs;
   int _maxTsNs = 0;
   String server = '';
 
-  // Live series: per-bucket event counts, distinct streaming requests, and
+  // Live series: per-bucket token counts, distinct streaming requests, and
   // requests first seen.
-  final List<int> _bucketEvents = [];
+  final List<int> _bucketTokens = [];
   final List<Set<String>> _bucketIds = [];
   final List<int> _bucketNewRequests = [];
 
@@ -100,10 +105,10 @@ class PerfAccumulator {
   /// column), for showing a representative reason alongside the error count.
   String? get firstError => _firstError;
 
-  /// Events/second over the run so far (the tool's tokens_per_second).
+  /// Tokens/second over the run so far.
   double get liveTokensPerSecond {
     final s = _totalSeconds;
-    return s > 0 ? _events / s : 0;
+    return s > 0 ? _tokens / s : 0;
   }
 
   double get _totalSeconds {
@@ -140,23 +145,25 @@ class PerfAccumulator {
     r.maxTimestampNs = math.max(r.maxTimestampNs, e.timestampNs);
     r.maxInputTokens = math.max(r.maxInputTokens, e.inputTokens);
     r.maxOutputTokens = math.max(r.maxOutputTokens, e.outputTokens);
-    if (e.seq == 0) {
-      r.ttftMs = (e.timestampNs - e.requestTimestampNs) / 1e6;
-    } else {
-      final last = r.lastPositiveSeqTs;
+    if (e.hasText) {
+      _tokens++;
+      // A request's chunks arrive in order: its first token is the first
+      // one seen.
+      r.ttftMs ??= (e.timestampNs - e.requestTimestampNs) / 1e6;
+      final last = r.lastTokenTs;
       if (last != null) _itlGapsMs.add((e.timestampNs - last) / 1e6);
-      r.lastPositiveSeqTs = e.timestampNs;
+      r.lastTokenTs = e.timestampNs;
     }
 
     // Live series bucket, indexed from the run's first request timestamp.
     final start = _minRequestTsNs!;
     final bucket = math.max(0, (e.timestampNs - start) ~/ (bucketMs * 1000000));
-    while (_bucketEvents.length <= bucket) {
-      _bucketEvents.add(0);
+    while (_bucketTokens.length <= bucket) {
+      _bucketTokens.add(0);
       _bucketIds.add(<String>{});
       _bucketNewRequests.add(0);
     }
-    _bucketEvents[bucket]++;
+    if (e.hasText) _bucketTokens[bucket]++;
     _bucketIds[bucket].add(e.requestId);
     if (isNew) _bucketNewRequests[bucket]++;
   }
@@ -165,10 +172,10 @@ class PerfAccumulator {
   /// count over the trailing [windowBuckets]. While running the last
   /// (partial) bucket is dropped so the tail of the chart doesn't dip.
   List<PerfSeriesPoint> series({required bool includeLast}) {
-    final n = includeLast ? _bucketEvents.length : _bucketEvents.length - 1;
+    final n = includeLast ? _bucketTokens.length : _bucketTokens.length - 1;
     if (n <= 0) return const [];
     // Late events (out-of-order rows) can still land in the newest window.
-    final settled = math.min(n, _bucketEvents.length - 1 - windowBuckets);
+    final settled = math.min(n, _bucketTokens.length - 1 - windowBuckets);
     while (_settled.length < settled) {
       _settled.add(_point(_settled.length, _settled.lastOrNull?.requests ?? 0));
     }
@@ -183,16 +190,16 @@ class PerfAccumulator {
 
   PerfSeriesPoint _point(int i, int requestsBefore) {
     final from = math.max(0, i - windowBuckets + 1);
-    var events = 0;
+    var tokens = 0;
     final streaming = <String>{};
     for (var j = from; j <= i; j++) {
-      events += _bucketEvents[j];
+      tokens += _bucketTokens[j];
       streaming.addAll(_bucketIds[j]);
     }
     final seconds = (i - from + 1) * bucketMs / 1000;
     return PerfSeriesPoint(
       elapsedMs: (i + 1) * bucketMs,
-      tps: events / seconds,
+      tps: tokens / seconds,
       active: streaming.length,
       requests: requestsBefore + _bucketNewRequests[i],
     );
