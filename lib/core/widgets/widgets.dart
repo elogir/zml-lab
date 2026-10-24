@@ -16,3 +16,4 @@ export 'selection_area.dart';
 export 'segmented_control.dart';
 export 'stat_grid.dart';
 export 'surface.dart';
+export 'tool_controls.dart';

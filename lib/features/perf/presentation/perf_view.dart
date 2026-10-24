@@ -256,126 +256,118 @@ class _Controls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
     final active = run.phase.isActive;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Wrap, not Row: with the sidebar and actions panel both expanded the
-        // tab can get narrow, and the fields flow onto a second line.
-        Wrap(
-          spacing: AppSpacing.md,
-          runSpacing: AppSpacing.sm,
-          crossAxisAlignment: WrapCrossAlignment.end,
-          children: [
-            _Setting(
-              label: 'Duration s',
-              width: 64,
-              child: AppTextField(
-                controller: duration,
-                mono: true,
-                onChanged: (v) {
-                  final n = int.tryParse(v.trim());
-                  if (n != null && n > 0) {
-                    onPatch((p) => p.copyWith(durationSeconds: n));
-                  }
-                },
-              ),
-            ),
-            _Setting(
-              label: 'Concurrency',
-              width: 76,
-              child: AppTextField(
-                controller: concurrency,
-                mono: true,
-                onChanged: (v) {
-                  final n = int.tryParse(v.trim());
-                  if (n != null && n > 0) {
-                    onPatch((p) => p.copyWith(concurrency: n));
-                  }
-                },
-              ),
-            ),
-            _Setting(
-              label: 'Max tokens',
-              width: 96,
-              child: AppTextField(
-                controller: maxTokens,
-                mono: true,
-                // Empty = don't pass --max-completion-tokens (the benchmarker
-                // uses its own default). Shared with the Settings default.
-                placeholder: 'default',
-                onChanged: (v) {
-                  final n = int.tryParse(v.trim());
-                  onPatch(
-                    (p) => p.copyWith(
-                      maxCompletionTokens: n != null && n > 0 ? n : null,
-                    ),
-                  );
-                },
-              ),
-            ),
-            _Setting(
-              label: 'Prompts',
-              child: SegmentedControl<String>(
-                value: run.params.sequenceType,
-                onChanged: (v) => onPatch((p) => p.copyWith(sequenceType: v)),
-                options: const [
-                  SegmentOption(value: 'long', label: 'Long'),
-                  SegmentOption(value: 'short', label: 'Short'),
-                ],
-              ),
-            ),
-            _Setting(
-              label: 'Turns',
-              child: SegmentedControl<String>(
-                value: run.params.mode,
-                onChanged: (v) => onPatch((p) => p.copyWith(mode: v)),
-                options: const [
-                  SegmentOption(value: 'all', label: 'All'),
-                  SegmentOption(value: 'first', label: 'First'),
-                ],
-              ),
-            ),
-          ],
+    int? positive(String v) => switch (int.tryParse(v.trim())) {
+      final n? when n > 0 => n,
+      _ => null,
+    };
+    final durationField = SettingField(
+      label: 'Duration (s)',
+      controller: duration,
+      presets: const ['10', '30', '60', '120', '300', '600'],
+      onChanged: (v) {
+        if (positive(v) case final n?) {
+          onPatch((p) => p.copyWith(durationSeconds: n));
+        }
+      },
+    );
+    final concurrencyField = SettingField(
+      label: 'Concurrency',
+      controller: concurrency,
+      presets: const [
+        '1',
+        '2',
+        '4',
+        '8',
+        '16',
+        '32',
+        '64',
+        '128',
+        '256',
+        '512',
+        '1024',
+      ],
+      onChanged: (v) {
+        if (positive(v) case final n?) {
+          onPatch((p) => p.copyWith(concurrency: n));
+        }
+      },
+    );
+    // Empty = the benchmarker's own default (256). Shared with the Settings
+    // default.
+    final maxTokensField = SettingField(
+      label: 'Max tokens',
+      controller: maxTokens,
+      placeholder: '256',
+      presets: const ['64', '128', '256', '512', '1024', '2048', '4096'],
+      onChanged: (v) =>
+          onPatch((p) => p.copyWith(maxCompletionTokens: positive(v))),
+    );
+    // Segmented choices at a field's height, as wide as their labels.
+    Widget choice<T>(
+      String label,
+      T value,
+      List<SegmentOption<T>> options,
+      ValueChanged<T> onChanged,
+    ) => IntrinsicWidth(
+      child: LabeledControl(
+        label: label,
+        child: FieldHeight(
+          child: SegmentedControl<T>(
+            fill: true,
+            value: value,
+            options: options,
+            onChanged: onChanged,
+          ),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final modelField = _Setting(
-              label: 'Model (vLLM needs the real name; llmd ignores it)',
-              child: AppTextField(
-                controller: model,
-                mono: true,
-                placeholder: 'from /v1/models',
-                onChanged: (v) => onPatch((p) => p.copyWith(model: v.trim())),
-              ),
-            );
-            final actions = [
-              _WarmupToggle(
-                value: run.params.warmup,
-                onChanged: (v) => onPatch((p) => p.copyWith(warmup: v)),
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              if (active)
-                AppIconButton(
-                  icon: AppIcons.kill,
-                  color: c.statusFailed,
-                  hoverColor: c.statusFailed,
-                  padding: const EdgeInsets.all(8),
-                  onPressed: onCancel,
-                )
-              else
-                AppButton(
-                  label: 'Run benchmark',
-                  icon: AppIcons.play,
-                  variant: AppButtonVariant.primary,
-                  onPressed: onRun,
-                ),
-              const SizedBox(width: AppSpacing.sm),
-              // Same fullscreen as the terminal: sidebar, header and actions
-              // panel all collapse away.
-              AppIconButton(
+      ),
+    );
+    final prompts = choice('Prompts', run.params.sequenceType, const [
+      SegmentOption(value: 'long', label: 'Long'),
+      SegmentOption(value: 'short', label: 'Short'),
+    ], (v) => onPatch((p) => p.copyWith(sequenceType: v)));
+    final turns = choice('Turns', run.params.mode, const [
+      SegmentOption(value: 'all', label: 'All'),
+      SegmentOption(value: 'first', label: 'First'),
+    ], (v) => onPatch((p) => p.copyWith(mode: v)));
+    final warmup = _WarmupToggle(
+      value: run.params.warmup,
+      onChanged: (v) => onPatch((p) => p.copyWith(warmup: v)),
+    );
+    // Empty model sends the benchmarker's default name — llmd ignores it,
+    // vLLM needs the real one (prefilled from /v1/models).
+    final modelField = AppTextField(
+      controller: model,
+      mono: true,
+      placeholder: 'from /v1/models',
+      onChanged: (v) => onPatch((p) => p.copyWith(model: v.trim())),
+    );
+    // The model field with the run controls beside it at its height:
+    // [withWarmup] puts the warm-up toggle first (when it isn't elsewhere).
+    Widget modelAndActions({required bool withWarmup}) => LabeledControl(
+      label: 'Model',
+      child: FieldWithActions(
+        field: modelField,
+        actions: ({required stretch}) => Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: stretch
+              ? CrossAxisAlignment.stretch
+              : CrossAxisAlignment.center,
+          children: [
+            if (withWarmup) ...[warmup, const SizedBox(width: AppSpacing.md)],
+            RunActions(
+              label: 'Run benchmark',
+              icon: AppIcons.play,
+              running: active,
+              onRun: active ? null : onRun,
+              onStop: onCancel,
+              stretch: stretch,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            // Same fullscreen as the terminal: sidebar, header and actions
+            // panel all collapse away.
+            Center(
+              child: AppIconButton(
                 icon: fullscreen
                     ? AppIcons.exitFullscreen
                     : AppIcons.fullscreen,
@@ -383,61 +375,96 @@ class _Controls extends StatelessWidget {
                 padding: const EdgeInsets.all(9),
                 onPressed: onToggleFullscreen,
               ),
-            ];
-            // Narrow (terminal open): the model gets its own line rather
-            // than being squeezed beside the run controls.
-            if (constraints.maxWidth < 560) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  modelField,
-                  const SizedBox(height: AppSpacing.sm),
-                  Wrap(
-                    alignment: WrapAlignment.end,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    runSpacing: AppSpacing.sm,
-                    children: actions,
-                  ),
-                ],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(child: modelField),
-                const SizedBox(width: AppSpacing.lg),
-                ...actions,
-              ],
-            );
-          },
+            ),
+          ],
         ),
-      ],
+      ),
+    );
+    const gap = SizedBox(width: AppSpacing.md);
+
+    // Labels sit above their fields, so a row's fields line up at the
+    // bottom and the run controls align with them.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        if (width >= _oneLineWidth) {
+          // Everything on one line: the numbers get a fixed share (wide
+          // enough for 4 digits, never ballooning), the model the rest.
+          final numberWidth = ((width - 640) / 4.5).clamp(100.0, 140.0);
+          Widget number(Widget field) =>
+              SizedBox(width: numberWidth, child: field);
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              number(durationField),
+              gap,
+              number(concurrencyField),
+              gap,
+              number(maxTokensField),
+              gap,
+              prompts,
+              gap,
+              turns,
+              gap,
+              Expanded(child: modelAndActions(withWarmup: true)),
+            ],
+          );
+        }
+        final numbers = [
+          Expanded(child: durationField),
+          gap,
+          Expanded(child: concurrencyField),
+          gap,
+          Expanded(child: maxTokensField),
+        ];
+        if (width >= _twoLineWidth) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [...numbers, gap, prompts, gap, turns],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              modelAndActions(withWarmup: true),
+            ],
+          );
+        }
+        // Narrow (terminal open): the choices and the warm-up toggle get a
+        // line of their own so the model field keeps some room.
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.end, children: numbers),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.sm,
+              crossAxisAlignment: WrapCrossAlignment.end,
+              children: [
+                prompts,
+                turns,
+                FieldHeight(child: warmup),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            modelAndActions(withWarmup: false),
+          ],
+        );
+      },
     );
   }
+
+  /// From this width everything fits on one line.
+  static const _oneLineWidth = 1100.0;
+
+  /// Below this the run controls get their own line (and below
+  /// [_twoLineWidth], the choices too).
+  static const _twoLineWidth = 600.0;
 }
 
-class _Setting extends StatelessWidget {
-  const _Setting({required this.label, required this.child, this.width});
-
-  final String label;
-  final Widget child;
-  final double? width;
-
-  @override
-  Widget build(BuildContext context) {
-    final column = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: context.text.smallMuted),
-        const SizedBox(height: 6),
-        child,
-      ],
-    );
-    return width == null ? column : SizedBox(width: width, child: column);
-  }
-}
-
-/// Small check toggle for the warm-up request.
+/// Check toggle for the warm-up request, vertically centred in whatever
+/// height it's given.
 class _WarmupToggle extends StatelessWidget {
   const _WarmupToggle({required this.value, required this.onChanged});
 
@@ -449,8 +476,10 @@ class _WarmupToggle extends StatelessWidget {
     final c = context.colors;
     return HoverRegion(
       onTap: () => onChanged(!value),
-      builder: (context, hovered) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+      builder: (context, hovered) => Align(
+        alignment: Alignment.centerLeft,
+        widthFactor: 1,
+        heightFactor: 1,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -476,7 +505,7 @@ class _WarmupToggle extends StatelessWidget {
                   : null,
             ),
             const SizedBox(width: AppSpacing.sm),
-            Text('warm-up request first', style: context.text.small),
+            Text('Warm-up', style: context.text.small),
           ],
         ),
       ),
@@ -512,120 +541,143 @@ class _StatusBar extends StatelessWidget {
     final c = context.colors;
     final showStats =
         run.phase == PerfPhase.running || run.phase == PerfPhase.stopping;
+    final status = showStats
+        ? Wrap(
+            spacing: AppSpacing.xxl,
+            runSpacing: AppSpacing.md,
+            children: [
+              _Stat(
+                label: 'TOK/S',
+                value: run.liveTps.toStringAsFixed(1),
+                valueColor: c.statusRunning,
+              ),
+              _Stat(label: 'EVENTS', value: '${run.events}'),
+              _Stat(label: 'REQUESTS', value: '${run.requests}'),
+              _Stat(label: 'ACTIVE', value: '${run.active}'),
+              _Stat(
+                label: 'ERRORS',
+                value: '${run.errors}',
+                valueColor: run.errors > 0 ? c.statusFailed : null,
+              ),
+              _Stat(
+                label: 'ELAPSED',
+                value:
+                    '${run.elapsed.inSeconds}s / '
+                    '${run.params.durationSeconds}s',
+              ),
+            ],
+          )
+        : run.phase == PerfPhase.done
+        ? Row(
+            children: [
+              Icon(AppIcons.check, size: 14, color: c.statusRunning),
+              const SizedBox(width: AppSpacing.sm),
+              Flexible(
+                child: Text(
+                  run.message ?? 'run complete',
+                  style: context.text.small,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (exportedTo != null) ...[
+                const SizedBox(width: AppSpacing.lg),
+                Flexible(
+                  child: Text(
+                    exportedTo!,
+                    style: context.text.monoSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ],
+          )
+        : Row(
+            children: [
+              const _ActivityPill(),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  run.message ?? '…',
+                  style: context.text.small,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          );
+    final actions = [
+      if (run.phase == PerfPhase.done) ...[
+        if (saved)
+          Text('saved', style: context.text.smallMuted)
+        else if (onSave != null)
+          AppButton(
+            label: 'Save report',
+            icon: AppIcons.save,
+            variant: AppButtonVariant.primary,
+            dense: true,
+            onPressed: onSave,
+          ),
+        if (copyText != null)
+          AsyncCopyButton(textBuilder: copyText!, label: 'Copy results'),
+        if (onExport != null)
+          AppButton(
+            label: 'Export CSV',
+            icon: AppIcons.download,
+            dense: true,
+            onPressed: onExport,
+          ),
+        if (onDiscard != null)
+          AppButton(
+            label: 'Discard',
+            variant: AppButtonVariant.ghost,
+            dense: true,
+            onPressed: onDiscard,
+          ),
+      ],
+      if (run.phase == PerfPhase.failed && onDiscard != null)
+        AppButton(
+          label: 'Dismiss',
+          variant: AppButtonVariant.ghost,
+          dense: true,
+          onPressed: onDiscard,
+        ),
+    ];
     return AppPanel(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: showStats
-                ? Wrap(
-                    spacing: AppSpacing.xxl,
-                    runSpacing: AppSpacing.md,
-                    children: [
-                      _Stat(
-                        label: 'TOK/S',
-                        value: run.liveTps.toStringAsFixed(1),
-                        valueColor: c.statusRunning,
-                      ),
-                      _Stat(label: 'EVENTS', value: '${run.events}'),
-                      _Stat(label: 'REQUESTS', value: '${run.requests}'),
-                      _Stat(label: 'ACTIVE', value: '${run.active}'),
-                      _Stat(
-                        label: 'ERRORS',
-                        value: '${run.errors}',
-                        valueColor: run.errors > 0 ? c.statusFailed : null,
-                      ),
-                      _Stat(
-                        label: 'ELAPSED',
-                        value:
-                            '${run.elapsed.inSeconds}s / '
-                            '${run.params.durationSeconds}s',
-                      ),
-                    ],
-                  )
-                : run.phase == PerfPhase.done
-                ? Row(
-                    children: [
-                      Icon(AppIcons.check, size: 14, color: c.statusRunning),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        run.message ?? 'run complete',
-                        style: context.text.small,
-                      ),
-                      if (exportedTo != null) ...[
-                        const SizedBox(width: AppSpacing.lg),
-                        Flexible(
-                          child: Text(
-                            exportedTo!,
-                            style: context.text.monoSmall,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ],
-                  )
-                : Row(
-                    children: [
-                      const _ActivityPill(),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Text(
-                          run.message ?? '…',
-                          style: context.text.small,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          if (run.phase == PerfPhase.done) ...[
-            if (saved)
-              Text('saved', style: context.text.smallMuted)
-            else if (onSave != null)
-              AppButton(
-                label: 'Save report',
-                icon: AppIcons.save,
-                variant: AppButtonVariant.primary,
-                dense: true,
-                onPressed: onSave,
-              ),
-            if (copyText != null) ...[
-              const SizedBox(width: AppSpacing.sm),
-              AsyncCopyButton(textBuilder: copyText!, label: 'Copy results'),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Narrow (terminal open): the buttons get a line under the status
+          // instead of squeezing it to nothing.
+          if (actions.length > 1 && constraints.maxWidth < 560) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                status,
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: actions,
+                ),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: status),
+              for (final a in actions) ...[
+                const SizedBox(width: AppSpacing.sm),
+                a,
+              ],
             ],
-            if (onExport != null) ...[
-              const SizedBox(width: AppSpacing.sm),
-              AppButton(
-                label: 'Export CSV',
-                icon: AppIcons.download,
-                dense: true,
-                onPressed: onExport,
-              ),
-            ],
-            if (onDiscard != null) ...[
-              const SizedBox(width: AppSpacing.sm),
-              AppButton(
-                label: 'Discard',
-                variant: AppButtonVariant.ghost,
-                dense: true,
-                onPressed: onDiscard,
-              ),
-            ],
-          ],
-          if (run.phase == PerfPhase.failed && onDiscard != null)
-            AppButton(
-              label: 'Dismiss',
-              variant: AppButtonVariant.ghost,
-              dense: true,
-              onPressed: onDiscard,
-            ),
-        ],
+          );
+        },
       ),
     );
   }

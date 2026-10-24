@@ -17,11 +17,16 @@ class SegmentedControl<T> extends StatelessWidget {
     required this.options,
     required this.value,
     required this.onChanged,
+    this.fill = false,
   });
 
   final List<SegmentOption<T>> options;
   final T value;
   final ValueChanged<T> onChanged;
+
+  /// Fill the space given — equal-width segments, full height — instead of
+  /// hugging the labels. Needs a bounded width (Expanded, IntrinsicWidth).
+  final bool fill;
 
   @override
   Widget build(BuildContext context) {
@@ -33,49 +38,63 @@ class SegmentedControl<T> extends StatelessWidget {
         borderRadius: AppRadius.mdAll,
         border: Border.all(color: c.border),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final option in options)
-            HoverRegion(
-              onTap: () => onChanged(option.value),
-              builder: (context, hovered) {
-                final selected = option.value == value;
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected ? c.surfaceSelected : null,
-                    borderRadius: AppRadius.smAll,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (option.icon != null) ...[
-                        Icon(
-                          option.icon,
-                          size: 14,
-                          color: selected ? c.textPrimary : c.textMuted,
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      Text(
-                        option.label,
-                        style: context.text.button.copyWith(
-                          color: selected ? c.textPrimary : c.textMuted,
-                        ),
+      child: _fit(
+        Row(
+          mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
+          crossAxisAlignment: fill
+              ? CrossAxisAlignment.stretch
+              : CrossAxisAlignment.center,
+          children: [
+            for (final option in options)
+              _flexible(
+                HoverRegion(
+                  onTap: () => onChanged(option.value),
+                  builder: (context, hovered) {
+                    final selected = option.value == value;
+                    return Container(
+                      alignment: fill ? Alignment.center : null,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
                       ),
-                    ],
-                  ),
-                );
-              },
-            ),
-        ],
+                      decoration: BoxDecoration(
+                        color: selected ? c.surfaceSelected : null,
+                        borderRadius: AppRadius.smAll,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (option.icon != null) ...[
+                            Icon(
+                              option.icon,
+                              size: 14,
+                              color: selected ? c.textPrimary : c.textMuted,
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Text(
+                            option.label,
+                            style: context.text.button.copyWith(
+                              color: selected ? c.textPrimary : c.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
+
+  Widget _flexible(Widget segment) => fill ? Expanded(child: segment) : segment;
+
+  /// Filling, the segments stretch to the height given — or, when none is,
+  /// to their own (the sizing copy in FieldHeight gets an unbounded one).
+  Widget _fit(Widget row) => fill ? IntrinsicHeight(child: row) : row;
 }
 
 /// Standalone pill tabs (e.g. All / Running / Stopped filters).

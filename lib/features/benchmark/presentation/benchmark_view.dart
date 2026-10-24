@@ -257,7 +257,6 @@ class _Controls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
     final promptField = AppTextField(
       controller: prompt,
       prefix: '>',
@@ -279,11 +278,11 @@ class _Controls extends StatelessWidget {
         // Shares of the row: on one line the settings fill it in
         // proportion (Model + Send the biggest, so nothing balloons and
         // no gap trails Send); stacked, the numbers split it equally.
-        Widget number(_Setting s, int flex) =>
+        Widget number(SettingField s, int flex) =>
             Expanded(flex: wide ? flex : 1, child: s);
         final numbers = [
           number(
-            _Setting(
+            SettingField(
               label: 'Batch',
               controller: batch,
               onChanged: onBatchChanged,
@@ -307,7 +306,7 @@ class _Controls extends StatelessWidget {
           // Empty = no cap: the server generates until EOS or its max
           // seqlen.
           number(
-            _Setting(
+            SettingField(
               label: 'Max tokens',
               placeholder: '∞',
               controller: maxTokens,
@@ -318,7 +317,7 @@ class _Controls extends StatelessWidget {
           const SizedBox(width: AppSpacing.md),
           // Empty = the server's default temperature.
           number(
-            _Setting(
+            SettingField(
               label: 'Temp',
               placeholder: 'auto',
               controller: temperature,
@@ -327,89 +326,25 @@ class _Controls extends StatelessWidget {
             2,
           ),
         ];
-        // Send and Stop at exactly the field's height, in one footprint that
-        // never changes: Stop shows beside Send while a run is going; idle,
-        // Send covers Stop's space too, so nothing shifts when a run starts.
-        // Stretched only where a height is given (the pinned copy).
-        Widget sendButton({bool fill = false}) => AppButton(
-          label: 'Send batch',
-          icon: AppIcons.send,
-          variant: AppButtonVariant.primary,
-          fill: fill,
-          onPressed: onSend,
-        );
-        Widget actions({required bool stretch}) {
-          final both = Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: stretch
-                ? CrossAxisAlignment.stretch
-                : CrossAxisAlignment.center,
-            children: [
-              sendButton(),
-              const SizedBox(width: AppSpacing.sm),
-              Center(
-                child: AppIconButton(
-                  icon: AppIcons.kill,
-                  size: 15,
-                  color: c.statusFailed,
-                  hoverColor: c.statusFailed,
-                  padding: const EdgeInsets.all(9),
-                  onPressed: onCancel,
-                ),
-              ),
-            ],
-          );
-          // The hidden sizing copy always reserves both.
-          if (running || !stretch) return both;
-          return Stack(
-            children: [
-              Visibility.maintain(visible: false, child: both),
-              Positioned.fill(child: sendButton(fill: true)),
-            ],
-          );
-        }
-
         final modelField = AppTextField(
           controller: model,
           mono: true,
           placeholder: 'zml_model',
           onChanged: onModelChanged,
         );
-        Widget labelled(String label, Widget field) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label, style: context.text.smallMuted),
-            const SizedBox(height: 6),
-            field,
-          ],
-        );
-        // [field] with Send (and Cancel) beside it at exactly its height:
-        // the field row sets the height (a hidden copy of the actions
-        // reserves their width) and the real actions are pinned over that
-        // slot. Exact in one pass — the text field's intrinsic height
-        // overstates it.
-        Widget withActions(String label, Widget field) => labelled(
-          label,
-          Stack(
-            children: [
-              Row(
-                children: [
-                  Expanded(child: field),
-                  const SizedBox(width: AppSpacing.md),
-                  Visibility.maintain(
-                    visible: false,
-                    child: actions(stretch: false),
-                  ),
-                ],
-              ),
-              Positioned(
-                top: 0,
-                bottom: 0,
-                right: 0,
-                child: actions(stretch: true),
-              ),
-            ],
+        // [field] with Send (and Stop) beside it at exactly its height.
+        Widget withActions(String label, Widget field) => LabeledControl(
+          label: label,
+          child: FieldWithActions(
+            field: field,
+            actions: ({required stretch}) => RunActions(
+              label: 'Send batch',
+              icon: AppIcons.send,
+              running: running,
+              onRun: onSend,
+              onStop: onCancel,
+              stretch: stretch,
+            ),
           ),
         );
         // Empty model sends `zml_model` — llmd ignores the name, vLLM
@@ -428,7 +363,10 @@ class _Controls extends StatelessWidget {
             children: [
               ...numbers,
               const SizedBox(width: AppSpacing.md),
-              Expanded(flex: 3, child: labelled('Model', modelField)),
+              Expanded(
+                flex: 3,
+                child: LabeledControl(label: 'Model', child: modelField),
+              ),
               const SizedBox(width: AppSpacing.md),
               Expanded(flex: 8, child: withActions('Prompt', promptField)),
             ],
@@ -464,211 +402,6 @@ class _Controls extends StatelessWidget {
 
   /// Below this the controls split into two rows.
   static const _oneLineWidth = 600.0;
-}
-
-/// A labelled field, label above — the parent sizes it (a fixed-width box on
-/// the one-line layout, an equal share of the row when stacked). With
-/// [presets], a ▾ in the field opens a list of common values; typing any
-/// value still works.
-class _Setting extends StatefulWidget {
-  const _Setting({
-    required this.label,
-    required this.controller,
-    required this.onChanged,
-    this.placeholder,
-    this.presets,
-  });
-
-  final String label;
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-  final String? placeholder;
-  final List<String>? presets;
-
-  @override
-  State<_Setting> createState() => _SettingState();
-}
-
-class _SettingState extends State<_Setting> {
-  static const _segmentWidth = 34.0;
-
-  final _link = LayerLink();
-  final _menu = OverlayPortalController();
-
-  void _pick(String value) {
-    widget.controller.text = value;
-    widget.onChanged(value);
-    _menu.hide();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final presets = widget.presets;
-    Widget field = AppTextField(
-      controller: widget.controller,
-      mono: true,
-      placeholder: widget.placeholder,
-      onChanged: widget.onChanged,
-      // Keeps the text clear of the dropdown segment laid over the right.
-      suffix: presets == null
-          ? null
-          : const SizedBox(width: _segmentWidth - AppSpacing.md + 4),
-    );
-    if (presets != null) {
-      field = Stack(
-        children: [
-          field,
-          // A split-button segment inside the field's border: its own tint,
-          // a divider, and the full height clickable.
-          Positioned(
-            top: 1,
-            bottom: 1,
-            right: 1,
-            width: _segmentWidth,
-            child: HoverRegion(
-              onTap: () => _menu.isShowing ? _menu.hide() : _menu.show(),
-              builder: (context, hovered) => Container(
-                decoration: BoxDecoration(
-                  // One step up from the field's own fill — the same tone
-                  // as the panels around it — so it reads as part of the
-                  // control, not a separate grey block.
-                  color: hovered ? c.surfaceHover : c.surface,
-                  border: Border(left: BorderSide(color: c.borderMuted)),
-                  borderRadius: const BorderRadius.horizontal(
-                    right: Radius.circular(7),
-                  ),
-                ),
-                child: Icon(
-                  AppIcons.chevronDown,
-                  size: 14,
-                  color: hovered ? c.textPrimary : c.textMuted,
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-      field = CompositedTransformTarget(
-        link: _link,
-        child: OverlayPortal(
-          controller: _menu,
-          overlayChildBuilder: (context) => Stack(
-            children: [
-              // Tap outside to dismiss.
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _menu.hide,
-                ),
-              ),
-              CompositedTransformFollower(
-                link: _link,
-                targetAnchor: Alignment.bottomLeft,
-                followerAnchor: Alignment.topLeft,
-                offset: const Offset(0, 4),
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints.tightFor(
-                      width: 120,
-                    ).copyWith(maxHeight: 320),
-                    child: AppPanel(
-                      color: c.surface,
-                      padding: const EdgeInsets.all(AppSpacing.xs),
-                      child: ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: widget.controller,
-                        builder: (context, value, _) => SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              for (final p in presets)
-                                _PresetRow(
-                                  value: p,
-                                  selected: value.text.trim() == p,
-                                  onTap: () => _pick(p),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          child: field,
-        ),
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          widget.label,
-          style: context.text.smallMuted,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 6),
-        field,
-      ],
-    );
-  }
-}
-
-/// One value in a [_Setting]'s preset list.
-class _PresetRow extends StatelessWidget {
-  const _PresetRow({
-    required this.value,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String value;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return HoverRegion(
-      onTap: onTap,
-      builder: (context, hovered) => Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: 5,
-        ),
-        decoration: BoxDecoration(
-          color: selected
-              ? c.accent.withValues(alpha: 0.12)
-              : (hovered ? c.surfaceHover : null),
-          borderRadius: AppRadius.smAll,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                value,
-                style: context.text.mono.copyWith(
-                  color: selected ? c.accent : c.textPrimary,
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            SizedBox(
-              width: 12,
-              child: selected
-                  ? Icon(AppIcons.check, size: 12, color: c.accent)
-                  : null,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// Shown after a run in which replies were cut off by a token limit — either
