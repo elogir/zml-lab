@@ -26,6 +26,11 @@ void main() {
     final panel = container.read(
       benchmarkTerminalPanelControllerProvider.notifier,
     );
+    // Hidden until asked for.
+    expect(
+      container.read(benchmarkTerminalPanelControllerProvider).open,
+      isFalse,
+    );
 
     panel.setRatio(2);
     expect(
@@ -34,7 +39,7 @@ void main() {
     );
     panel.toggle();
     final state = container.read(benchmarkTerminalPanelControllerProvider);
-    expect(state.open, isFalse);
+    expect(state.open, isTrue);
     expect(state.ratio, BenchmarkTerminalPanel.maxRatio);
   });
 }
