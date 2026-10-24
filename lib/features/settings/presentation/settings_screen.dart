@@ -26,6 +26,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _benchModel;
   late final TextEditingController _copyTemplate;
   late final TextEditingController _perfDataset;
+  late final TextEditingController _perfChipUrl;
   late final TextEditingController _perfDuration;
   late final TextEditingController _perfConcurrency;
   late final TextEditingController _perfMaxTokens;
@@ -49,6 +50,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _benchModel = TextEditingController(text: s.benchModel);
     _copyTemplate = TextEditingController(text: s.benchCopyTemplate);
     _perfDataset = TextEditingController(text: s.perfDatasetPath);
+    _perfChipUrl = TextEditingController(text: s.perfChipMetricsUrl);
     _perfDuration = TextEditingController(
       text: '${s.perfParams.durationSeconds}',
     );
@@ -70,6 +72,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _benchModel.dispose();
     _copyTemplate.dispose();
     _perfDataset.dispose();
+    _perfChipUrl.dispose();
     _perfDuration.dispose();
     _perfConcurrency.dispose();
     _perfMaxTokens.dispose();
@@ -98,6 +101,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _benchModel.text = '';
       _copyTemplate.text = s.benchCopyTemplate;
       _perfDataset.text = s.perfDatasetPath;
+      _perfChipUrl.text = s.perfChipMetricsUrl;
       _perfDuration.text = '${s.perfParams.durationSeconds}';
       _perfConcurrency.text = '${s.perfParams.concurrency}';
       _perfMaxTokens.text = '';
@@ -335,6 +339,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         onPressed: () =>
                             revealInFinder(expandUserPath(s.perfDatasetPath)),
                       ),
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'Chip metrics (zml-smi)',
+                    description:
+                        'Polled during perf runs for power, utilization and '
+                        'memory, recorded with the run. Start zml-smi with '
+                        '--api on the server; {host} is the target\'s host. '
+                        'Empty turns it off.',
+                    stacked: true,
+                    control: AppTextField(
+                      controller: _perfChipUrl,
+                      mono: true,
+                      placeholder: 'off',
+                      onChanged: _controller.setPerfChipMetricsUrl,
                     ),
                   ),
                   _SettingRow(

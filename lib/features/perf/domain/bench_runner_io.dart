@@ -29,6 +29,41 @@ Future<String?> datasetProblem(String datasetPath) async =>
     ? null
     : 'ShareGPT dataset not found at $datasetPath';
 
+/// The server's version, where it says (vLLM's GET /version); null otherwise.
+Future<String?> fetchServerVersion({
+  required String host,
+  required int port,
+  Duration timeout = const Duration(seconds: 2),
+}) async {
+  final client = HttpClient()..connectionTimeout = timeout;
+  try {
+    final request = await client.get(host, port, '/version').timeout(timeout);
+    final response = await request.close().timeout(timeout);
+    if (response.statusCode != 200) return null;
+    final body = await response.transform(utf8.decoder).join().timeout(timeout);
+    final decoded = jsonDecode(body);
+    return decoded is Map && decoded['version'] is String
+        ? decoded['version'] as String
+        : null;
+  } catch (_) {
+    return null;
+  } finally {
+    client.close(force: true);
+  }
+}
+
+/// This machine, for a run's `meta.json`.
+Map<String, String> clientInfo() => {
+  'os': Platform.operatingSystemVersion,
+  'host': Platform.localHostname,
+};
+
+/// The size of the file at [path] (`~` expanded), or null if there's none.
+int? fileSize(String path) {
+  final f = File(expandUserPath(path));
+  return f.existsSync() ? f.lengthSync() : null;
+}
+
 /// GET /v1/models → model ids, for prefilling the form (vLLM needs a real
 /// model name; llmd ignores it). Empty on any failure.
 Future<List<String>> fetchModelIds({

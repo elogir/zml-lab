@@ -10,6 +10,10 @@ const defaultPerfDatasetPath =
     '~/Library/Application Support/ZML-Lab/'
     'ShareGPT_V3_unfiltered_cleaned_split.json';
 
+/// Where perf runs look for `zml-smi --api` (chip metrics); `{host}` is the
+/// target's host.
+const defaultChipMetricsUrl = 'http://{host}:9090';
+
 /// The prompt a fresh benchmark run starts with when none is configured.
 const defaultBenchmarkPrompt =
     'Summarize the tradeoffs between tensor and pipeline parallelism '
@@ -76,6 +80,10 @@ abstract class AppSettings with _$AppSettings {
 
     /// Where the perf benchmark's ShareGPT dataset is (or gets downloaded).
     @Default(defaultPerfDatasetPath) String perfDatasetPath,
+
+    /// `zml-smi --api` to sample chip metrics from during perf runs (`{host}`
+    /// = the target's host). Empty = don't.
+    @Default(defaultChipMetricsUrl) String perfChipMetricsUrl,
 
     /// Last-used perf run parameters — the form remembers them so nothing has
     /// to be re-entered between runs.

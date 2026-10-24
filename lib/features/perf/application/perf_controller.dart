@@ -12,6 +12,8 @@ import '../domain/bench_runner.dart';
 import '../domain/csv_events.dart';
 import '../domain/perf_stats.dart';
 import '../domain/report_text.dart';
+import '../domain/run_recorder.dart';
+import '../domain/sharegpt.dart';
 
 part 'perf_controller.g.dart';
 
@@ -49,6 +51,8 @@ class PerfRun {
     this.elapsed = Duration.zero,
     this.report,
     this.saved = false,
+    this.runFile,
+    this.chips = false,
   });
 
   final PerfPhase phase;
@@ -74,6 +78,13 @@ class PerfRun {
   /// Whether [report] has been saved to the library already.
   final bool saved;
 
+  /// The finished run's recording (`.zmlrun.parquet`), once written — what
+  /// "Export run…" exports. Null while running, or if recording failed.
+  final String? runFile;
+
+  /// Whether zml-smi chip metrics are being (or were) recorded.
+  final bool chips;
+
   static const _unset = Object();
 
   PerfRun copyWith({
@@ -89,6 +100,8 @@ class PerfRun {
     Duration? elapsed,
     Object? report = _unset,
     bool? saved,
+    Object? runFile = _unset,
+    bool? chips,
   }) => PerfRun(
     phase: phase ?? this.phase,
     message: identical(message, _unset) ? this.message : message as String?,
@@ -102,6 +115,8 @@ class PerfRun {
     elapsed: elapsed ?? this.elapsed,
     report: identical(report, _unset) ? this.report : report as PerfReport?,
     saved: saved ?? this.saved,
+    runFile: identical(runFile, _unset) ? this.runFile : runFile as String?,
+    chips: chips ?? this.chips,
   );
 }
 
@@ -126,6 +141,24 @@ class PerfController extends _$PerfController {
   String _jobCommand = '';
   String _machineName = '';
   String _endpoint = '';
+  String _host = '';
+  int _port = 0;
+  String? _machine;
+  String? _hardware;
+
+  // The run's recording (run_recorder.dart): spooled while it streams,
+  // written as its .zmlrun.parquet when it ends.
+  String _runId = '';
+  DateTime? _startedAt;
+  RunSpool? _spool;
+  Timer? _chipTimer;
+  bool _chipBusy = false;
+  String? _chipUrl;
+  List<ChipReading> _chipsSeen = const [];
+  String? _serverVersion;
+
+  /// How often zml-smi is sampled (it refreshes every 500 ms by default).
+  static const chipIntervalMs = 500;
 
   @override
   PerfRun build(String jobId) {
@@ -169,12 +202,16 @@ class PerfController extends _$PerfController {
   Future<String?> _datasetProblem() =>
       datasetProblem(ref.read(settingsControllerProvider).perfDatasetPath);
 
+  /// Runs the benchmark. [machine] and [hardware] describe the target when
+  /// it's a saved machine (for the recording's meta.json).
   Future<void> start({
     required String host,
     required int port,
     required String jobName,
     required String jobCommand,
     required String machineName,
+    String? machine,
+    String? hardware,
   }) async {
     if (state.phase.isActive) return;
     final seq = ++_runSeq;
@@ -183,10 +220,19 @@ class PerfController extends _$PerfController {
     _jobCommand = jobCommand;
     _machineName = machineName;
     _endpoint = '$machineName:$port';
+    _host = host;
+    _port = port;
+    _machine = machine;
+    _hardware = hardware;
     _cancelRequested = false;
     _lastLog = null;
     _parser = PerfCsvParser();
     _acc = PerfAccumulator();
+    _runId = 'p-${DateTime.now().microsecondsSinceEpoch}';
+    _startedAt = DateTime.now().toUtc();
+    _chipsSeen = const [];
+    _chipUrl = null;
+    _serverVersion = null;
 
     final settings = ref.read(settingsControllerProvider);
     state = state.copyWith(
@@ -201,6 +247,8 @@ class PerfController extends _$PerfController {
       elapsed: Duration.zero,
       report: null,
       saved: false,
+      runFile: null,
+      chips: false,
     );
     AppLog.write(
       'perf run start job=$jobName endpoint=$host:$port '
@@ -217,6 +265,9 @@ class PerfController extends _$PerfController {
         if (seq != _runSeq) return;
       }
 
+      await _startRecording(seq, settings.perfChipMetricsUrl);
+      if (seq != _runSeq) return;
+
       state = state.copyWith(message: 'loading ShareGPT dataset…');
       final run = startBenchLib(
         _config(params, host, port, settings.perfDatasetPath),
@@ -231,10 +282,11 @@ class PerfController extends _$PerfController {
       );
       final summary = await run.done;
       if (seq != _runSeq) return;
-      _finish(summary);
+      _finish(seq, summary);
     } catch (e) {
       if (seq != _runSeq) return;
       _stopTicker();
+      _stopRecording(discard: true);
       final message = '$e'.replaceFirst('Exception: ', '');
       AppLog.write('perf run failed: $message');
       state = state.copyWith(phase: PerfPhase.failed, message: message);
@@ -260,8 +312,138 @@ class PerfController extends _$PerfController {
     sequenceType: p.sequenceType,
   );
 
+  /// Opens the run's spool, and — when zml-smi answers at [chipUrl] — starts
+  /// sampling it. Recording is best-effort: a run goes ahead without it.
+  Future<void> _startRecording(int seq, String chipUrl) async {
+    try {
+      _spool = await RunSpool.create(_runId);
+    } catch (e) {
+      AppLog.write('perf recording unavailable: $e');
+      _spool = null;
+    }
+    // vLLM says its version; others don't (it's then entered at export).
+    unawaited(
+      fetchServerVersion(host: _host, port: _port).then((v) {
+        if (seq == _runSeq) _serverVersion = v;
+      }),
+    );
+    final url = chipUrl.replaceAll('{host}', _host).trim();
+    if (_spool == null || url.isEmpty) return;
+    final first = await fetchChips(url);
+    if (seq != _runSeq) return;
+    if (first.isEmpty) {
+      AppLog.write('perf: no zml-smi at $url — no chip metrics');
+      return;
+    }
+    _chipUrl = url;
+    _chipsSeen = first;
+    _spool?.addChipSample(DateTime.now().microsecondsSinceEpoch * 1000, first);
+    state = state.copyWith(chips: true);
+    _chipTimer = Timer.periodic(const Duration(milliseconds: chipIntervalMs), (
+      _,
+    ) async {
+      if (_chipBusy) return; // a slow answer: skip a beat, don't pile up
+      _chipBusy = true;
+      try {
+        final readings = await fetchChips(url);
+        if (seq != _runSeq || readings.isEmpty) return;
+        // Stamped on arrival, on the same clock as the events.
+        _spool?.addChipSample(
+          DateTime.now().microsecondsSinceEpoch * 1000,
+          readings,
+        );
+      } finally {
+        _chipBusy = false;
+      }
+    });
+  }
+
+  /// Stops sampling chips; with [discard], drops the spool too.
+  void _stopRecording({bool discard = false}) {
+    _chipTimer?.cancel();
+    _chipTimer = null;
+    if (discard) {
+      final spool = _spool;
+      _spool = null;
+      unawaited(spool?.discard());
+    }
+  }
+
+  /// Writes the finished run's .zmlrun.parquet (DuckDB, off the UI isolate)
+  /// and records where it is.
+  Future<void> _writeRunFile(int seq, PerfReport report) async {
+    final spool = _spool;
+    _spool = null;
+    if (spool == null) return;
+    try {
+      final path = await spool.finish(_autoMeta(report));
+      if (seq != _runSeq || state.report?.id != report.id) {
+        // Discarded (or another run started) while it was being written.
+        if (path != null && !state.saved) await deleteRun(report.id);
+        return;
+      }
+      state = state.copyWith(runFile: path);
+    } catch (e) {
+      AppLog.write('perf recording failed: $e');
+    }
+  }
+
+  /// What the app knows about the run, for its meta.json — the rest (label,
+  /// commit, quantization, notes, tags) comes from the export dialog.
+  Map<String, Object?> _autoMeta(PerfReport report) {
+    final p = report.params;
+    final datasetPath = ref.read(settingsControllerProvider).perfDatasetPath;
+    final client = clientInfo();
+    return {
+      'schema_version': 1,
+      'run_id': report.id,
+      'label': [
+        report.server,
+        if (p.model.isNotEmpty) p.model.split('/').last,
+        'c=${p.concurrency}',
+      ].join(' · '),
+      'started_at': _startedAt?.toIso8601String(),
+      'ended_at': DateTime.now().toUtc().toIso8601String(),
+      'cancelled': report.cancelled,
+      'app': {'benchmarker_api': 1},
+      if (client.isNotEmpty) 'client': client,
+      'target': {'url': 'http://$_host:$_port/v1/', 'machine': ?_machine},
+      'server': {'kind': report.server, 'version': ?_serverVersion},
+      'model': {if (p.model.isNotEmpty) 'name': p.model},
+      'hardware': {
+        if (_hardware?.isNotEmpty ?? false) 'description': _hardware,
+        if (_chipsSeen.isNotEmpty)
+          'chips': [for (final c in _chipsSeen) c.toMeta()],
+      },
+      'params': {
+        'duration_s': p.durationSeconds,
+        'concurrency': p.concurrency,
+        'max_completion_tokens': p.maxCompletionTokens,
+        'prompts': p.sequenceType,
+        'turns': p.mode,
+        'warmup': p.warmup,
+      },
+      'dataset': {
+        'name': datasetPath.split('/').last,
+        // The official file (same size) — hashing 673 MB per run isn't worth
+        // it to tell.
+        if (fileSize(datasetPath) == ShareGpt.bytes) 'sha256': ShareGpt.sha256,
+      },
+      'chip_metrics': _chipUrl == null
+          ? null
+          : {'url': _chipUrl, 'interval_ms': chipIntervalMs},
+      'summary': {
+        'requests': report.totalRequests,
+        'tokens_per_second': report.tokensPerSecond,
+        'requests_per_second': report.requestsPerSecond,
+        'errors': report.errorCount,
+      },
+    };
+  }
+
   void _onCsv(int seq, String chunk) {
     if (seq != _runSeq) return;
+    _spool?.addEvents(chunk);
     final events = _parser?.add(chunk) ?? const [];
     if (events.isEmpty) return;
     _acc?.addAll(events);
@@ -310,7 +492,7 @@ class PerfController extends _$PerfController {
     _seriesDirty = false;
   }
 
-  void _finish(BenchLibSummary summary) {
+  void _finish(int seq, BenchLibSummary summary) {
     _stopTicker();
     final acc = _acc;
     _run = null;
@@ -318,6 +500,7 @@ class PerfController extends _$PerfController {
       AppLog.write('perf benchmarker: ${summary.error}');
     }
     if (acc == null || acc.eventCount == 0) {
+      _stopRecording(discard: true);
       final reason = summary.error ?? _lastLog ?? 'the server sent nothing';
       AppLog.write('perf run produced no events ($reason)');
       state = state.copyWith(
@@ -326,9 +509,11 @@ class PerfController extends _$PerfController {
       );
       return;
     }
+    _stopRecording();
     final params = state.params;
     final report = PerfReport(
-      id: 'p-${DateTime.now().microsecondsSinceEpoch}',
+      // The recording is kept as runs/<id>.zmlrun.parquet.
+      id: _runId,
       name: _jobName,
       jobName: _jobName,
       machineName: _machineName,
@@ -368,6 +553,7 @@ class PerfController extends _$PerfController {
       errors: report.errorCount,
       liveTps: report.tokensPerSecond,
     );
+    unawaited(_writeRunFile(seq, report));
   }
 
   /// Stops the benchmarker: in-flight requests are cancelled, the CSV
@@ -379,6 +565,7 @@ class PerfController extends _$PerfController {
     if (run == null) {
       if (state.phase == PerfPhase.preparing) {
         _runSeq++;
+        _stopRecording(discard: true);
         state = state.copyWith(phase: PerfPhase.idle, message: null);
       }
       return;
@@ -409,15 +596,20 @@ class PerfController extends _$PerfController {
     }
   }
 
-  /// Clears a finished/failed run back to the idle form.
+  /// Clears a finished/failed run back to the idle form. An unsaved run's
+  /// recording goes with it (a saved report keeps its own).
   void discard() {
     if (state.phase.isActive) return;
+    final report = state.report;
+    if (report != null && !state.saved) unawaited(deleteRun(report.id));
     state = state.copyWith(
       phase: PerfPhase.idle,
       message: null,
       report: null,
       series: const [],
       saved: false,
+      runFile: null,
+      chips: false,
     );
   }
 
@@ -429,6 +621,7 @@ class PerfController extends _$PerfController {
   void _teardown() {
     _runSeq++;
     _stopTicker();
+    _stopRecording(discard: true);
     _run?.stop();
     _run = null;
   }

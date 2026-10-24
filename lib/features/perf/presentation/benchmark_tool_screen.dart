@@ -151,6 +151,11 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
             machineName: target.label,
             host: host,
             port: port,
+            machine: machine?.name,
+            hardware: [
+              machine?.gpus,
+              machine?.memory,
+            ].whereType<String>().where((s) => s.trim().isNotEmpty).join(', '),
           );
 
     // Mounted only while the panel is open (or animating shut) — the split

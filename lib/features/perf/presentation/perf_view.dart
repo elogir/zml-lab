@@ -31,6 +31,8 @@ class PerfView extends ConsumerStatefulWidget {
     required this.machineName,
     required this.host,
     required this.port,
+    this.machine,
+    this.hardware,
   });
 
   final String jobId;
@@ -40,6 +42,11 @@ class PerfView extends ConsumerStatefulWidget {
   final String machineName;
   final String host;
   final int port;
+
+  /// The saved machine benchmarked, if one was picked, and its hardware —
+  /// recorded in the run's meta.json.
+  final String? machine;
+  final String? hardware;
 
   @override
   ConsumerState<PerfView> createState() => _PerfViewState();
@@ -109,6 +116,8 @@ class _PerfViewState extends ConsumerState<PerfView> {
       jobName: widget.jobName,
       jobCommand: widget.jobCommand,
       machineName: widget.machineName,
+      machine: widget.machine,
+      hardware: widget.hardware,
     );
   }
 

@@ -26,6 +26,26 @@ Future<void> deleteRun(String runId) async {
   if (file.existsSync()) await file.delete();
 }
 
+/// One sample from `zml-smi --api` at [url]; empty if it doesn't answer (in
+/// time) or isn't zml-smi.
+Future<List<ChipReading>> fetchChips(
+  String url, {
+  Duration timeout = const Duration(milliseconds: 800),
+}) async {
+  final client = HttpClient()..connectionTimeout = timeout;
+  try {
+    final request = await client.getUrl(Uri.parse(url)).timeout(timeout);
+    final response = await request.close().timeout(timeout);
+    if (response.statusCode != 200) return const [];
+    final body = await response.transform(utf8.decoder).join().timeout(timeout);
+    return ChipReading.parse(jsonDecode(body));
+  } catch (_) {
+    return const [];
+  } finally {
+    client.close(force: true);
+  }
+}
+
 /// A run being recorded: the benchmarker's CSV and zml-smi samples appended
 /// to files as they come (cheap — nothing parsed or converted while the run
 /// streams), turned into the run's Parquet file by [finish].

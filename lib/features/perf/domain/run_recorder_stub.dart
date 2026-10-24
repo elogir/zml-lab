@@ -14,6 +14,11 @@ bool runFileExists(String runId) => false;
 
 Future<void> deleteRun(String runId) async {}
 
+Future<List<ChipReading>> fetchChips(
+  String url, {
+  Duration timeout = const Duration(milliseconds: 800),
+}) async => const [];
+
 class RunSpool {
   RunSpool._();
 

@@ -56,6 +56,7 @@ class SettingsController extends _$SettingsController {
       benchModel: raw['benchModel'] ?? def.benchModel,
       benchCopyTemplate: raw['benchCopyTemplate'] ?? def.benchCopyTemplate,
       perfDatasetPath: raw['perfDatasetPath'] ?? def.perfDatasetPath,
+      perfChipMetricsUrl: raw['perfChipMetricsUrl'] ?? def.perfChipMetricsUrl,
       perfParams: _decodePerfParams(raw['perfParams']) ?? def.perfParams,
     );
     // Settings that no longer exist (the benchmarker's folder, the
@@ -145,6 +146,16 @@ class SettingsController extends _$SettingsController {
     template.isEmpty
         ? _repo.remove('benchCopyTemplate')
         : _repo.put('benchCopyTemplate', template);
+  }
+
+  /// Stored as typed — empty turns chip metrics off (not back to the
+  /// default), so it's kept even when blank.
+  void setPerfChipMetricsUrl(String url) {
+    final v = url.trim();
+    state = state.copyWith(perfChipMetricsUrl: v);
+    v == defaultChipMetricsUrl
+        ? _repo.remove('perfChipMetricsUrl')
+        : _repo.put('perfChipMetricsUrl', v);
   }
 
   void setPerfDatasetPath(String path) {

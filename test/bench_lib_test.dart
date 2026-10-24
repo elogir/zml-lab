@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dart_duckdb/dart_duckdb.dart';
+import 'package:dart_duckdb/open.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +11,7 @@ import 'package:zml_lab/core/database/database_provider.dart';
 import 'package:zml_lab/features/perf/application/perf_controller.dart';
 import 'package:zml_lab/features/perf/domain/bench_lib.dart';
 import 'package:zml_lab/features/perf/domain/csv_events.dart';
+import 'package:zml_lab/features/perf/domain/run_recorder.dart';
 import 'package:zml_lab/features/settings/application/settings_controller.dart';
 import 'package:zml_lab/models/perf_report.dart';
 
@@ -52,27 +55,52 @@ Future<HttpServer> _fakeServer({
 }
 
 /// A ShareGPT file of [n] two-prompt conversations.
-File _dataset(Directory dir, int n) => File('${dir.path}/sharegpt.json')
-  ..writeAsStringSync(
-    jsonEncode([
-      for (var i = 0; i < n; i++)
-        {
-          'id': 'c$i',
-          'conversations': [
-            {'from': 'human', 'value': 'hello $i'},
-            {'from': 'gpt', 'value': 'hi'},
-            {'from': 'human', 'value': 'again'},
-          ],
-        },
-    ]),
-  );
+File _dataset(Directory dir, int n) =>
+    File('${dir.path}/sharegpt.json')..writeAsStringSync(
+      jsonEncode([
+        for (var i = 0; i < n; i++)
+          {
+            'id': 'c$i',
+            'conversations': [
+              {'from': 'human', 'value': 'hello $i'},
+              {'from': 'gpt', 'value': 'hi'},
+              {'from': 'human', 'value': 'again'},
+            ],
+          },
+      ]),
+    );
+
+/// The DuckDB library the plugin downloads (flutter test runs without the
+/// app, so the plugin's linked copy isn't there).
+final _libduckdb =
+    '${Platform.environment['HOME']}/.pub-cache/hosted/pub.dev/'
+    'dart_duckdb-1.4.4/macos/Libraries/release/libduckdb.dylib';
+
+final String? libduckdbSkip = File(_libduckdb).existsSync()
+    ? null
+    : 'libduckdb not downloaded yet (run a macOS build once)';
+
+Future<List<List<Object?>>> duckQuery(String sql) async {
+  final db = await duckdb.open(':memory:');
+  final conn = await duckdb.connect(db);
+  try {
+    final r = await conn.query(sql);
+    return [for (final row in r.fetchAll()) row.toList()];
+  } finally {
+    await conn.dispose();
+    await db.dispose();
+  }
+}
 
 void main() {
-  // Without the library (no Bazel build and no Go at build time) these skip.
+  // Without the library (not copied into native/) these skip.
   final problem = benchLibProblem();
   final skip = problem != null;
   // ignore: avoid_print
   if (skip) print('skipping bench_lib tests: $problem');
+  if (libduckdbSkip == null) {
+    open.overrideFor(OperatingSystem.macOS, _libduckdb);
+  }
 
   late Directory tmp;
   setUp(() => tmp = Directory.systemTemp.createTempSync('bench_lib_test'));
@@ -187,12 +215,38 @@ void main() {
         container.dispose();
         await db.close();
       });
+      // A zml-smi --api stand-in: one GPU.
+      final smi = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => smi.close(force: true));
+      smi.listen((req) {
+        req.response
+          ..headers.contentType = ContentType.json
+          ..write(
+            jsonEncode({
+              'devices': [
+                {
+                  'cuda': {
+                    'name': 'NVIDIA GeForce RTX 4090',
+                    'driver_version': '580.82',
+                    'util_percent': 97,
+                    'power_mw': 312500,
+                  },
+                },
+              ],
+              'processes': [],
+            }),
+          )
+          ..close();
+      });
+      debugRunsDir = '${tmp.path}/runs';
+      addTearDown(() => debugRunsDir = null);
+
       // Let the settings load from the (empty) database before editing them.
       container.read(settingsControllerProvider);
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      container
-          .read(settingsControllerProvider.notifier)
-          .setPerfDatasetPath(_dataset(tmp, 12).path);
+      container.read(settingsControllerProvider.notifier)
+        ..setPerfDatasetPath(_dataset(tmp, 12).path)
+        ..setPerfChipMetricsUrl('http://{host}:${smi.port}');
 
       final provider = perfControllerProvider('t');
       final perf = container.read(provider.notifier)
@@ -212,16 +266,64 @@ void main() {
             jobName: 'test',
             jobCommand: '',
             machineName: 'local',
+            machine: '4090-box',
+            hardware: '1× RTX 4090, 64 GB',
           )
           .timeout(const Duration(seconds: 30));
 
-      final run = container.read(provider);
+      var run = container.read(provider);
       expect(run.phase, PerfPhase.done, reason: run.message);
       final report = run.report!;
       expect(report.totalRequests, 24);
       expect(report.errorCount, 0);
       expect(report.tokensPerSecond, greaterThan(0));
       expect(report.cancelled, isFalse);
+      expect(run.chips, isTrue);
+
+      // The recording: written in the background once the run is done.
+      if (libduckdbSkip != null) return;
+      for (var i = 0; i < 100 && run.runFile == null; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        run = container.read(provider);
+      }
+      final file = run.runFile;
+      expect(file, runFilePath(report.id));
+      final counts = {
+        for (final r in await duckQuery(
+          "SELECT source, count(*) FROM read_parquet('$file') GROUP BY 1",
+        ))
+          r[0]: r[1],
+      };
+      expect(counts['event'], report.totalEvents);
+      expect(counts['chip'], greaterThanOrEqualTo(1));
+      final meta = (await readRunMeta(file!))!;
+      expect(meta['run_id'], report.id);
+      expect(meta['target'], {
+        'url': 'http://127.0.0.1:${server.port}/v1/',
+        'machine': '4090-box',
+      });
+      expect(meta['hardware'], {
+        'description': '1× RTX 4090, 64 GB',
+        'chips': [
+          {
+            'device': 0,
+            'kind': 'cuda',
+            'name': 'NVIDIA GeForce RTX 4090',
+            'driver_version': '580.82',
+          },
+        ],
+      });
+      expect(meta['chip_metrics'], {
+        'url': 'http://127.0.0.1:${smi.port}',
+        'interval_ms': 500,
+      });
+      expect((meta['params'] as Map)['concurrency'], 4);
+      expect((meta['summary'] as Map)['requests'], 24);
+
+      // Discarding an unsaved run removes its recording.
+      perf.discard();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(File(file).existsSync(), isFalse);
     });
   }, skip: skip);
 

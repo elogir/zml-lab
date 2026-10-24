@@ -10,6 +10,16 @@ bool directoryExists(String path) => false;
 Future<String?> datasetProblem(String datasetPath) async =>
     'perf benchmarks need the desktop app';
 
+Future<String?> fetchServerVersion({
+  required String host,
+  required int port,
+  Duration timeout = const Duration(seconds: 2),
+}) async => null;
+
+Map<String, String> clientInfo() => const {};
+
+int? fileSize(String path) => null;
+
 Future<List<String>> fetchModelIds({
   required String host,
   required int port,
