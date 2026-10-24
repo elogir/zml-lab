@@ -12,6 +12,9 @@
 .swiftpm/
 migrate_working_dir/
 
+# Prebuilt native libraries, copied in by hand (see native/README.md)
+/native/*.dylib
+
 # IntelliJ related
 *.iml
 *.ipr
