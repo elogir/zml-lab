@@ -168,10 +168,14 @@ class PerfController extends _$PerfController {
 
   /// What a run needs and doesn't have — null when good to go.
   Future<String?> preflight() async =>
-      benchLibProblem() ??
-      await datasetProblem(
-        ref.read(settingsControllerProvider).perfDatasetPath,
-      );
+      libraryProblem() ?? await _datasetProblem();
+
+  /// Why the benchmarker itself can't run (the dataset aside — the Perf tab
+  /// offers to download that).
+  String? libraryProblem() => benchLibProblem();
+
+  Future<String?> _datasetProblem() =>
+      datasetProblem(ref.read(settingsControllerProvider).perfDatasetPath);
 
   Future<void> start({
     required String host,

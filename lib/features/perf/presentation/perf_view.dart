@@ -6,11 +6,13 @@ import '../../../core/widgets/widgets.dart';
 import '../../../models/perf_report.dart';
 import '../../../core/shell/app_fullscreen.dart';
 import '../application/perf_controller.dart';
+import '../application/sharegpt_dataset.dart';
 import '../domain/bench_runner.dart';
 import '../domain/report_text.dart';
 import 'perf_charts.dart';
 import 'perf_report_view.dart';
 import 'save_perf_report_dialog.dart';
+import 'sharegpt_download_card.dart';
 
 /// The Benchmark tab's Perf tool: configure and run the benchmarker
 /// (tools/benchmark) against the target endpoint, watch it live, then read,
@@ -60,13 +62,13 @@ class _PerfViewState extends ConsumerState<PerfView> {
       text: run.params.maxCompletionTokens?.toString() ?? '',
     );
     _model = TextEditingController(text: run.params.model);
+    // The dataset has its own card (with a download); this is the rest.
+    _preflightProblem = _controller.libraryProblem();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _controller.prefillModel(host: widget.host, port: widget.port);
       if (!mounted) return;
       final model = ref.read(perfControllerProvider(widget.jobId)).params.model;
       if (_model.text.isEmpty && model.isNotEmpty) _model.text = model;
-      final problem = await _controller.preflight();
-      if (mounted) setState(() => _preflightProblem = problem);
     });
   }
 
@@ -119,6 +121,8 @@ class _PerfViewState extends ConsumerState<PerfView> {
     final report = run.report;
     final fullscreen =
         ref.watch(appFullscreenProvider) == FullscreenSurface.perf;
+    final dataset = ref.watch(shareGptDatasetProvider);
+    final datasetReady = dataset.phase == DatasetPhase.ready;
 
     return Padding(
       // In fullscreen the Benchmark screen drops its own padding; this view
@@ -145,7 +149,8 @@ class _PerfViewState extends ConsumerState<PerfView> {
                 .read(appFullscreenProvider.notifier)
                 .toggle(FullscreenSurface.perf),
             onPatch: _patchParams,
-            onRun: _start,
+            // No dataset, nothing to replay: the card below gets it first.
+            onRun: datasetReady ? _start : null,
             onCancel: _controller.cancel,
           ),
           if (_preflightProblem != null && !run.phase.isActive) ...[
@@ -184,16 +189,28 @@ class _PerfViewState extends ConsumerState<PerfView> {
             ),
             const SizedBox(height: AppSpacing.md),
           ],
-          Expanded(child: _body(run)),
+          Expanded(child: _body(run, dataset)),
         ],
       ),
     );
   }
 
-  Widget _body(PerfRun run) {
+  Widget _body(PerfRun run, DatasetState dataset) {
     switch (run.phase) {
       case PerfPhase.idle:
-        return _EmptyState(problem: _preflightProblem);
+        return switch (dataset.phase) {
+          DatasetPhase.ready => _EmptyState(problem: _preflightProblem),
+          DatasetPhase.checking => const SizedBox.shrink(),
+          _ => Center(
+            child: SingleChildScrollView(
+              child: ShareGptDownloadCard(
+                state: dataset,
+                onDownload: ref.read(shareGptDatasetProvider.notifier).download,
+                onCancel: ref.read(shareGptDatasetProvider.notifier).cancel,
+              ),
+            ),
+          ),
+        };
       case PerfPhase.preparing:
       case PerfPhase.running:
       case PerfPhase.stopping:
@@ -251,7 +268,7 @@ class _Controls extends StatelessWidget {
   final bool fullscreen;
   final VoidCallback onToggleFullscreen;
   final void Function(PerfParams Function(PerfParams)) onPatch;
-  final VoidCallback onRun;
+  final VoidCallback? onRun;
   final VoidCallback onCancel;
 
   @override
@@ -742,7 +759,7 @@ class _PreflightWarning extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
-            '$problem — paths are configurable in Settings',
+            problem,
             style: context.text.smallMuted,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

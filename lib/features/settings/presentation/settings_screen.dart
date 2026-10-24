@@ -338,7 +338,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _SettingRow(
                     title: 'ShareGPT dataset',
                     description:
-                        'The conversations the benchmarker draws prompts from.',
+                        'The conversations the benchmarker draws prompts '
+                        'from. The Perf tab downloads it here when missing.',
                     stacked: true,
                     control: AppTextField(
                       controller: _perfDataset,

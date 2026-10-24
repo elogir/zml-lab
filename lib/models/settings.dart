@@ -4,13 +4,14 @@ import 'perf_report.dart';
 
 part 'settings.freezed.dart';
 
-/// Where the benchmarker lives (the app runs it locally).
+/// Where the benchmarker lives (its duckdb report.sql).
 const defaultPerfToolDir = 'path/to/benchmark/tools/benchmark';
 
-/// The ShareGPT dataset the benchmarker draws prompts from (the guide keeps
-/// it inside the tool's folder).
+/// The ShareGPT dataset the benchmarker draws prompts from — where the Perf
+/// tab downloads it.
 const defaultPerfDatasetPath =
-    '$defaultPerfToolDir/ShareGPT_V3_unfiltered_cleaned_split.json';
+    '~/Library/Application Support/ZML-Lab/'
+    'ShareGPT_V3_unfiltered_cleaned_split.json';
 
 /// The prompt a fresh benchmark run starts with when none is configured.
 const defaultBenchmarkPrompt =
