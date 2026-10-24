@@ -47,8 +47,7 @@ String? benchLibProblem() {
         : 'benchmark library speaks API v$v, the app expects v$_apiVersion';
   } on ArgumentError {
     // The asset isn't bundled: the build found no native/libzmlbench.dylib.
-    return 'benchmark library not bundled — put libzmlbench.dylib in the '
-        "app's native/ folder and rebuild";
+    return 'the benchmark library is missing from this build';
   }
 }
 
