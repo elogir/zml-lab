@@ -23,9 +23,9 @@ double _niceStep(double maxX) {
   return 3600;
 }
 
-/// The live charts while a run streams: the server's total event throughput
-/// and how many requests were streaming — drawn every frame, the newest
-/// stretch gliding between samples (see [SmoothLiveSeries]).
+/// The live charts while a run streams: the server's token throughput and
+/// the requests in flight — drawn every frame, the newest stretch gliding
+/// between samples (see [SmoothLiveSeries]).
 class PerfLiveCharts extends StatelessWidget {
   const PerfLiveCharts({super.key, required this.series, this.live = true});
 
@@ -43,6 +43,7 @@ class PerfLiveCharts extends StatelessWidget {
         elapsedMs: atMs,
         tps: a.tps + (b.tps - a.tps) * t,
         active: (a.active + (b.active - a.active) * t).round(),
+        waiting: (a.waiting + (b.waiting - a.waiting) * t).round(),
         requests: a.requests,
       ),
       builder: (context, shown) => Column(
@@ -59,18 +60,43 @@ class PerfLiveCharts extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          PerfChartCard(
-            title: 'Streaming requests',
-            unit: 'concurrent',
-            height: 160,
-            child: PerfSeriesChart(
-              series: shown,
-              value: (s) => s.active.toDouble(),
-              color: c.accent,
-              stepped: true,
-            ),
-          ),
+          PerfRequestsCard(series: shown, height: 160),
         ],
+      ),
+    );
+  }
+}
+
+/// Requests in flight over the run, and — shaded over them — how many were
+/// still waiting for their first token (queued, or in prefill).
+class PerfRequestsCard extends StatelessWidget {
+  const PerfRequestsCard({
+    super.key,
+    required this.series,
+    required this.height,
+  });
+
+  final List<PerfSeriesPoint> series;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return PerfChartCard(
+      title: 'Requests in flight',
+      unit: 'waiting for a first token shaded',
+      height: height,
+      child: PerfSeriesChart(
+        series: series,
+        value: (s) => s.active.toDouble(),
+        name: 'in flight',
+        color: c.accent,
+        overlay: (
+          value: (s) => s.waiting.toDouble(),
+          name: 'waiting',
+          color: c.statusStarting,
+        ),
+        stepped: true,
       ),
     );
   }
@@ -124,19 +150,27 @@ class PerfChartCard extends StatelessWidget {
   }
 }
 
-/// Time series over the run — an area (throughput) or step line (requests).
+/// Time series over the run — an area (throughput) or step line (requests),
+/// with an optional [overlay] series drawn over it.
 class PerfSeriesChart extends StatelessWidget {
   const PerfSeriesChart({
     super.key,
     required this.series,
     required this.value,
     required this.color,
+    this.name,
+    this.overlay,
     this.stepped = false,
   });
 
   final List<PerfSeriesPoint> series;
   final double Function(PerfSeriesPoint) value;
   final Color color;
+
+  /// The series' name in the hover readout (needed once there are two).
+  final String? name;
+  final ({double Function(PerfSeriesPoint) value, String name, Color color})?
+  overlay;
   final bool stepped;
 
   @override
@@ -187,17 +221,29 @@ class PerfSeriesChart extends StatelessWidget {
           trackballBehavior: trackball,
           // No animation: shown as is, live or finished (see ChartTrackball).
           series: <CartesianSeries<PerfSeriesPoint, double>>[
-            if (stepped)
+            if (stepped) ...[
               StepAreaSeries<PerfSeriesPoint, double>(
                 dataSource: series,
+                name: name,
                 xValueMapper: (s, _) => s.elapsedMs / 1000.0,
                 yValueMapper: (s, _) => value(s),
                 color: color.withValues(alpha: 0.14),
                 borderColor: color,
                 borderWidth: 2,
                 animationDuration: 0,
-              )
-            else
+              ),
+              if (overlay case final o?)
+                StepAreaSeries<PerfSeriesPoint, double>(
+                  dataSource: series,
+                  name: o.name,
+                  xValueMapper: (s, _) => s.elapsedMs / 1000.0,
+                  yValueMapper: (s, _) => o.value(s),
+                  color: o.color.withValues(alpha: 0.30),
+                  borderColor: o.color,
+                  borderWidth: 1,
+                  animationDuration: 0,
+                ),
+            ] else
               AreaSeries<PerfSeriesPoint, double>(
                 dataSource: series,
                 xValueMapper: (s, _) => s.elapsedMs / 1000.0,

@@ -181,7 +181,9 @@ void main() {
     // After the stop the rate glides down over a second rather than
     // dropping: at 1.5 s the window (0.5–1.5 s) holds 0.5 s of events.
     expect(s[14].tps, closeTo(20, 1e-9));
-    expect(s[14].active, 2);
+    // In flight at that instant: 'a' (last chunk at 2 s), not 'b' (done at
+    // 0.95 s). No usage chunk ever came, so each ends at its last chunk.
+    expect(s[14].active, 1);
     expect(s[19].tps, closeTo(0, 1e-9));
     expect(s[19].active, 0);
     expect(s.last.requests, 2);
@@ -192,6 +194,58 @@ void main() {
       acc.series(includeLast: true).map((p) => p.tps),
       s.map((p) => p.tps),
     );
+  });
+
+  test('in flight: from sent to the end of its stream; waiting: no token '
+      'yet', () {
+    const ms = 1000000;
+    PerfEvent chunk(String id, int sentMs, int atMs, {bool end = false}) =>
+        PerfEvent(
+          timestampNs: atMs * ms,
+          requestId: id,
+          seq: 0,
+          // The usage chunk that ends a stream has no text, and the prompt's
+          // token count.
+          hasText: !end,
+          requestTimestampNs: sentMs * ms,
+          inputTokens: end ? 10 : 0,
+          outputTokens: 0,
+          concurrency: 3,
+          server: '',
+          error: '',
+        );
+    final events = [
+      // z: a short reply, ended at 0.4 s.
+      chunk('z', 0, 100),
+      chunk('z', 0, 400, end: true),
+      // x: tokens from 0.3 s, a stall from 1 s, ended at 2 s.
+      for (var t = 300; t <= 1000; t += 100) chunk('x', 0, t),
+      chunk('x', 0, 2000, end: true),
+      // y: sent at 0.5 s, a long prefill (first token at 1.8 s).
+      chunk('y', 500, 1800),
+      chunk('y', 500, 2200, end: true),
+    ]..sort((a, b) => a.timestampNs.compareTo(b.timestampNs));
+    final s = (PerfAccumulator()..addAll(events)).series(includeLast: true);
+    PerfSeriesPoint at(int ms) => s.firstWhere((p) => p.elapsedMs == ms);
+    // 0.2 s: x and z sent; x has no token yet.
+    expect((at(200).active, at(200).waiting), (2, 1));
+    // 1.5 s: x stalled but not ended; y sent, still in prefill.
+    expect((at(1500).active, at(1500).waiting), (2, 1));
+    // 1.9 s: y streaming too.
+    expect((at(1900).active, at(1900).waiting), (2, 0));
+    // 2.1 s: x has ended.
+    expect((at(2100).active, at(2100).waiting), (1, 0));
+
+    // Live, mid-stall: x's stream hasn't ended, so it's still in flight
+    // though nothing has come from it for half a second.
+    final live = PerfAccumulator()
+      ..addAll([
+        for (final e in events)
+          if (e.timestampNs <= 1000 * ms) e,
+        chunk('w', 1400, 1500),
+      ]);
+    final mid = live.series(includeLast: true);
+    expect(mid.firstWhere((p) => p.elapsedMs == 1500).active, 2);
   });
 
   test('series cover the run and count every request', () {

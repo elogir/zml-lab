@@ -71,29 +71,43 @@ class PerfStatRow {
 }
 
 /// One point of the live time series, sampled while the benchmarker streams:
-/// at [elapsedMs] into the run the server was producing [tps] tokens/second
-/// (events per bucket), with [active] requests streaming and [requests]
-/// distinct requests seen so far.
+/// at [elapsedMs] into the run the server was producing [tps] tokens/second,
+/// with [active] requests in flight (sent, not finished) — [waiting] of them
+/// still without a first token — and [requests] distinct requests seen so
+/// far.
 class PerfSeriesPoint {
   const PerfSeriesPoint({
     required this.elapsedMs,
     required this.tps,
     required this.active,
+    this.waiting = 0,
     required this.requests,
   });
 
   final int elapsedMs;
   final double tps;
+
+  /// Requests in flight. (Reports saved before it was exact counted the
+  /// requests that streamed in the trailing second instead.)
   final int active;
+
+  /// In flight but no first token yet: queued, or in prefill.
+  final int waiting;
   final int requests;
 
-  Map<String, dynamic> toMap() =>
-      {'t': elapsedMs, 'r': tps, 'a': active, 'n': requests};
+  Map<String, dynamic> toMap() => {
+    't': elapsedMs,
+    'r': tps,
+    'a': active,
+    if (waiting > 0) 'w': waiting,
+    'n': requests,
+  };
 
   factory PerfSeriesPoint.fromMap(Map<String, dynamic> m) => PerfSeriesPoint(
     elapsedMs: (m['t'] as num?)?.toInt() ?? 0,
     tps: (m['r'] as num?)?.toDouble() ?? 0,
     active: (m['a'] as num?)?.toInt() ?? 0,
+    waiting: (m['w'] as num?)?.toInt() ?? 0,
     requests: (m['n'] as num?)?.toInt() ?? 0,
   );
 }

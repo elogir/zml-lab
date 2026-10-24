@@ -58,8 +58,16 @@ class _RequestState {
   int maxOutputTokens = 0;
   double? ttftMs;
 
+  /// When its first token arrived (null: none yet).
+  int? firstTokenTs;
+
   /// Timestamp of the request's previous token, for the ITL gaps.
   int? lastTokenTs;
+
+  /// Its stream ended: the final usage chunk (the only one with prompt
+  /// tokens) or an error came. Until then it's in flight, even through a
+  /// stall with no chunks.
+  bool done = false;
 }
 
 /// Ingests [PerfEvent]s as they stream in and produces both the live series
@@ -69,8 +77,8 @@ class PerfAccumulator {
   /// live charts move smoothly.
   static const bucketMs = 100;
 
-  /// Each point's rate and streaming count are taken over this many trailing
-  /// buckets (1 s), so the fine buckets don't make the line jitter.
+  /// Each point's rate is taken over this many trailing buckets (1 s), so the
+  /// fine buckets don't make the line jitter.
   static const windowBuckets = 10;
 
   final Map<String, _RequestState> _requests = {};
@@ -84,14 +92,18 @@ class PerfAccumulator {
   int _maxTsNs = 0;
   String server = '';
 
-  // Live series: per-bucket token counts, distinct streaming requests, and
-  // requests first seen.
+  /// Some request's end was seen (see [_RequestState.done]). A server that
+  /// never reports usage gives none: then requests end at their last chunk.
+  bool _sawEnd = false;
+
+  // Live series: per-bucket token counts and requests first seen.
   final List<int> _bucketTokens = [];
-  final List<Set<String>> _bucketIds = [];
   final List<int> _bucketNewRequests = [];
 
-  /// Points that can't change anymore (a window behind the newest bucket),
+  /// Rates that can't change anymore (a window behind the newest bucket),
   /// so a long run's series isn't recomputed from scratch on every refresh.
+  /// (The in-flight counts are, each time: a request can start counting
+  /// seconds before its first event shows up.)
   final List<PerfSeriesPoint> _settled = [];
 
   String? _firstError;
@@ -153,27 +165,28 @@ class PerfAccumulator {
       // A request's chunks arrive in order: its first token is the first
       // one seen.
       r.ttftMs ??= (e.timestampNs - e.requestTimestampNs) / 1e6;
+      r.firstTokenTs ??= e.timestampNs;
       final last = r.lastTokenTs;
       if (last != null) _itlGapsMs.add((e.timestampNs - last) / 1e6);
       r.lastTokenTs = e.timestampNs;
     }
+    if (e.inputTokens > 0 || e.isError) r.done = _sawEnd = true;
 
     // Live series bucket, indexed from the run's first request timestamp.
     final start = _minRequestTsNs!;
     final bucket = math.max(0, (e.timestampNs - start) ~/ (bucketMs * 1000000));
     while (_bucketTokens.length <= bucket) {
       _bucketTokens.add(0);
-      _bucketIds.add(<String>{});
       _bucketNewRequests.add(0);
     }
     if (e.hasText) _bucketTokens[bucket]++;
-    _bucketIds[bucket].add(e.requestId);
     if (isNew) _bucketNewRequests[bucket]++;
   }
 
-  /// The time series so far: a point per bucket, its rate and streaming
-  /// count over the trailing [windowBuckets]. While running the last
-  /// (partial) bucket is dropped so the tail of the chart doesn't dip.
+  /// The time series so far: a point per bucket (at its end), its rate over
+  /// the trailing [windowBuckets], and the requests in flight at that
+  /// instant. While running the last (partial) bucket is dropped so the tail
+  /// of the chart doesn't dip.
   List<PerfSeriesPoint> series({required bool includeLast}) {
     final n = includeLast ? _bucketTokens.length : _bucketTokens.length - 1;
     if (n <= 0) return const [];
@@ -182,30 +195,72 @@ class PerfAccumulator {
     while (_settled.length < settled) {
       _settled.add(_point(_settled.length, _settled.lastOrNull?.requests ?? 0));
     }
-    final out = _settled.length <= n
+    final rates = _settled.length <= n
         ? List.of(_settled)
         : _settled.sublist(0, n);
-    while (out.length < n) {
-      out.add(_point(out.length, out.lastOrNull?.requests ?? 0));
+    while (rates.length < n) {
+      rates.add(_point(rates.length, rates.lastOrNull?.requests ?? 0));
     }
-    return out;
+    final (inFlight, waiting) = _inFlight(n);
+    return [
+      for (final (i, p) in rates.indexed)
+        PerfSeriesPoint(
+          elapsedMs: p.elapsedMs,
+          tps: p.tps,
+          active: inFlight[i],
+          waiting: waiting[i],
+          requests: p.requests,
+        ),
+    ];
   }
 
   PerfSeriesPoint _point(int i, int requestsBefore) {
     final from = math.max(0, i - windowBuckets + 1);
     var tokens = 0;
-    final streaming = <String>{};
     for (var j = from; j <= i; j++) {
       tokens += _bucketTokens[j];
-      streaming.addAll(_bucketIds[j]);
     }
     final seconds = (i - from + 1) * bucketMs / 1000;
     return PerfSeriesPoint(
       elapsedMs: (i + 1) * bucketMs,
       tps: tokens / seconds,
-      active: streaming.length,
+      active: 0,
       requests: requestsBefore + _bucketNewRequests[i],
     );
+  }
+
+  /// At the end of each of the first [n] buckets: the requests in flight
+  /// (sent, stream not ended) and, of those, the ones still waiting for a
+  /// first token. One pass over the requests (difference arrays), so it's
+  /// cheap to redo on every refresh.
+  (List<int>, List<int>) _inFlight(int n) {
+    final start = _minRequestTsNs!;
+    const width = bucketMs * 1000000;
+    // The first point at or after [ns] (point i is at start + (i+1)·width).
+    int at(int ns) =>
+        math.min(n, math.max(0, ((ns - start) / width).ceil() - 1));
+    final inFlight = List.filled(n + 1, 0);
+    final waiting = List.filled(n + 1, 0);
+    for (final r in _requests.values) {
+      final from = at(r.requestTimestampNs);
+      // Unfinished: in flight to the newest point.
+      final until = r.done || !_sawEnd ? at(r.maxTimestampNs) : n;
+      if (from < until) {
+        inFlight[from]++;
+        inFlight[until]--;
+      }
+      final first = r.firstTokenTs;
+      final waitUntil = first == null ? until : math.min(until, at(first));
+      if (from < waitUntil) {
+        waiting[from]++;
+        waiting[waitUntil]--;
+      }
+    }
+    for (var i = 1; i < n; i++) {
+      inFlight[i] += inFlight[i - 1];
+      waiting[i] += waiting[i - 1];
+    }
+    return (inFlight, waiting);
   }
 
   List<PerfStatRow> statRows() {

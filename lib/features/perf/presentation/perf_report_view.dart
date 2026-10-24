@@ -94,17 +94,7 @@ class PerfReportView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-          PerfChartCard(
-            title: 'Streaming requests',
-            unit: 'concurrent',
-            height: 150,
-            child: PerfSeriesChart(
-              series: r.series,
-              value: (s) => s.active.toDouble(),
-              color: c.accent,
-              stepped: true,
-            ),
-          ),
+          PerfRequestsCard(series: r.series, height: 150),
           // Older reports carry the benchmarker's CLI invocation.
           if (r.benchCommand.trim().isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
