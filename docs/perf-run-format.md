@@ -1,22 +1,60 @@
 # Perf run format (v1)
 
 The contract between ZML-Lab (which records perf runs) and the results website
-(which loads them into DuckDB-WASM to analyse, compare and chart). Status:
-**draft — under review**.
+(which loads them into DuckDB-WASM to analyse, compare and chart).
 
-A run is a folder, `<name>.zmlrun/`:
+A run is **one Parquet file**, `<name>.zmlrun.parquet` (zstd), holding:
 
-| File             | What                                                      | Always |
-| ---------------- | --------------------------------------------------------- | ------ |
-| `meta.json`      | What was run, against what, on what — see below           | yes    |
-| `events.csv.gz`  | One row per streamed chunk of every request               | yes    |
-| `chips.csv.gz`   | Accelerator metrics sampled during the run (`zml-smi`)    | no     |
+- one table — a row per streamed chunk (`source = 'event'`) and a row per
+  accelerator sample (`source = 'chip'`, from `zml-smi`), columns the other
+  kind doesn't use left null;
+- `meta.json` in the footer's key-value metadata, under the key `zml.run`.
 
-CSVs are gzipped, with a header row. DuckDB reads them directly
-(`read_csv('events.csv.gz')`), and the website may convert them to Parquet on
-upload. All timestamps are **nanoseconds since the Unix epoch, on the clock of
-the machine running ZML-Lab** — events and chip samples share that clock, so
-they line up without any sync with the server.
+```sql
+-- On the website (DuckDB-WASM):
+CREATE VIEW run    AS SELECT * FROM read_parquet('llmd.zmlrun.parquet');
+CREATE VIEW events AS SELECT * FROM run WHERE source = 'event';
+CREATE VIEW chips  AS SELECT * FROM run WHERE source = 'chip';
+SELECT decode(value)::JSON AS meta
+FROM parquet_kv_metadata('llmd.zmlrun.parquet') WHERE decode(key) = 'zml.run';
+
+-- Several runs at once (compare): the file name tells them apart.
+SELECT * FROM read_parquet(['llmd.zmlrun.parquet', 'vllm.zmlrun.parquet'], filename = true);
+```
+
+All timestamps are **nanoseconds since the Unix epoch, on the clock of the
+machine running ZML-Lab** — events and chip samples share that clock, so they
+line up without any sync with the server.
+
+## Columns
+
+| Column               | Type    | event | chip | Meaning |
+| -------------------- | ------- | :---: | :--: | ------- |
+| `source`             | VARCHAR | ✓ | ✓ | `'event'` or `'chip'` |
+| `ts_ns`              | BIGINT  | ✓ | ✓ | When the chunk / sample arrived |
+| `request_id`         | VARCHAR | ✓ |   | `<conversation>-<turn>`: one HTTP request |
+| `seq`                | INTEGER | ✓ |   | Chunk number within the **conversation** (keeps counting across its turns) |
+| `request_ts_ns`      | BIGINT  | ✓ |   | When the request was sent |
+| `token_chars`        | INTEGER | ✓ |   | Length of the chunk's text (characters); `0` for empty chunks (the role chunk, the final usage chunk). The text itself is not kept |
+| `output_tokens`      | INTEGER | ✓ |   | Chunks with a choice received so far for this request |
+| `input_tokens`       | INTEGER | ✓ |   | Prompt tokens, if the server reports usage (else `0`) |
+| `error`              | VARCHAR | ✓ |   | Empty, or the request's error (on its last row) |
+| `device`             | INTEGER |   | ✓ | Index in zml-smi's `devices` |
+| `kind`               | VARCHAR |   | ✓ | `cuda` · `rocm` · `oneapi` · `neuron` · `tpu` |
+| `name`               | VARCHAR |   | ✓ | Device name |
+| `util_percent`       | INTEGER |   | ✓ | Utilization |
+| `power_w`            | DOUBLE  |   | ✓ | Power draw (zml-smi `power_mw` / 1000) |
+| `power_limit_w`      | DOUBLE  |   | ✓ | Power limit |
+| `temperature_c`      | INTEGER |   | ✓ | Temperature |
+| `mem_used_bytes`     | BIGINT  |   | ✓ | Memory used |
+| `mem_total_bytes`    | BIGINT  |   | ✓ | Memory total |
+| `clock_graphics_mhz` | INTEGER |   | ✓ | Graphics clock |
+| `clock_mem_mhz`      | INTEGER |   | ✓ | Memory clock |
+| `pcie_tx_kbps`       | INTEGER |   | ✓ | PCIe TX |
+| `pcie_rx_kbps`       | INTEGER |   | ✓ | PCIe RX |
+
+Chip metrics a device doesn't report are null. Chips are sampled by polling
+`zml-smi --api` about every 500 ms during the run.
 
 ## `meta.json`
 
@@ -26,7 +64,7 @@ detect; the rest is entered (or corrected) in the export dialog.
 ```jsonc
 {
   "schema_version": 1,                       // required
-  "run_id": "2026-10-24T12-00-00Z-a1b2c3",   // required, unique
+  "run_id": "p-1792836000000000",            // required, unique
   "label": "llmd · Qwen3-8B · 4090 · c=16",  // manual — how it reads in charts
   "notes": "",                               // manual
   "tags": ["llmd", "fp8"],                   // manual
@@ -35,7 +73,7 @@ detect; the rest is entered (or corrected) in the export dialog.
   "ended_at": "2026-10-24T12:00:31Z",        // auto
   "cancelled": false,                        // auto — stopped before its duration
 
-  "app": { "version": "1.0.0+1", "benchmarker_api": 1 },          // auto
+  "app": { "benchmarker_api": 1 },           // auto
   "client": { "os": "macOS 27.0", "host": "bench-mac" }, // auto
 
   "target": {
@@ -53,8 +91,8 @@ detect; the rest is entered (or corrected) in the export dialog.
   },
   "hardware": {
     "description": "1× RTX 4090, 64 GB",     // auto — the machine's hardware field, editable
-    "chips": [                               // auto — from zml-smi, when connected
-      { "index": 0, "kind": "cuda", "name": "NVIDIA GeForce RTX 4090", "driver_version": "580.82" }
+    "chips": [                               // auto — from zml-smi, when it answered
+      { "device": 0, "kind": "cuda", "name": "NVIDIA GeForce RTX 4090", "driver_version": "580.82" }
     ]
   },
 
@@ -74,49 +112,10 @@ detect; the rest is entered (or corrected) in the export dialog.
 
   "summary": {                               // auto — ZML-Lab's own numbers, for listings;
     "requests": 144,                         //   the website recomputes from events
-    "tokens_per_second": 872.0,
-    "ttft_p50_ms": 212.4
+    "tokens_per_second": 872.0
   }
 }
 ```
-
-## `events.csv.gz`
-
-One row per streamed chunk (from the benchmarker; the token text itself is
-dropped — it's most of the size, it's model output, and no metric needs it).
-
-| Column          | Type   | Meaning |
-| --------------- | ------ | ------- |
-| `ts_ns`         | int64  | When the chunk arrived |
-| `request_id`    | string | `<conversation>-<turn>`: one HTTP request |
-| `seq`           | int    | Chunk number within the **conversation** (keeps counting across its turns) |
-| `request_ts_ns` | int64  | When the request was sent |
-| `token_chars`   | int    | Length of the chunk's text; `0` for empty chunks (the role chunk, the final usage chunk) |
-| `output_tokens` | int    | Chunks with a choice received so far for this request |
-| `input_tokens`  | int    | Prompt tokens, if the server reports usage (else `0`) |
-| `error`         | string | Empty, or the request's error (on its last row) |
-
-## `chips.csv.gz`
-
-One row per device per sample of `zml-smi --api`, polled about every 500 ms.
-Metrics a device doesn't report are empty.
-
-| Column               | Type   | From zml-smi |
-| -------------------- | ------ | ------------ |
-| `ts_ns`              | int64  | When the sample arrived |
-| `device`             | int    | Index in zml-smi's `devices` |
-| `kind`               | string | `cuda` · `rocm` · `oneapi` · `neuron` · `tpu` |
-| `name`               | string | `name` |
-| `util_percent`       | int    | `util_percent` |
-| `power_w`            | double | `power_mw` / 1000 |
-| `power_limit_w`      | double | `power_limit_mw` / 1000 |
-| `temperature_c`      | int    | `temperature` |
-| `mem_used_bytes`     | int64  | `mem_used_bytes` |
-| `mem_total_bytes`    | int64  | `mem_total_bytes` |
-| `clock_graphics_mhz` | int    | `clock_graphics_mhz` |
-| `clock_mem_mhz`      | int    | `clock_mem_mhz` |
-| `pcie_tx_kbps`       | int    | `pcie_tx_kbps` |
-| `pcie_rx_kbps`       | int    | `pcie_rx_kbps` |
 
 ## Metrics (DuckDB SQL)
 
@@ -151,9 +150,9 @@ SELECT count(*) FILTER (WHERE token_chars > 0)
 FROM events;
 ```
 
-Joining chips: both tables share the clock, so e.g. energy per token is
-`∫ power_w dt` over the run (sum of `power_w × Δt` between samples) divided by
-the text chunks.
+Joining chips: they share the clock with events, so e.g. energy per token is
+`∫ power_w dt` over the run (sum of `power_w × Δt` between a device's
+samples) divided by the text chunks.
 
 **Differences from ZML-Lab's current report** (to be aligned): it takes TTFT
 from `seq = 0` rows — the first turn of each conversation only, and possibly
@@ -163,9 +162,13 @@ possible.
 
 ## In ZML-Lab
 
-- During a run: events stream to a temp folder (text dropped, `token_chars`
-  kept); if a chip-metrics URL is set, `zml-smi` is polled into `chips`.
-- After it: **Export run…** opens a dialog with `meta.json` prefilled — fill
-  in the label, commit, quantization, notes, tags — then writes the
-  `.zmlrun` folder where you choose. Saved reports keep their run files, so a
-  past run can be exported too. Uploading to the website comes later.
+- During a run the benchmarker's event stream is spooled to disk, and — when
+  `zml-smi --api` answers at the configured URL (default
+  `http://<target host>:9090`) — chip samples too.
+- When the run ends, embedded DuckDB (`dart_duckdb`) turns the spools into
+  the run's Parquet file (token text dropped, `token_chars` kept) with the
+  automatic `meta.json`, kept under `~/Library/Application Support/ZML-Lab/runs/`.
+  Saving the report keeps it; discarding the run deletes it.
+- **Export run…** opens a dialog with `meta.json` prefilled — label, commit,
+  quantization, notes, tags — and writes the final `.zmlrun.parquet` where you
+  choose. Uploading to the website comes later.
