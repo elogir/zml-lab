@@ -101,6 +101,8 @@ void main() {
     }
     await tester.pump();
     expect(blank, isEmpty, reason: 'frames painted without the readout');
+    // Let the axis finish easing to its new range.
+    await tester.pump(const Duration(milliseconds: 300));
     // The axis stretched under the pointer: it now reads a later point.
     expect(trackball().chartPointInfo.first.label, isNot(before));
 

@@ -14,6 +14,7 @@ export 'hover_region.dart';
 export 'section_header.dart';
 export 'selection_area.dart';
 export 'segmented_control.dart';
+export 'smooth_live_series.dart';
 export 'stat_grid.dart';
 export 'surface.dart';
 export 'tool_controls.dart';

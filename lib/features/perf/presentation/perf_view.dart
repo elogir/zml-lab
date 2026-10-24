@@ -252,7 +252,13 @@ class _PerfViewState extends ConsumerState<PerfView> {
       case PerfPhase.preparing:
       case PerfPhase.running:
       case PerfPhase.stopping:
-        return SingleChildScrollView(child: PerfLiveCharts(series: run.series));
+        return SingleChildScrollView(
+          child: PerfLiveCharts(
+            series: run.series,
+            // Stopping: the last samples are in — let the line settle.
+            live: run.phase != PerfPhase.stopping,
+          ),
+        );
       case PerfPhase.failed:
         return Center(
           child: Column(

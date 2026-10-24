@@ -5,10 +5,14 @@ import 'package:syncfusion_flutter_charts/charts.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/chart_trackball.dart';
+import '../../../core/widgets/smooth_live_series.dart';
 import '../../../models/perf_report.dart';
 
 /// Chart styling shared with the chat-benchmark charts: flat area fills,
 /// hairline grid, mono axis labels, trackball instead of tooltips.
+
+/// How long an axis takes to settle on a new range.
+const _rescale = Duration(milliseconds: 250);
 
 double _niceStep(double maxX) {
   final target = maxX <= 0 ? 1.0 : maxX / 5.0;
@@ -19,42 +23,55 @@ double _niceStep(double maxX) {
   return 3600;
 }
 
-/// The live charts while a run streams (and the top of the report): the
-/// server's total event throughput and how many requests were streaming.
+/// The live charts while a run streams: the server's total event throughput
+/// and how many requests were streaming — drawn every frame, the newest
+/// stretch gliding between samples (see [SmoothLiveSeries]).
 class PerfLiveCharts extends StatelessWidget {
-  const PerfLiveCharts({super.key, required this.series});
+  const PerfLiveCharts({super.key, required this.series, this.live = true});
 
   final List<PerfSeriesPoint> series;
+  final bool live;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        PerfChartCard(
-          title: 'Throughput',
-          unit: 'tok/s',
-          height: 200,
-          child: PerfSeriesChart(
-            series: series,
-            value: (s) => s.tps,
-            color: c.statusRunning,
+    return SmoothLiveSeries<PerfSeriesPoint>(
+      points: series,
+      live: live,
+      timeMs: (p) => p.elapsedMs,
+      lerp: (a, b, t, atMs) => PerfSeriesPoint(
+        elapsedMs: atMs,
+        tps: a.tps + (b.tps - a.tps) * t,
+        active: (a.active + (b.active - a.active) * t).round(),
+        requests: a.requests,
+      ),
+      builder: (context, shown) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PerfChartCard(
+            title: 'Throughput',
+            unit: 'tok/s',
+            height: 200,
+            child: PerfSeriesChart(
+              series: shown,
+              value: (s) => s.tps,
+              color: c.statusRunning,
+            ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        PerfChartCard(
-          title: 'Streaming requests',
-          unit: 'concurrent',
-          height: 160,
-          child: PerfSeriesChart(
-            series: series,
-            value: (s) => s.active.toDouble(),
-            color: c.accent,
-            stepped: true,
+          const SizedBox(height: AppSpacing.lg),
+          PerfChartCard(
+            title: 'Streaming requests',
+            unit: 'concurrent',
+            height: 160,
+            child: PerfSeriesChart(
+              series: shown,
+              value: (s) => s.active.toDouble(),
+              color: c.accent,
+              stepped: true,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -136,53 +153,62 @@ class PerfSeriesChart extends StatelessWidget {
     // drops the hover readout — see ChartTrackball).
     final step = _niceStep(maxSec);
     final maxY = series.map(value).fold(0.0, math.max);
-    return ChartTrackball(
-      builder: (context, trackball) => SfCartesianChart(
-        backgroundColor: const Color(0x00000000),
-        plotAreaBorderWidth: 0,
-        margin: EdgeInsets.zero,
-        primaryXAxis: NumericAxis(
-          minimum: 0,
-          maximum: (maxSec / step).ceil() * step,
-          interval: step,
-          labelFormat: '{value}s',
-          labelStyle: label,
-          axisLine: AxisLine(width: 0.5, color: c.borderMuted),
-          majorTickLines: const MajorTickLines(size: 0),
-          majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
+    final maxima = Offset((maxSec / step).ceil() * step, stableAxisMax(maxY));
+    // When a range steps up the plot rescales over a moment, not in one
+    // frame — outside ChartTrackball, so each frame of it refreshes the
+    // readout too.
+    return TweenAnimationBuilder<Offset>(
+      tween: Tween(end: maxima),
+      duration: _rescale,
+      curve: Curves.easeOut,
+      builder: (context, max, _) => ChartTrackball(
+        builder: (context, trackball) => SfCartesianChart(
+          backgroundColor: const Color(0x00000000),
+          plotAreaBorderWidth: 0,
+          margin: EdgeInsets.zero,
+          primaryXAxis: NumericAxis(
+            minimum: 0,
+            maximum: max.dx,
+            interval: step,
+            labelFormat: '{value}s',
+            labelStyle: label,
+            axisLine: AxisLine(width: 0.5, color: c.borderMuted),
+            majorTickLines: const MajorTickLines(size: 0),
+            majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
+          ),
+          primaryYAxis: NumericAxis(
+            minimum: 0,
+            maximum: max.dy,
+            labelStyle: label,
+            axisLine: const AxisLine(width: 0),
+            majorTickLines: const MajorTickLines(size: 0),
+            majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
+          ),
+          trackballBehavior: trackball,
+          // No animation: shown as is, live or finished (see ChartTrackball).
+          series: <CartesianSeries<PerfSeriesPoint, double>>[
+            if (stepped)
+              StepAreaSeries<PerfSeriesPoint, double>(
+                dataSource: series,
+                xValueMapper: (s, _) => s.elapsedMs / 1000.0,
+                yValueMapper: (s, _) => value(s),
+                color: color.withValues(alpha: 0.14),
+                borderColor: color,
+                borderWidth: 2,
+                animationDuration: 0,
+              )
+            else
+              AreaSeries<PerfSeriesPoint, double>(
+                dataSource: series,
+                xValueMapper: (s, _) => s.elapsedMs / 1000.0,
+                yValueMapper: (s, _) => value(s),
+                color: color.withValues(alpha: 0.14),
+                borderColor: color,
+                borderWidth: 2,
+                animationDuration: 0,
+              ),
+          ],
         ),
-        primaryYAxis: NumericAxis(
-          minimum: 0,
-          maximum: stableAxisMax(maxY),
-          labelStyle: label,
-          axisLine: const AxisLine(width: 0),
-          majorTickLines: const MajorTickLines(size: 0),
-          majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
-        ),
-        trackballBehavior: trackball,
-        // No animation: shown as is, live or finished (see ChartTrackball).
-        series: <CartesianSeries<PerfSeriesPoint, double>>[
-          if (stepped)
-            StepAreaSeries<PerfSeriesPoint, double>(
-              dataSource: series,
-              xValueMapper: (s, _) => s.elapsedMs / 1000.0,
-              yValueMapper: (s, _) => value(s),
-              color: color.withValues(alpha: 0.14),
-              borderColor: color,
-              borderWidth: 2,
-              animationDuration: 0,
-            )
-          else
-            AreaSeries<PerfSeriesPoint, double>(
-              dataSource: series,
-              xValueMapper: (s, _) => s.elapsedMs / 1000.0,
-              yValueMapper: (s, _) => value(s),
-              color: color.withValues(alpha: 0.14),
-              borderColor: color,
-              borderWidth: 2,
-              animationDuration: 0,
-            ),
-        ],
       ),
     );
   }

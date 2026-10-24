@@ -192,7 +192,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
           child: run.requests.isEmpty
               ? _EmptyState(endpoint: widget.endpoint)
               : _view == _BenchView.charts
-              ? BenchmarkCharts(samples: run.samples)
+              ? BenchmarkCharts(samples: run.samples, live: run.isRunning)
               : _Grid(run: run, jobId: widget.jobId, target: widget.target),
         ),
         // Nothing has run yet: no view to switch, nothing to save or clear —

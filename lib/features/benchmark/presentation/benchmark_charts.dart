@@ -5,6 +5,7 @@ import 'package:syncfusion_flutter_charts/charts.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/chart_trackball.dart';
+import '../../../core/widgets/smooth_live_series.dart';
 import '../../../models/benchmark.dart';
 
 /// A whole-number-ish axis step giving ~5 ticks over a [maxSec]-long run, so
@@ -22,13 +23,36 @@ double _niceStep(double maxSec) {
 /// throughput time-series, so the slope is the story — the batch's aggregate
 /// tok/s, and the average tok/s across only the still-running requests.
 class BenchmarkCharts extends StatelessWidget {
-  const BenchmarkCharts({super.key, required this.samples});
+  const BenchmarkCharts({super.key, required this.samples, this.live = false});
 
   final List<BenchmarkSample> samples;
+
+  /// While a batch streams: drawn every frame, the newest stretch gliding
+  /// between samples (see [SmoothLiveSeries]).
+  final bool live;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    return SmoothLiveSeries<BenchmarkSample>(
+      points: samples,
+      live: live,
+      timeMs: (s) => s.elapsedMs,
+      lerp: (a, b, t, atMs) => BenchmarkSample(
+        elapsedMs: atMs,
+        tps: a.tps + (b.tps - a.tps) * t,
+        avgTps: a.avgTps + (b.avgTps - a.avgTps) * t,
+        tokens: (a.tokens + (b.tokens - a.tokens) * t).round(),
+      ),
+      builder: (context, samples) => _charts(context, c, samples),
+    );
+  }
+
+  Widget _charts(
+    BuildContext context,
+    AppColors c,
+    List<BenchmarkSample> samples,
+  ) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,45 +155,54 @@ class _ThroughputChart extends StatelessWidget {
     // drops the hover readout — see ChartTrackball).
     final step = _niceStep(maxSec);
     final maxY = samples.map(value).fold(0.0, math.max);
-    return ChartTrackball(
-      builder: (context, trackball) => SfCartesianChart(
-        backgroundColor: const Color(0x00000000),
-        plotAreaBorderWidth: 0,
-        margin: EdgeInsets.zero,
-        primaryXAxis: NumericAxis(
-          // Start at 0 with a whole-number interval so labels read 0s, 1s,
-          // 2s… rather than the axis's data-driven 0.11s / 0.61s.
-          minimum: 0,
-          maximum: (maxSec / step).ceil() * step,
-          interval: step,
-          labelFormat: '{value}s',
-          labelStyle: label,
-          axisLine: AxisLine(width: 0.5, color: c.borderMuted),
-          majorTickLines: const MajorTickLines(size: 0),
-          majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
-        ),
-        primaryYAxis: NumericAxis(
-          minimum: 0,
-          maximum: stableAxisMax(maxY),
-          labelStyle: label,
-          axisLine: const AxisLine(width: 0),
-          majorTickLines: const MajorTickLines(size: 0),
-          majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
-        ),
-        trackballBehavior: trackball,
-        series: <CartesianSeries<BenchmarkSample, double>>[
-          AreaSeries<BenchmarkSample, double>(
-            dataSource: samples,
-            xValueMapper: (s, _) => s.elapsedMs / 1000.0,
-            yValueMapper: (s, _) => value(s),
-            name: 'tok/s',
-            color: color.withValues(alpha: 0.14),
-            borderColor: color,
-            borderWidth: 2,
-            // Live and readable (see ChartTrackball).
-            animationDuration: 0,
+    final maxima = Offset((maxSec / step).ceil() * step, stableAxisMax(maxY));
+    // When a range steps up the plot rescales over a moment, not in one
+    // frame — outside ChartTrackball, so each frame of it refreshes the
+    // readout too.
+    return TweenAnimationBuilder<Offset>(
+      tween: Tween(end: maxima),
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+      builder: (context, max, _) => ChartTrackball(
+        builder: (context, trackball) => SfCartesianChart(
+          backgroundColor: const Color(0x00000000),
+          plotAreaBorderWidth: 0,
+          margin: EdgeInsets.zero,
+          primaryXAxis: NumericAxis(
+            // Start at 0 with a whole-number interval so labels read 0s, 1s,
+            // 2s… rather than the axis's data-driven 0.11s / 0.61s.
+            minimum: 0,
+            maximum: max.dx,
+            interval: step,
+            labelFormat: '{value}s',
+            labelStyle: label,
+            axisLine: AxisLine(width: 0.5, color: c.borderMuted),
+            majorTickLines: const MajorTickLines(size: 0),
+            majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
           ),
-        ],
+          primaryYAxis: NumericAxis(
+            minimum: 0,
+            maximum: max.dy,
+            labelStyle: label,
+            axisLine: const AxisLine(width: 0),
+            majorTickLines: const MajorTickLines(size: 0),
+            majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
+          ),
+          trackballBehavior: trackball,
+          series: <CartesianSeries<BenchmarkSample, double>>[
+            AreaSeries<BenchmarkSample, double>(
+              dataSource: samples,
+              xValueMapper: (s, _) => s.elapsedMs / 1000.0,
+              yValueMapper: (s, _) => value(s),
+              name: 'tok/s',
+              color: color.withValues(alpha: 0.14),
+              borderColor: color,
+              borderWidth: 2,
+              // Live and readable (see ChartTrackball).
+              animationDuration: 0,
+            ),
+          ],
+        ),
       ),
     );
   }
