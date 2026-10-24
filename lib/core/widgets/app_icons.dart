@@ -35,6 +35,8 @@ abstract final class AppIcons {
   static const IconData check = LucideIcons.check;
   static const IconData save = LucideIcons.bookmark;
   static const IconData warning = LucideIcons.triangleAlert;
+  static const IconData more = LucideIcons.ellipsis;
+  static const IconData apiKey = LucideIcons.keyRound;
 
   // Terminal multiplexer chrome
   static const IconData splitHorizontal = LucideIcons.columns2;

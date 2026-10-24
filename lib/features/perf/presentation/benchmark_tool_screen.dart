@@ -528,14 +528,20 @@ class _EndpointBar extends ConsumerWidget {
       ],
     );
     final hostField = custom
-        // Custom: type any host. Still editable while masked — the
-        // controller holds the real value either way.
+        // Custom: type any host (or a full URL). Still editable while masked —
+        // the controller holds the real value either way. The ⋯ holds the
+        // API key, rarely needed, so it stays out of the bar.
         ? AppTextField(
             controller: host,
             mono: true,
             dense: true,
             obscureText: blurHost,
             onChanged: onHostEdited,
+            suffix: _KeyMenu(
+              controller: apiKey,
+              hasKey: target.customKey.trim().isNotEmpty,
+              onChanged: onKeyEdited,
+            ),
           )
         // A machine sets the host; show it read-only.
         : Text(
@@ -545,16 +551,8 @@ class _EndpointBar extends ConsumerWidget {
             overflow: TextOverflow.ellipsis,
           );
     // A custom host may be typed as a full URL (`https://…/v1`); then it
-    // carries its own port, and a key field fills the rest of the bar.
+    // carries its own port.
     final showPort = !target.customIsUrl;
-    final keyField = AppTextField(
-      controller: apiKey,
-      mono: true,
-      dense: true,
-      obscureText: true,
-      placeholder: 'API key (optional)',
-      onChanged: onKeyEdited,
-    );
     final portField = SizedBox(
       width: 68,
       child: AppTextField(
@@ -600,12 +598,6 @@ class _EndpointBar extends ConsumerWidget {
                     const SizedBox(width: AppSpacing.sm),
                     portField,
                   ],
-                  if (custom) ...[
-                    const SizedBox(width: AppSpacing.lg),
-                    label('key'),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(flex: 2, child: keyField),
-                  ],
                 ],
               ],
             );
@@ -647,15 +639,6 @@ class _EndpointBar extends ConsumerWidget {
                     ],
                   ],
                 ),
-                if (custom) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(
-                    children: [
-                      labelled('key'),
-                      Expanded(child: keyField),
-                    ],
-                  ),
-                ],
               ],
             ],
           );
@@ -666,6 +649,131 @@ class _EndpointBar extends ConsumerWidget {
 
   /// The stacked layout's label column ("Target" is the widest label).
   static const _labelWidth = 52.0;
+}
+
+/// The custom host's ⋯ menu: a small popover holding its API key. The button
+/// turns into a key when one is set, so it's visible without opening it.
+class _KeyMenu extends StatefulWidget {
+  const _KeyMenu({
+    required this.controller,
+    required this.hasKey,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final bool hasKey;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_KeyMenu> createState() => _KeyMenuState();
+}
+
+class _KeyMenuState extends State<_KeyMenu> {
+  final _link = LayerLink();
+  final _menu = OverlayPortalController();
+
+  static const _width = 300.0;
+
+  void _toggle() =>
+      setState(() => _menu.isShowing ? _menu.hide() : _menu.show());
+
+  void _close() => setState(_menu.hide);
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return CompositedTransformTarget(
+      link: _link,
+      child: OverlayPortal(
+        controller: _menu,
+        overlayChildBuilder: _buildOverlay,
+        child: AppIconButton(
+          icon: widget.hasKey ? AppIcons.apiKey : AppIcons.more,
+          size: 14,
+          padding: const EdgeInsets.all(2),
+          color: widget.hasKey ? c.statusRunning : null,
+          onPressed: _toggle,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOverlay(BuildContext context) {
+    final c = context.colors;
+    return Stack(
+      children: [
+        // Tap outside to dismiss.
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _close,
+          ),
+        ),
+        CompositedTransformFollower(
+          link: _link,
+          targetAnchor: Alignment.bottomRight,
+          followerAnchor: Alignment.topRight,
+          offset: const Offset(4, 8),
+          child: Align(
+            alignment: Alignment.topRight,
+            child: SizedBox(
+              width: _width,
+              child: AppPanel(
+                color: c.surface,
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const FieldLabel('API key'),
+                    AppTextField(
+                      controller: widget.controller,
+                      autofocus: true,
+                      mono: true,
+                      dense: true,
+                      obscureText: true,
+                      placeholder: 'optional',
+                      onChanged: widget.onChanged,
+                      onSubmitted: (_) => _close(),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Sent as a Bearer token; kept in the macOS Keychain.',
+                      style: context.text.smallMuted,
+                    ),
+                    ListenableBuilder(
+                      listenable: widget.controller,
+                      builder: (context, _) =>
+                          widget.controller.text.trim().isEmpty
+                          ? const SizedBox.shrink()
+                          : Padding(
+                              padding: const EdgeInsets.only(
+                                top: AppSpacing.sm,
+                              ),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: AppButton(
+                                  label: 'Remove key',
+                                  variant: AppButtonVariant.ghost,
+                                  dense: true,
+                                  onPressed: () {
+                                    widget.controller.clear();
+                                    widget.onChanged('');
+                                    _close();
+                                  },
+                                ),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// A dropdown button that opens a searchable list of machines (plus a Custom
