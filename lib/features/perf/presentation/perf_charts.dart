@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
@@ -130,6 +132,10 @@ class PerfSeriesChart extends StatelessWidget {
     }
     final label = context.text.monoSmall.copyWith(color: c.textFaint);
     final maxSec = series.last.elapsedMs / 1000.0;
+    // Ranges that move in steps, not with every live update (each change
+    // drops the hover readout — see ChartTrackball).
+    final step = _niceStep(maxSec);
+    final maxY = series.map(value).fold(0.0, math.max);
     return ChartTrackball(
       builder: (context, trackball) => SfCartesianChart(
         backgroundColor: const Color(0x00000000),
@@ -137,7 +143,8 @@ class PerfSeriesChart extends StatelessWidget {
         margin: EdgeInsets.zero,
         primaryXAxis: NumericAxis(
           minimum: 0,
-          interval: _niceStep(maxSec),
+          maximum: (maxSec / step).ceil() * step,
+          interval: step,
           labelFormat: '{value}s',
           labelStyle: label,
           axisLine: AxisLine(width: 0.5, color: c.borderMuted),
@@ -145,6 +152,8 @@ class PerfSeriesChart extends StatelessWidget {
           majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
         ),
         primaryYAxis: NumericAxis(
+          minimum: 0,
+          maximum: stableAxisMax(maxY),
           labelStyle: label,
           axisLine: const AxisLine(width: 0),
           majorTickLines: const MajorTickLines(size: 0),
