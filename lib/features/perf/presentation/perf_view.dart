@@ -18,9 +18,9 @@ import 'perf_report_view.dart';
 import 'save_perf_report_dialog.dart';
 import 'sharegpt_download_card.dart';
 
-/// The Benchmark tab's Perf tool: configure and run the benchmarker
-/// (tools/benchmark) against the target endpoint, watch it live, then read,
-/// save or export the report.
+/// The Benchmark tab's Perf tool: configure and run the load benchmark
+/// against the target endpoint, watch it live, then read, save or export the
+/// report.
 class PerfView extends ConsumerStatefulWidget {
   const PerfView({
     super.key,
@@ -815,9 +815,9 @@ class _EmptyState extends StatelessWidget {
             Text('Load benchmark', style: context.text.bodyStrong),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Runs the Go benchmarker against this endpoint with '
-              'ShareGPT prompts at fixed concurrency, then reports TTFT, '
-              'inter-token latency and throughput percentiles.',
+              'Replays ShareGPT conversations against this endpoint at a '
+              'fixed concurrency, then reports TTFT, inter-token latency '
+              'and throughput percentiles.',
               style: context.text.smallMuted,
               textAlign: TextAlign.center,
             ),

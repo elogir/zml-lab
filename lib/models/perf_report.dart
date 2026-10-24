@@ -1,7 +1,7 @@
-/// Models for the perf benchmark — runs of the Go benchmarker
-/// load generator against a job's endpoint. The report mirrors what the tool's
-/// own `duckdb/report.sql` computes (same statistics, same definitions), plus
-/// the time series the app samples live for the charts.
+/// Models for the perf benchmark — runs of the bundled load generator
+/// (native/zmlbench) against an endpoint: the statistics (defined as the
+/// original benchmarker's report.sql defined them), plus the time series the
+/// app samples live for the charts.
 library;
 
 /// One row of the statistics table: a metric summarized over the run.

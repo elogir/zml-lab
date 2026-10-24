@@ -57,8 +57,8 @@ class SavedBenchmarks extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-/// Saved perf benchmark reports (runs of the Go benchmarker's load
-/// generator). Scalar columns cover what the list cards show; the full report
+/// Saved perf benchmark reports (runs of the bundled load generator).
+/// Scalar columns cover what the list cards show; the full report
 /// (stats table, time series, per-request data) lives in [reportJson].
 @DataClassName('PerfReportRow')
 class PerfReports extends Table {

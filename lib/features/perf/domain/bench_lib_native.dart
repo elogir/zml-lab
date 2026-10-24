@@ -9,7 +9,7 @@ import 'bench_lib_types.dart';
 
 export 'bench_lib_types.dart';
 
-// The C API of tools/benchmark/capi (see capi.go). Bundled as a code asset by
+// The C API of native/zmlbench/capi (see capi.go). Bundled as a code asset by
 // hook/build.dart.
 const _asset = 'package:zml_lab/zmlbench.dart';
 const _apiVersion = 1;
@@ -46,9 +46,9 @@ String? benchLibProblem() {
         ? null
         : 'benchmark library speaks API v$v, the app expects v$_apiVersion';
   } on ArgumentError {
-    // The asset isn't bundled: the build had no Go or no benchmarker source.
+    // The asset isn't bundled: the build had no Go.
     return 'benchmark library not bundled — build the app with Go installed '
-        'and the benchmarker source checked out (see hook/build.dart)';
+        '(brew install go)';
   }
 }
 

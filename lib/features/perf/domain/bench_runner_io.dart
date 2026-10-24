@@ -2,8 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-String _loginShell() => Platform.environment['SHELL'] ?? '/bin/zsh';
-
 /// Expands a leading `~` to the home directory.
 String expandUserPath(String path) {
   final home = Platform.environment['HOME'];
@@ -112,41 +110,20 @@ Future<String> exportTextFile({
   return dest;
 }
 
-/// Reveals a file in Finder.
+/// Reveals a file in Finder (selected in its folder). If it isn't there,
+/// opens the nearest folder that is.
 Future<void> revealInFinder(String path) async {
   try {
-    await Process.run('/usr/bin/open', ['-R', path]);
+    if (File(path).existsSync() || Directory(path).existsSync()) {
+      await Process.run('/usr/bin/open', ['-R', path]);
+      return;
+    }
+    var dir = Directory(path).parent;
+    while (!dir.existsSync() && dir.parent.path != dir.path) {
+      dir = dir.parent;
+    }
+    await Process.run('/usr/bin/open', [dir.path]);
   } catch (_) {}
-}
-
-/// Runs [command] in a login shell with [csv] on its stdin and [toolDir] as
-/// the working directory (so `.read duckdb/report.sql` resolves), returning
-/// its stdout. This is the CLI pipeline — `go run … | duckdb …` — with the
-/// app's captured event stream standing in for the left side. Returns null on
-/// a non-zero exit or any failure, so callers can fall back to their own
-/// render.
-Future<String?> runDuckdb({
-  required String command,
-  required String toolDir,
-  required String csv,
-}) async {
-  try {
-    final process = await Process.start(_loginShell(), [
-      '-lc',
-      command,
-    ], workingDirectory: expandUserPath(toolDir));
-    final stdoutFuture = process.stdout.transform(utf8.decoder).join();
-    final stderrFuture = process.stderr.transform(utf8.decoder).join();
-    process.stdin.write(csv);
-    await process.stdin.close();
-    final out = await stdoutFuture;
-    await stderrFuture;
-    final code = await process.exitCode;
-    if (code != 0) return null;
-    return out;
-  } catch (_) {
-    return null;
-  }
 }
 
 /// Whether the perf runner works on this platform.

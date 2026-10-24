@@ -8,27 +8,24 @@ part of 'perf_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Runs the Go benchmarker (tools/benchmark, embedded as a shared
-/// library — see bench_lib.dart) against a job's endpoint and turns its CSV
-/// event stream into live charts and a final report. The library does the
-/// load generation; the app only consumes its output (see PerfAccumulator
-/// for the report.sql parity).
+/// Runs the bundled Go benchmarker (native/zmlbench, over FFI — see
+/// bench_lib.dart) against a job's endpoint and turns its CSV event stream
+/// into live charts and a final report. The library does the load
+/// generation; the app computes the statistics (PerfAccumulator).
 
 @ProviderFor(PerfController)
 final perfControllerProvider = PerfControllerFamily._();
 
-/// Runs the Go benchmarker (tools/benchmark, embedded as a shared
-/// library — see bench_lib.dart) against a job's endpoint and turns its CSV
-/// event stream into live charts and a final report. The library does the
-/// load generation; the app only consumes its output (see PerfAccumulator
-/// for the report.sql parity).
+/// Runs the bundled Go benchmarker (native/zmlbench, over FFI — see
+/// bench_lib.dart) against a job's endpoint and turns its CSV event stream
+/// into live charts and a final report. The library does the load
+/// generation; the app computes the statistics (PerfAccumulator).
 final class PerfControllerProvider
     extends $NotifierProvider<PerfController, PerfRun> {
-  /// Runs the Go benchmarker (tools/benchmark, embedded as a shared
-  /// library — see bench_lib.dart) against a job's endpoint and turns its CSV
-  /// event stream into live charts and a final report. The library does the
-  /// load generation; the app only consumes its output (see PerfAccumulator
-  /// for the report.sql parity).
+  /// Runs the bundled Go benchmarker (native/zmlbench, over FFI — see
+  /// bench_lib.dart) against a job's endpoint and turns its CSV event stream
+  /// into live charts and a final report. The library does the load
+  /// generation; the app computes the statistics (PerfAccumulator).
   PerfControllerProvider._({
     required PerfControllerFamily super.from,
     required String super.argument,
@@ -73,13 +70,12 @@ final class PerfControllerProvider
   }
 }
 
-String _$perfControllerHash() => r'c059d32dcf8b436eff6f3ecf5070befaaeec05f1';
+String _$perfControllerHash() => r'd45738dc544021a146adc16e94a154e1d287595d';
 
-/// Runs the Go benchmarker (tools/benchmark, embedded as a shared
-/// library — see bench_lib.dart) against a job's endpoint and turns its CSV
-/// event stream into live charts and a final report. The library does the
-/// load generation; the app only consumes its output (see PerfAccumulator
-/// for the report.sql parity).
+/// Runs the bundled Go benchmarker (native/zmlbench, over FFI — see
+/// bench_lib.dart) against a job's endpoint and turns its CSV event stream
+/// into live charts and a final report. The library does the load
+/// generation; the app computes the statistics (PerfAccumulator).
 
 final class PerfControllerFamily extends $Family
     with
@@ -99,11 +95,10 @@ final class PerfControllerFamily extends $Family
         isAutoDispose: false,
       );
 
-  /// Runs the Go benchmarker (tools/benchmark, embedded as a shared
-  /// library — see bench_lib.dart) against a job's endpoint and turns its CSV
-  /// event stream into live charts and a final report. The library does the
-  /// load generation; the app only consumes its output (see PerfAccumulator
-  /// for the report.sql parity).
+  /// Runs the bundled Go benchmarker (native/zmlbench, over FFI — see
+  /// bench_lib.dart) against a job's endpoint and turns its CSV event stream
+  /// into live charts and a final report. The library does the load
+  /// generation; the app computes the statistics (PerfAccumulator).
 
   PerfControllerProvider call(String jobId) =>
       PerfControllerProvider._(argument: jobId, from: this);
@@ -112,11 +107,10 @@ final class PerfControllerFamily extends $Family
   String toString() => r'perfControllerProvider';
 }
 
-/// Runs the Go benchmarker (tools/benchmark, embedded as a shared
-/// library — see bench_lib.dart) against a job's endpoint and turns its CSV
-/// event stream into live charts and a final report. The library does the
-/// load generation; the app only consumes its output (see PerfAccumulator
-/// for the report.sql parity).
+/// Runs the bundled Go benchmarker (native/zmlbench, over FFI — see
+/// bench_lib.dart) against a job's endpoint and turns its CSV event stream
+/// into live charts and a final report. The library does the load
+/// generation; the app computes the statistics (PerfAccumulator).
 
 abstract class _$PerfController extends $Notifier<PerfRun> {
   late final _$args = ref.$arg as String;

@@ -10,7 +10,7 @@ The main surfaces (each is a `lib/features/<name>/`):
 - **Benchmark tab** (home, `/`, `features/perf/presentation/benchmark_tool_screen.dart`) — a target bar (machine or custom host + port), the **benchmark** / **perf** tools, and a resizable **terminal** panel beside them where the server under test is launched by hand.
 - **terminal** — the tmux-style terminal multiplexer (splittable panes, tabs, embedded web tabs). New shells open on the benchmark target's machine (ssh when remote).
 - **benchmark** — fires a concurrent batch at `/v1/chat/completions`, shows per-request streaming + live/aggregate tok/s; any request expands into a multi-turn chat popup; runs can be saved (**saved_benchmarks**).
-- **perf** — runs a Go load generator and mirrors its duckdb `report.sql` natively into live charts + a report.
+- **perf** — runs the bundled Go load generator (`native/zmlbench`, over FFI) against the target with ShareGPT prompts (downloaded once from the tab) and turns its event stream into live charts + a report (statistics defined like the original benchmarker's `report.sql`).
 - **machines** — the local box plus remote hosts (address, ssh port/user/key, hardware); live reachability dots.
 - **settings** — theme, terminal font size, port range, health-check interval, benchmark/perf defaults.
 
@@ -70,6 +70,7 @@ When you add a native capability, add it to BOTH the impl and the stub so web ke
 
 - **`.select` on providers is exported by `flutter_riverpod`, not `riverpod_annotation`.** A file importing only `riverpod_annotation` passes the analyzer but fails the real build. Import `flutter_riverpod` or watch the whole state. (The analyzer/compiler disagreement is nasty — `flutter analyze` says clean, `flutter run` fails.)
 - **Hot-reload `-32603` has two causes:** (a) a real frontend compile error the analyzer missed — run `flutter build macos --debug` to surface the message; (b) a hot-reload-illegal shape change (analyzer + full build both clean) — `hot_restart` applies it fine. Check (b) when the build passes.
+- **The perf benchmarker is Go, built by `hook/build.dart`** (`go build -buildmode=c-shared ./capi` in `native/zmlbench`, bundled as the `zmlbench` code asset). Needs Go at build time (`brew install go`); without it the app builds but the Perf tab reports the library missing. A new or changed native asset needs a full `flutter run`, not a hot reload/restart.
 - **`flterm` / `libghostty` are consumed from pub.dev, NOT a local checkout** of libghostty-dart. They declare `resolution: workspace`, so a `path:` override errors out. `libghostty` is a native-assets package — needs `flutter config --enable-native-assets`.
 - **Embedded WKWebView (web tabs) has strict interaction rules on macOS** — painting a Flutter layer *over* it snapshots it (kills clicks/scroll), and it has a "phantom hit region" that swallows taps on widgets over/near it. Floating panels use `OverlayPortal` + keyboard-only driving. See the project memory before editing web-tab UI.
 - **Verify the UI without OS screen-recording permission** by running `flutter run -d web-server --web-port=8123` and driving Chrome via the browser MCP. (drift on web needs `web/sqlite3.wasm` + `web/drift_worker.js`.)
@@ -77,4 +78,4 @@ When you add a native capability, add it to BOTH the impl and the stub so web ke
 
 ## Deeper context
 
-The project memory (`~/.claude/projects/<project>/memory/`) holds far more detail on the terminal mux, benchmark/chat internals, the perf tab's duckdb parity invariant, real-execution mechanics, remote SSH/Tailscale specifics, and every platform-view lesson. Consult it (and verify against current code) before deep work on those subsystems.
+The project memory (`~/.claude/projects/<project>/memory/`) holds far more detail on the terminal mux, benchmark/chat internals, the perf tab's statistics parity invariant, real-execution mechanics, remote SSH/Tailscale specifics, and every platform-view lesson. Consult it (and verify against current code) before deep work on those subsystems.

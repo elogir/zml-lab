@@ -101,8 +101,11 @@ class PerfReportView extends StatelessWidget {
               stepped: true,
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          _CommandBlock(label: 'Benchmarker', command: r.benchCommand),
+          // Older reports carry the benchmarker's CLI invocation.
+          if (r.benchCommand.trim().isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            _CommandBlock(label: 'Benchmarker', command: r.benchCommand),
+          ],
           if (r.jobCommand.trim().isNotEmpty) ...[
             const SizedBox(height: AppSpacing.md),
             _CommandBlock(label: 'Server', command: r.jobCommand),
@@ -227,7 +230,17 @@ class _StatsTable extends StatelessWidget {
 
   final List<PerfStatRow> rows;
 
-  static const _columns = ['avg', 'min', 'max', 'p50', 'p75', 'p90', 'p95', 'p99', 'p99.9'];
+  static const _columns = [
+    'avg',
+    'min',
+    'max',
+    'p50',
+    'p75',
+    'p90',
+    'p95',
+    'p99',
+    'p99.9',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -279,9 +292,7 @@ class _StatsTable extends StatelessWidget {
       child: Table(
         columnWidths: const {0: FlexColumnWidth(2.2)},
         defaultColumnWidth: const FlexColumnWidth(1),
-        border: TableBorder(
-          horizontalInside: BorderSide(color: c.borderMuted),
-        ),
+        border: TableBorder(horizontalInside: BorderSide(color: c.borderMuted)),
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         children: [
           TableRow(

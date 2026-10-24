@@ -55,12 +55,17 @@ class SettingsController extends _$SettingsController {
       benchTemperature: d('benchTemperature')?.clamp(0.0, 2.0),
       benchModel: raw['benchModel'] ?? def.benchModel,
       benchCopyTemplate: raw['benchCopyTemplate'] ?? def.benchCopyTemplate,
-      perfToolDir: raw['perfToolDir'] ?? def.perfToolDir,
       perfDatasetPath: raw['perfDatasetPath'] ?? def.perfDatasetPath,
-      perfDuckdbCommand: raw['perfDuckdbCommand'] ?? def.perfDuckdbCommand,
       perfParams: _decodePerfParams(raw['perfParams']) ?? def.perfParams,
     );
+    // Settings that no longer exist (the benchmarker's folder, the
+    // duckdb copy command).
+    for (final key in _retired) {
+      if (raw.containsKey(key)) _repo.remove(key);
+    }
   }
+
+  static const _retired = ['perfToolDir', 'perfDuckdbCommand'];
 
   static PerfParams? _decodePerfParams(String? json) {
     if (json == null) return null;
@@ -142,12 +147,6 @@ class SettingsController extends _$SettingsController {
         : _repo.put('benchCopyTemplate', template);
   }
 
-  void setPerfToolDir(String dir) {
-    final v = dir.trim();
-    state = state.copyWith(perfToolDir: v.isEmpty ? defaultPerfToolDir : v);
-    v.isEmpty ? _repo.remove('perfToolDir') : _repo.put('perfToolDir', v);
-  }
-
   void setPerfDatasetPath(String path) {
     final v = path.trim();
     state = state.copyWith(
@@ -156,14 +155,6 @@ class SettingsController extends _$SettingsController {
     v.isEmpty
         ? _repo.remove('perfDatasetPath')
         : _repo.put('perfDatasetPath', v);
-  }
-
-  void setPerfDuckdbCommand(String command) {
-    final v = command.trim();
-    state = state.copyWith(perfDuckdbCommand: v);
-    v.isEmpty
-        ? _repo.remove('perfDuckdbCommand')
-        : _repo.put('perfDuckdbCommand', v);
   }
 
   /// The perf run parameters — the shared source of truth for both the Perf

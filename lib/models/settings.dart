@@ -4,9 +4,6 @@ import 'perf_report.dart';
 
 part 'settings.freezed.dart';
 
-/// Where the benchmarker lives (its duckdb report.sql).
-const defaultPerfToolDir = 'path/to/benchmark/tools/benchmark';
-
 /// The ShareGPT dataset the benchmarker draws prompts from — where the Perf
 /// tab downloads it.
 const defaultPerfDatasetPath =
@@ -77,13 +74,8 @@ abstract class AppSettings with _$AppSettings {
     /// filled from the run — so each person can match their team's format.
     @Default(defaultResultTemplate) String benchCopyTemplate,
 
-    // Perf benchmark (Go benchmarker) integration.
-    @Default(defaultPerfToolDir) String perfToolDir,
+    /// Where the perf benchmark's ShareGPT dataset is (or gets downloaded).
     @Default(defaultPerfDatasetPath) String perfDatasetPath,
-
-    /// A duckdb command the "Copy results" button pipes the run's raw event
-    /// CSV through (run in the tool dir). Empty = copy the app's own render.
-    @Default('') String perfDuckdbCommand,
 
     /// Last-used perf run parameters — the form remembers them so nothing has
     /// to be re-entered between runs.

@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/perf_report.dart';
 import '../../../models/settings.dart';
+import '../../perf/domain/bench_runner.dart';
 import '../application/settings_controller.dart';
 import 'copy_template_editor.dart';
 
@@ -24,13 +25,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _temperature;
   late final TextEditingController _benchModel;
   late final TextEditingController _copyTemplate;
-  late final TextEditingController _perfToolDir;
   late final TextEditingController _perfDataset;
   late final TextEditingController _perfDuration;
   late final TextEditingController _perfConcurrency;
   late final TextEditingController _perfMaxTokens;
   late final TextEditingController _perfModel;
-  late final TextEditingController _perfDuckdb;
 
   SettingsController get _controller =>
       ref.read(settingsControllerProvider.notifier);
@@ -49,7 +48,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     _benchModel = TextEditingController(text: s.benchModel);
     _copyTemplate = TextEditingController(text: s.benchCopyTemplate);
-    _perfToolDir = TextEditingController(text: s.perfToolDir);
     _perfDataset = TextEditingController(text: s.perfDatasetPath);
     _perfDuration = TextEditingController(
       text: '${s.perfParams.durationSeconds}',
@@ -61,7 +59,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       text: s.perfParams.maxCompletionTokens?.toString() ?? '',
     );
     _perfModel = TextEditingController(text: s.perfParams.model);
-    _perfDuckdb = TextEditingController(text: s.perfDuckdbCommand);
   }
 
   @override
@@ -72,13 +69,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _temperature.dispose();
     _benchModel.dispose();
     _copyTemplate.dispose();
-    _perfToolDir.dispose();
     _perfDataset.dispose();
     _perfDuration.dispose();
     _perfConcurrency.dispose();
     _perfMaxTokens.dispose();
     _perfModel.dispose();
-    _perfDuckdb.dispose();
     super.dispose();
   }
 
@@ -102,13 +97,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _temperature.text = '';
       _benchModel.text = '';
       _copyTemplate.text = s.benchCopyTemplate;
-      _perfToolDir.text = s.perfToolDir;
       _perfDataset.text = s.perfDatasetPath;
       _perfDuration.text = '${s.perfParams.durationSeconds}';
       _perfConcurrency.text = '${s.perfParams.concurrency}';
       _perfMaxTokens.text = '';
       _perfModel.text = '';
-      _perfDuckdb.text = '';
     });
   }
 
@@ -322,30 +315,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 label: 'Perf benchmark',
                 children: [
                   _SettingRow(
-                    title: 'Benchmarker directory',
-                    description:
-                        'The Go benchmarker — where the duckdb '
-                        'copy command runs (for its report.sql). The '
-                        'benchmarker itself is built into the app.',
-                    stacked: true,
-                    control: AppTextField(
-                      controller: _perfToolDir,
-                      mono: true,
-                      placeholder: defaultPerfToolDir,
-                      onChanged: _controller.setPerfToolDir,
-                    ),
-                  ),
-                  _SettingRow(
                     title: 'ShareGPT dataset',
                     description:
                         'The conversations the benchmarker draws prompts '
                         'from. The Perf tab downloads it here when missing.',
                     stacked: true,
-                    control: AppTextField(
-                      controller: _perfDataset,
-                      mono: true,
-                      placeholder: defaultPerfDatasetPath,
-                      onChanged: _controller.setPerfDatasetPath,
+                    control: FieldWithActions(
+                      field: AppTextField(
+                        controller: _perfDataset,
+                        mono: true,
+                        placeholder: defaultPerfDatasetPath,
+                        onChanged: _controller.setPerfDatasetPath,
+                      ),
+                      // To find it — and delete or move it — in Finder.
+                      actions: ({required stretch}) => AppButton(
+                        label: 'Show in Finder',
+                        icon: AppIcons.folder,
+                        fill: stretch,
+                        onPressed: () =>
+                            revealInFinder(expandUserPath(s.perfDatasetPath)),
+                      ),
                     ),
                   ),
                   _SettingRow(
@@ -388,14 +377,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _SettingRow(
                     title: 'Max output tokens',
                     description:
-                        'Empty = don\'t pass --max-completion-tokens (the '
-                        'benchmarker uses its own default).',
+                        'Per request. Empty = the benchmarker\'s default '
+                        '(256).',
                     control: SizedBox(
                       width: 96,
                       child: AppTextField(
                         controller: _perfMaxTokens,
                         mono: true,
-                        placeholder: 'default',
+                        placeholder: '256',
                         onChanged: (v) {
                           final n = int.tryParse(v.trim());
                           _patchPerf(
@@ -465,22 +454,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       placeholder: 'from /v1/models',
                       onChanged: (v) =>
                           _patchPerf((p) => p.copyWith(model: v.trim())),
-                    ),
-                  ),
-                  _SettingRow(
-                    title: 'duckdb copy command',
-                    description:
-                        '"Copy results" pipes the run\'s raw event CSV through '
-                        'this (run in the tool dir). Empty = copy the app\'s own '
-                        'render. Needs duckdb installed.',
-                    stacked: true,
-                    control: AppTextField(
-                      controller: _perfDuckdb,
-                      mono: true,
-                      placeholder:
-                          "duckdb -list -header -separator '\\t' "
-                          "-c '.read duckdb/report.sql'",
-                      onChanged: _controller.setPerfDuckdbCommand,
                     ),
                   ),
                 ],

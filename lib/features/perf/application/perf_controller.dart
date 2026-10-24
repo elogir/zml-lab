@@ -105,11 +105,10 @@ class PerfRun {
   );
 }
 
-/// Runs the Go benchmarker (tools/benchmark, embedded as a shared
-/// library — see bench_lib.dart) against a job's endpoint and turns its CSV
-/// event stream into live charts and a final report. The library does the
-/// load generation; the app only consumes its output (see PerfAccumulator
-/// for the report.sql parity).
+/// Runs the bundled Go benchmarker (native/zmlbench, over FFI — see
+/// bench_lib.dart) against a job's endpoint and turns its CSV event stream
+/// into live charts and a final report. The library does the load
+/// generation; the app computes the statistics (PerfAccumulator).
 @Riverpod(keepAlive: true)
 class PerfController extends _$PerfController {
   PerfCsvParser? _parser;
@@ -122,18 +121,11 @@ class PerfController extends _$PerfController {
   int _runSeq = 0;
   String? _lastLog;
 
-  /// The finished run's raw event CSV (what the CLI prints), kept in memory so
-  /// "Copy results" can pipe it through a duckdb command. Not persisted.
-  final StringBuffer _rawCsv = StringBuffer();
-  String _finishedCsv = '';
-
   // Job context captured at start, for the report.
   String _jobName = '';
   String _jobCommand = '';
   String _machineName = '';
   String _endpoint = '';
-  String _host = '';
-  int _port = 0;
 
   @override
   PerfRun build(String jobId) {
@@ -191,14 +183,10 @@ class PerfController extends _$PerfController {
     _jobCommand = jobCommand;
     _machineName = machineName;
     _endpoint = '$machineName:$port';
-    _host = host;
-    _port = port;
     _cancelRequested = false;
     _lastLog = null;
     _parser = PerfCsvParser();
     _acc = PerfAccumulator();
-    _rawCsv.clear();
-    _finishedCsv = '';
 
     final settings = ref.read(settingsControllerProvider);
     state = state.copyWith(
@@ -271,23 +259,8 @@ class PerfController extends _$PerfController {
     sequenceType: p.sequenceType,
   );
 
-  /// The invocation in the guide's `go run` form — stored on the report so
-  /// results can be quoted with the exact command line.
-  String _benchCommand(PerfParams p, String host, int port) => [
-    'go run benchmark.go',
-    '-u http://$host:$port/v1/',
-    '-d ${p.durationSeconds}',
-    '--concurrency ${p.concurrency}',
-    '--sequence_type ${p.sequenceType}',
-    '--mode ${p.mode}',
-    if (p.maxCompletionTokens != null)
-      '--max-completion-tokens ${p.maxCompletionTokens}',
-    if (p.model.isNotEmpty) '-m ${p.model}',
-  ].join(' ');
-
   void _onCsv(int seq, String chunk) {
     if (seq != _runSeq) return;
-    _rawCsv.write(chunk); // kept verbatim for the duckdb copy
     final events = _parser?.add(chunk) ?? const [];
     if (events.isEmpty) return;
     _acc?.addAll(events);
@@ -335,7 +308,6 @@ class PerfController extends _$PerfController {
     _stopTicker();
     final acc = _acc;
     _run = null;
-    _finishedCsv = _rawCsv.toString();
     if (summary.error != null) {
       AppLog.write('perf benchmarker: ${summary.error}');
     }
@@ -356,7 +328,8 @@ class PerfController extends _$PerfController {
       machineName: _machineName,
       endpoint: _endpoint,
       jobCommand: _jobCommand,
-      benchCommand: _benchCommand(params, _host, _port),
+      // The parameters are on the report; there's no CLI to quote anymore.
+      benchCommand: '',
       server: acc.server.isEmpty ? 'unknown' : acc.server,
       createdAt: DateTime.now(),
       params: params,
@@ -391,8 +364,8 @@ class PerfController extends _$PerfController {
     );
   }
 
-  /// Stops the benchmarker like the CLI's Ctrl-C: in-flight requests are
-  /// cancelled, the CSV flushed, and a partial report still lands. During
+  /// Stops the benchmarker: in-flight requests are cancelled, the CSV
+  /// flushed, and a partial report still lands. During
   /// the warm-up there's no run yet — it's abandoned instead: bumping the
   /// sequence makes every pending await in start() a no-op.
   void cancel() {
@@ -413,25 +386,10 @@ class PerfController extends _$PerfController {
     );
   }
 
-  /// Text for the "Copy results" button. When a duckdb command is configured
-  /// (Settings) it pipes the run's raw event CSV through it — the real CLI
-  /// pipeline — and returns its output; otherwise (or if it fails, or the raw
-  /// CSV is gone) it returns the app's own render of the report.
+  /// Text for the "Copy results" button: the report's tables.
   Future<String> copyText() async {
     final report = state.report;
-    if (report == null) return '';
-    final fallback = perfReportTable(report);
-    final command = ref
-        .read(settingsControllerProvider)
-        .perfDuckdbCommand
-        .trim();
-    if (command.isEmpty || _finishedCsv.isEmpty) return fallback;
-    final out = await runDuckdb(
-      command: command,
-      toolDir: ref.read(settingsControllerProvider).perfToolDir,
-      csv: _finishedCsv,
-    );
-    return (out != null && out.trim().isNotEmpty) ? out : fallback;
+    return report == null ? '' : perfReportTable(report);
   }
 
   /// Saves the finished run's report under [name].

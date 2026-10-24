@@ -30,10 +30,4 @@ Future<String> exportTextFile({
 
 Future<void> revealInFinder(String path) async {}
 
-Future<String?> runDuckdb({
-  required String command,
-  required String toolDir,
-  required String csv,
-}) async => null;
-
 const benchRunnerAvailable = false;
