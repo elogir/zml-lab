@@ -9,14 +9,16 @@ import '../theme/app_theme.dart';
 /// keeps the hover readout up while a live chart updates under a resting
 /// pointer — with the new values.
 ///
-/// Syncfusion hides the trackball whenever an axis range changes (a live
-/// chart's does as data arrives) and otherwise freezes it at the values it
-/// was shown with; so after every rebuild the trackball is shown again where
-/// the pointer is. Pair it with:
+/// Syncfusion hides the trackball on every data update (its series report a
+/// range change each time) and otherwise freezes it at the values it was
+/// shown with. So while the pointer rests on the chart those internal hides
+/// are ignored — the last readout stays painted, no blank frame — and after
+/// every rebuild the trackball is shown again where the pointer is. Pair it
+/// with:
 ///  - `animationDuration: 0` on the series (the trackball skips a series
 ///    while it animates, and a series re-animates on every data change);
-///  - axis maxima from [stableAxisMax], so ranges (and those hides) change
-///    rarely rather than on every update.
+///  - axis maxima from [stableAxisMax], so the axes don't rescale on every
+///    update.
 class ChartTrackball extends StatefulWidget {
   const ChartTrackball({super.key, required this.builder});
 
@@ -28,7 +30,7 @@ class ChartTrackball extends StatefulWidget {
 }
 
 class _ChartTrackballState extends State<ChartTrackball> {
-  TrackballBehavior? _trackball;
+  _LiveTrackball? _trackball;
   AppColors? _colors;
 
   /// Where the mouse rests over the chart (global), null when it isn't.
@@ -50,7 +52,8 @@ class _ChartTrackballState extends State<ChartTrackball> {
     final c = context.colors;
     if (_trackball == null || !identical(c, _colors)) {
       _colors = c;
-      _trackball = TrackballBehavior(
+      _trackball = _LiveTrackball(
+        pointerResting: () => _pointer != null,
         enable: true,
         activationMode: ActivationMode.singleTap,
         lineColor: c.borderStrong,
@@ -69,10 +72,38 @@ class _ChartTrackballState extends State<ChartTrackball> {
     return MouseRegion(
       opaque: false,
       onHover: (e) => _pointer = e.position,
-      onExit: (_) => _pointer = null,
+      onExit: (_) {
+        _pointer = null;
+        // Syncfusion's own exit may have come first and been ignored.
+        _trackball?.hideNow();
+      },
       child: widget.builder(context, _trackball!),
     );
   }
+}
+
+/// A trackball that ignores Syncfusion's hides while the pointer rests on
+/// the chart (they come with every data update); [hideNow] really hides.
+// TrackballBehavior is marked @immutable but keeps its own mutable state;
+// this adds none.
+// ignore: must_be_immutable
+class _LiveTrackball extends TrackballBehavior {
+  _LiveTrackball({
+    required this.pointerResting,
+    super.enable,
+    super.activationMode,
+    super.lineColor,
+    super.tooltipSettings,
+  });
+
+  final bool Function() pointerResting;
+
+  @override
+  void hide() {
+    if (!pointerResting()) super.hide();
+  }
+
+  void hideNow() => super.hide();
 }
 
 /// An axis maximum for [value] that moves in coarse steps (1, 2, 2.5, 5 ×

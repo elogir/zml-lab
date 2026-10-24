@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
@@ -88,18 +89,25 @@ void main() {
     expect(trackball().chartPointInfo, isNotEmpty);
     final before = trackball().chartPointInfo.first.label;
 
-    // Updates keep coming; the pointer doesn't move.
-    for (final seconds in [5, 6, 12, 40]) {
+    // Updates keep coming; the pointer doesn't move. Checked as each frame
+    // was painted — before ChartTrackball's post-frame refresh (this
+    // callback is registered first) — so a one-frame blank would show.
+    final blank = <int>[];
+    for (final seconds in [5, 6, 7, 8, 12, 20, 40]) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (trackball().chartPointInfo.isEmpty) blank.add(seconds);
+      });
       await tester.pumpWidget(chart(seconds));
-      await tester.pump();
-      expect(
-        trackball().chartPointInfo,
-        isNotEmpty,
-        reason: 'readout gone after an update to ${seconds}s',
-      );
     }
+    await tester.pump();
+    expect(blank, isEmpty, reason: 'frames painted without the readout');
     // The axis stretched under the pointer: it now reads a later point.
     expect(trackball().chartPointInfo.first.label, isNot(before));
+
+    // Leaving the chart hides it.
+    await mouse.moveTo(Offset.zero);
+    await tester.pump();
+    expect(trackball().chartPointInfo, isEmpty);
   });
 
   test('axis maxima move in coarse steps, with headroom', () {
