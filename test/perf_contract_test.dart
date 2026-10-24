@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:dart_duckdb/dart_duckdb.dart';
 import 'package:dart_duckdb/open.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zml_lab/features/perf/domain/chip_metrics.dart';
 import 'package:zml_lab/features/perf/domain/csv_events.dart';
 import 'package:zml_lab/features/perf/domain/perf_stats.dart';
 import 'package:zml_lab/features/perf/domain/run_recorder.dart';
@@ -158,20 +159,32 @@ void main() {
     tmp.deleteSync(recursive: true);
   });
 
+  /// The recorded run [file] in DuckDB with the doc's views, for [body].
+  Future<T> onRun<T>(String file, Future<T> Function(Connection) body) async {
+    final db = await duckdb.open(':memory:');
+    final conn = await duckdb.connect(db);
+    try {
+      for (final source in ['event', 'chip']) {
+        await conn.execute(
+          'CREATE VIEW ${source}s AS SELECT * FROM '
+          "read_parquet('$file') WHERE source = '$source'",
+        );
+      }
+      await conn.execute(_views);
+      return await body(conn);
+    } finally {
+      await conn.dispose();
+      await db.dispose();
+    }
+  }
+
   /// Records [csv] as a run and runs the doc's SQL on it: per statistic
   /// [avg, min, max, p50, p75, p90, p95, p99, p999], plus throughput.
   Future<(Map<String, List<double>>, List<double>)> contract(String csv) async {
     final spool = await RunSpool.create('run');
     spool.addEvents(csv);
     final file = (await spool.finish({'schema_version': 1}))!;
-    final db = await duckdb.open(':memory:');
-    final conn = await duckdb.connect(db);
-    try {
-      await conn.execute(
-        'CREATE VIEW events AS SELECT * FROM '
-        "read_parquet('$file') WHERE source = 'event'",
-      );
-      await conn.execute(_views);
+    return onRun(file, (conn) async {
       Future<List<Object?>> one(String sql) async =>
           (await conn.query(sql)).fetchAll().single.toList();
       final stats = <String, List<double>>{};
@@ -190,10 +203,7 @@ void main() {
         for (final v in await one(_throughput)) (v! as num).toDouble(),
       ];
       return (stats, throughput);
-    } finally {
-      await conn.dispose();
-      await db.dispose();
-    }
+    });
   }
 
   Future<PerfAccumulator> expectParity(String csv) async {
@@ -240,4 +250,124 @@ void main() {
     // 4 answer, finish and usage; c1's have no reasoning; then c2's error.
     expect(acc.eventCount, 2 * 10 + 2 * 7 + 1);
   }, skip: skip);
+
+  test('chips: per device, and energy per token', () async {
+    const ms = 1000000;
+    // Unevenly spaced samples; device 0 misses a utilization and a power
+    // reading, device 1 reports no power at all (so no energy).
+    final samples = [
+      for (var i = 0; i < 6; i++)
+        (
+          1000 * ms + i * 500 * ms + i * i * 7 * ms,
+          [
+            ChipReading(
+              device: 0,
+              kind: 'cuda',
+              name: 'NVIDIA H100 80GB HBM3',
+              utilPercent: i == 4 ? null : 10 + 18 * i,
+              powerW: i == 5 ? null : 50 + 55.5 * i,
+              temperatureC: 40 + 5 * i,
+              memUsedBytes: (1 + i) << 30,
+              memTotalBytes: 80 << 30,
+            ),
+            ChipReading(device: 1, kind: 'neuron', utilPercent: 50 + i),
+          ],
+        ),
+    ];
+    final csv = _vllmLikeRun();
+    final spool = await RunSpool.create('run');
+    spool.addEvents(csv);
+    final chips = ChipAccumulator();
+    for (final (ts, readings) in samples) {
+      spool.addChipSample(ts, readings);
+      chips.add(ts, readings);
+    }
+    final file = (await spool.finish({'schema_version': 1}))!;
+    final (rows, joulesPerToken) = await onRun(file, (conn) async {
+      await conn.execute(_energyView);
+      final rows = (await conn.query(_chipStats)).fetchAll();
+      final jpt = (await conn.query(_joulesPerToken)).fetchAll().single[0];
+      return (rows, jpt);
+    });
+
+    final got = chips.stats();
+    expect(got, hasLength(rows.length));
+    for (final (i, row) in rows.indexed) {
+      final s = got[i];
+      double? d(Object? v) => (v as num?)?.toDouble();
+      int? n(Object? v) => (v as num?)?.toInt();
+      expect(s.device, n(row[0]));
+      expect(s.name, row[1]);
+      expect(s.utilAvg, closeTo(d(row[2])!, 1e-9));
+      expect(s.utilMax, n(row[3]));
+      if (d(row[4]) case final p?) {
+        expect(s.powerAvgW, closeTo(p, 1e-9));
+      } else {
+        expect(s.powerAvgW, isNull);
+      }
+      expect(s.powerMaxW, d(row[5]));
+      expect(s.temperatureMaxC, n(row[6]));
+      expect(s.memPeakBytes, n(row[7]));
+      expect(s.memTotalBytes, n(row[8]));
+      if (d(row[9]) case final e?) {
+        expect(s.energyJ, closeTo(e, 1e-9));
+      } else {
+        expect(s.energyJ, isNull);
+      }
+    }
+    expect(got[0].energyJ, greaterThan(0));
+    expect(got[1].energyJ, isNull);
+
+    final acc = PerfAccumulator()..addAll(PerfCsvParser().add(csv));
+    expect(
+      chips.joulesPerToken(acc.tokenCount),
+      closeTo((joulesPerToken! as num).toDouble(), 1e-12),
+    );
+  }, skip: skip);
+
+  test('zml-smi is looked for on the target unless told otherwise', () {
+    expect(zmlSmiUrl('', 'gpu-box'), 'http://gpu-box:9090');
+    expect(zmlSmiUrl('9091', 'gpu-box'), 'http://gpu-box:9091');
+    expect(zmlSmiUrl(':9091', '10.0.0.5'), 'http://10.0.0.5:9091');
+    expect(zmlSmiUrl('other', 'gpu-box'), 'http://other:9090');
+    expect(zmlSmiUrl('other:1234', 'gpu-box'), 'http://other:1234');
+    expect(zmlSmiUrl('https://smi.lan/api', 'x'), 'https://smi.lan:9090/api');
+    expect(zmlSmiUrl('http://{host}:9095', 'gpu-box'), 'http://gpu-box:9095');
+    expect(zmlSmiUrl('[::1]:9091', 'x'), 'http://[::1]:9091');
+  });
+
+  test('chips are described as people name hardware', () {
+    ChipReading chip(int i, String? name) =>
+        ChipReading(device: i, kind: 'cuda', name: name);
+    expect(
+      describeChips([chip(0, 'NVIDIA H100'), chip(1, 'NVIDIA H100')]),
+      '2× NVIDIA H100',
+    );
+    expect(describeChips([chip(0, 'A'), chip(1, null)]), '1× A + 1× cuda');
+  });
 }
+
+// The doc's chip SQL, verbatim.
+const _energyView = '''
+CREATE VIEW energy AS
+SELECT device, sum(j) AS energy_j FROM (
+  SELECT device,
+         (power_w + lag(power_w) OVER w) / 2 * (ts_ns - lag(ts_ns) OVER w) / 1e9 AS j
+  FROM chips WHERE power_w IS NOT NULL
+  WINDOW w AS (PARTITION BY device ORDER BY ts_ns)
+) GROUP BY device;
+''';
+
+const _chipStats = '''
+SELECT c.device, any_value(c.name) AS name,
+       avg(util_percent) AS util_avg, max(util_percent) AS util_max,
+       avg(power_w) AS power_avg_w, max(power_w) AS power_max_w,
+       max(temperature_c) AS temperature_max_c,
+       max(mem_used_bytes) AS mem_peak_bytes, max(mem_total_bytes) AS mem_total_bytes,
+       any_value(e.energy_j) AS energy_j
+FROM chips c LEFT JOIN energy e USING (device)
+GROUP BY c.device ORDER BY c.device''';
+
+const _joulesPerToken =
+    'SELECT sum(energy_j) / (SELECT count(*) FROM tokens) AS joules_per_token '
+    'FROM energy';

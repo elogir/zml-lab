@@ -201,7 +201,7 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     AppButton(
-                      label: _runFile != null ? 'Export run…' : 'Export CSV',
+                      label: _runFile != null ? 'Export run' : 'Export CSV',
                       icon: AppIcons.download,
                       dense: true,
                       onPressed: _runFile != null ? _exportRun : _export,

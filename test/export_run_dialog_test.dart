@@ -36,7 +36,7 @@ void main() {
     expect(runMetaField(meta, 'label'), 'vLLM · Qwen3-8B · c=16');
     expect(runMetaField(meta, 'server.version'), '0.11.0');
     expect(runMetaField(meta, 'server.commit'), '');
-    expect(runMetaField(meta, 'model.quantization'), '');
+    expect(runMetaField(meta, 'hardware.description'), '1× RTX 4090');
     expect(runMetaField(meta, 'tags'), 'a, b');
     expect(runMetaField(meta, 'notes'), '');
   });
@@ -46,8 +46,7 @@ void main() {
       'label': '  llmd fp8  ',
       'server.commit': 'a1b2c3d',
       'server.version': '',
-      'model.quantization': 'fp8',
-      'hardware.description': '',
+      'model.name': 'Qwen/Qwen3-8B-FP8',
       'tags': ' llmd, , fp8 ,',
       'notes': '',
     });
@@ -57,9 +56,10 @@ void main() {
       'label': 'llmd fp8',
       'tags': ['llmd', 'fp8'],
       'server': {'kind': 'vllm', 'commit': 'a1b2c3d'},
-      'model': {'name': 'Qwen/Qwen3-8B', 'quantization': 'fp8'},
-      // What the dialog doesn't edit (detected chips) is kept.
+      'model': {'name': 'Qwen/Qwen3-8B-FP8'},
+      // What the dialog doesn't edit (the detected hardware) is kept.
       'hardware': {
+        'description': '1× RTX 4090',
         'chips': [
           {'device': 0, 'kind': 'cuda'},
         ],
@@ -132,8 +132,11 @@ void main() {
     expect(text('Model'), 'Qwen/Qwen3-8B');
     expect(text('Server version'), '0.11.0');
     expect(text('Commit'), '');
-    expect(text('Hardware'), '1× RTX 4090');
     expect(text('Tags'), 'a, b');
-    expect(find.text('Export…'), findsOneWidget);
+    // Not asked: the hardware is shown as recorded.
+    expect(find.text('Quantization'), findsNothing);
+    expect(find.byType(AppTextField), findsNWidgets(runMetaFields.length));
+    expect(find.text('1× RTX 4090'), findsOneWidget);
+    expect(find.text('Export'), findsOneWidget);
   }, skip: !File(_libduckdb).existsSync());
 }

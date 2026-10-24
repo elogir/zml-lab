@@ -87,11 +87,11 @@ detect; the rest is entered (or corrected) in the export dialog.
     "commit": "a1b2c3d"                      // manual
   },
   "model": {
-    "name": "Qwen/Qwen3-8B",                 // auto — sent in requests / from /v1/models
-    "quantization": "fp8"                    // manual
+    "name": "Qwen/Qwen3-8B"                  // auto — sent in requests / from /v1/models
   },
   "hardware": {
-    "description": "1× RTX 4090, 64 GB",     // auto — the machine's hardware field, editable
+    "description": "1× RTX 4090, 64 GB",     // auto — the target machine's hardware field, else
+                                             //   the chips zml-smi saw ("1× NVIDIA GeForce RTX 4090")
     "chips": [                               // auto — from zml-smi, when it answered
       { "device": 0, "kind": "cuda", "name": "NVIDIA GeForce RTX 4090", "driver_version": "580.82" }
     ]
@@ -112,8 +112,9 @@ detect; the rest is entered (or corrected) in the export dialog.
   "chip_metrics": { "url": "http://10.0.0.5:9090", "interval_ms": 500 },  // auto, null if none
 
   "summary": {                               // auto — ZML-Lab's own numbers, for listings;
-    "requests": 144,                         //   the website recomputes from events
-    "tokens_per_second": 872.0
+    "requests": 144,                         //   the website recomputes from the rows
+    "tokens_per_second": 872.0,
+    "joules_per_token": 0.36                 // when zml-smi reported power
   }
 }
 ```
@@ -163,9 +164,31 @@ SELECT (SELECT count(*) FROM tokens)
 FROM events;
 ```
 
-Joining chips: they share the clock with events, so e.g. energy per token is
-`∫ power_w dt` over the run (sum of `power_w × Δt` between a device's
-samples) divided by the tokens.
+Over `chips`, per device — they share the clock with events, so energy
+divides by the run's tokens:
+
+```sql
+-- Energy: power integrated between a device's consecutive readings
+-- (trapezoids), in joules.
+CREATE VIEW energy AS
+SELECT device, sum(j) AS energy_j FROM (
+  SELECT device,
+         (power_w + lag(power_w) OVER w) / 2 * (ts_ns - lag(ts_ns) OVER w) / 1e9 AS j
+  FROM chips WHERE power_w IS NOT NULL
+  WINDOW w AS (PARTITION BY device ORDER BY ts_ns)
+) GROUP BY device;
+
+SELECT c.device, any_value(c.name) AS name,
+       avg(util_percent) AS util_avg, max(util_percent) AS util_max,
+       avg(power_w) AS power_avg_w, max(power_w) AS power_max_w,
+       max(temperature_c) AS temperature_max_c,
+       max(mem_used_bytes) AS mem_peak_bytes, max(mem_total_bytes) AS mem_total_bytes,
+       any_value(e.energy_j) AS energy_j
+FROM chips c LEFT JOIN energy e USING (device)
+GROUP BY c.device ORDER BY c.device;
+
+SELECT sum(energy_j) / (SELECT count(*) FROM tokens) AS joules_per_token FROM energy;
+```
 
 The benchmarker's own `duckdb/report.sql` differs: it takes TTFT from
 `seq = 0` rows (only a conversation's first turn has one, and it can be the
@@ -176,12 +199,14 @@ role and finish chunks.
 ## In ZML-Lab
 
 - During a run the benchmarker's event stream is spooled to disk, and — when
-  `zml-smi --api` answers at the configured URL (default
-  `http://<target host>:9090`) — chip samples too.
+  `zml-smi --api` answers (the chip button in the Perf tab: the target's
+  host on port 9090 unless set otherwise) — chip samples too, shown live and
+  summed up in the report (per chip, and energy per token).
 - When the run ends, embedded DuckDB (`dart_duckdb`) turns the spools into
   the run's Parquet file (text dropped, its length kept) with the
   automatic `meta.json`, kept under `~/Library/Application Support/ZML-Lab/runs/`.
   Saving the report keeps it; discarding the run deletes it.
-- **Export run…** opens a dialog with `meta.json` prefilled — label, commit,
-  quantization, notes, tags — and writes the final `.zmlrun.parquet` where you
+- **Export run** opens a dialog with `meta.json` prefilled — label, model,
+  server version and commit, notes, tags; the hardware comes from the target
+  machine or zml-smi — and writes the final `.zmlrun.parquet` where you
   choose. Uploading to the website comes later.

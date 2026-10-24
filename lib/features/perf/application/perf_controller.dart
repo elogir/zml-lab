@@ -9,6 +9,7 @@ import '../../../repositories/perf_report_repository.dart';
 import '../../settings/application/settings_controller.dart';
 import '../domain/bench_lib.dart';
 import '../domain/bench_runner.dart';
+import '../domain/chip_metrics.dart';
 import '../domain/csv_events.dart';
 import '../domain/perf_stats.dart';
 import '../domain/report_text.dart';
@@ -53,6 +54,7 @@ class PerfRun {
     this.saved = false,
     this.runFile,
     this.chips = false,
+    this.liveChips = const [],
   });
 
   final PerfPhase phase;
@@ -79,11 +81,14 @@ class PerfRun {
   final bool saved;
 
   /// The finished run's recording (`.zmlrun.parquet`), once written — what
-  /// "Export run…" exports. Null while running, or if recording failed.
+  /// "Export run" exports. Null while running, or if recording failed.
   final String? runFile;
 
   /// Whether zml-smi chip metrics are being (or were) recorded.
   final bool chips;
+
+  /// zml-smi's latest sample while running, for the live readout.
+  final List<ChipReading> liveChips;
 
   static const _unset = Object();
 
@@ -102,6 +107,7 @@ class PerfRun {
     bool? saved,
     Object? runFile = _unset,
     bool? chips,
+    List<ChipReading>? liveChips,
   }) => PerfRun(
     phase: phase ?? this.phase,
     message: identical(message, _unset) ? this.message : message as String?,
@@ -117,6 +123,7 @@ class PerfRun {
     saved: saved ?? this.saved,
     runFile: identical(runFile, _unset) ? this.runFile : runFile as String?,
     chips: chips ?? this.chips,
+    liveChips: liveChips ?? this.liveChips,
   );
 }
 
@@ -155,6 +162,7 @@ class PerfController extends _$PerfController {
   bool _chipBusy = false;
   String? _chipUrl;
   List<ChipReading> _chipsSeen = const [];
+  ChipAccumulator _chipStats = ChipAccumulator();
   String? _serverVersion;
 
   /// Runs saved as reports: their recordings stay when the run is cleared.
@@ -239,6 +247,7 @@ class PerfController extends _$PerfController {
     _runId = 'p-${DateTime.now().microsecondsSinceEpoch}';
     _startedAt = DateTime.now().toUtc();
     _chipsSeen = const [];
+    _chipStats = ChipAccumulator();
     _chipUrl = null;
     _serverVersion = null;
 
@@ -257,6 +266,7 @@ class PerfController extends _$PerfController {
       saved: false,
       runFile: null,
       chips: false,
+      liveChips: const [],
     );
     AppLog.write(
       'perf run start job=$jobName endpoint=$host:$port '
@@ -320,9 +330,10 @@ class PerfController extends _$PerfController {
     sequenceType: p.sequenceType,
   );
 
-  /// Opens the run's spool, and — when zml-smi answers at [chipUrl] — starts
-  /// sampling it. Recording is best-effort: a run goes ahead without it.
-  Future<void> _startRecording(int seq, String chipUrl) async {
+  /// Opens the run's spool, and — when zml-smi answers ([chipSetting],
+  /// resolved against the target's host) — starts sampling it. Recording is
+  /// best-effort: a run goes ahead without it.
+  Future<void> _startRecording(int seq, String chipSetting) async {
     try {
       _spool = await RunSpool.create(_runId);
     } catch (e) {
@@ -335,8 +346,8 @@ class PerfController extends _$PerfController {
         if (seq == _runSeq) _serverVersion = v;
       }),
     );
-    final url = chipUrl.replaceAll('{host}', _host).trim();
-    if (_spool == null || url.isEmpty) return;
+    final url = zmlSmiUrl(chipSetting, _host);
+    if (_spool == null) return;
     final first = await fetchChips(url);
     if (seq != _runSeq) return;
     if (first.isEmpty) {
@@ -345,7 +356,7 @@ class PerfController extends _$PerfController {
     }
     _chipUrl = url;
     _chipsSeen = first;
-    _spool?.addChipSample(DateTime.now().microsecondsSinceEpoch * 1000, first);
+    _addChipSample(first);
     state = state.copyWith(chips: true);
     _chipTimer = Timer.periodic(const Duration(milliseconds: chipIntervalMs), (
       _,
@@ -354,16 +365,21 @@ class PerfController extends _$PerfController {
       _chipBusy = true;
       try {
         final readings = await fetchChips(url);
-        if (seq != _runSeq || readings.isEmpty) return;
-        // Stamped on arrival, on the same clock as the events.
-        _spool?.addChipSample(
-          DateTime.now().microsecondsSinceEpoch * 1000,
-          readings,
-        );
+        if (seq != _runSeq || readings.isEmpty || _chipTimer == null) return;
+        _addChipSample(readings);
       } finally {
         _chipBusy = false;
       }
     });
+  }
+
+  /// A zml-smi sample, stamped on arrival (the events' clock): into the
+  /// recording, the report's chip stats and the live readout.
+  void _addChipSample(List<ChipReading> readings) {
+    final ts = DateTime.now().microsecondsSinceEpoch * 1000;
+    _spool?.addChipSample(ts, readings);
+    _chipStats.add(ts, readings);
+    state = state.copyWith(liveChips: readings);
   }
 
   /// Stops sampling chips; with [discard], drops the spool too.
@@ -395,7 +411,7 @@ class PerfController extends _$PerfController {
       state = state.copyWith(runFile: path);
     } catch (e) {
       AppLog.write('perf recording failed: $e');
-      // Said in the status bar, or the missing Export run… is a mystery.
+      // Said in the status bar, or the missing Export run is a mystery.
       if (seq == _runSeq && state.report?.id == report.id) {
         state = state.copyWith(
           message: '${state.message ?? 'run complete'} — not recorded: $e',
@@ -405,7 +421,7 @@ class PerfController extends _$PerfController {
   }
 
   /// What the app knows about the run, for its meta.json — the rest (label,
-  /// commit, quantization, notes, tags) comes from the export dialog.
+  /// server version and commit, notes, tags) comes from the export dialog.
   Map<String, Object?> _autoMeta(PerfReport report) {
     final p = report.params;
     final datasetPath = ref.read(settingsControllerProvider).perfDatasetPath;
@@ -427,7 +443,11 @@ class PerfController extends _$PerfController {
       'server': {'kind': report.server, 'version': ?_serverVersion},
       'model': {if (p.model.isNotEmpty) 'name': p.model},
       'hardware': {
-        if (_hardware?.isNotEmpty ?? false) 'description': _hardware,
+        // The target machine's, else what zml-smi saw (a custom host).
+        if (_hardware?.isNotEmpty ?? false)
+          'description': _hardware
+        else if (_chipsSeen.isNotEmpty)
+          'description': describeChips(_chipsSeen),
         if (_chipsSeen.isNotEmpty)
           'chips': [for (final c in _chipsSeen) c.toMeta()],
       },
@@ -453,6 +473,7 @@ class PerfController extends _$PerfController {
         'tokens_per_second': report.tokensPerSecond,
         'requests_per_second': report.requestsPerSecond,
         'errors': report.errorCount,
+        'joules_per_token': ?report.joulesPerToken,
       },
     };
   }
@@ -553,6 +574,8 @@ class PerfController extends _$PerfController {
       series: acc.series(includeLast: true),
       ttftHistogram: acc.ttftHistogram(),
       itlHistogram: acc.itlHistogram(),
+      chips: _chipStats.stats(),
+      joulesPerToken: _chipStats.joulesPerToken(acc.tokenCount),
     );
     AppLog.write(
       'perf run done: ${report.totalRequests} requests, '
@@ -629,6 +652,7 @@ class PerfController extends _$PerfController {
       saved: false,
       runFile: null,
       chips: false,
+      liveChips: const [],
     );
   }
 

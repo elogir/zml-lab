@@ -1,7 +1,7 @@
 /// Models for the perf benchmark — runs of the bundled load generator
-/// (native/zmlbench) against an endpoint: the statistics (defined as the
-/// original benchmarker's report.sql defined them), plus the time series the
-/// app samples live for the charts.
+/// (native/zmlbench) against an endpoint: the statistics (as the run format
+/// defines them, docs/perf-run-format.md), the chips zml-smi reported, plus
+/// the time series the app samples live for the charts.
 library;
 
 /// One row of the statistics table: a metric summarized over the run.
@@ -120,9 +120,74 @@ class PerfHistogram {
   factory PerfHistogram.fromMap(Map<String, dynamic> m) => PerfHistogram(
     binWidthMs: (m['w'] as num?)?.toDouble() ?? 1,
     binStartMs: (m['s'] as num?)?.toDouble() ?? 0,
-    counts: [
-      for (final c in (m['c'] as List? ?? const [])) (c as num).toInt(),
-    ],
+    counts: [for (final c in (m['c'] as List? ?? const [])) (c as num).toInt()],
+  );
+}
+
+/// One accelerator over a run, from its zml-smi samples. Every reading is
+/// optional: devices report different subsets.
+class PerfChipStat {
+  const PerfChipStat({
+    required this.device,
+    required this.kind,
+    this.name,
+    required this.samples,
+    this.utilAvg,
+    this.utilMax,
+    this.powerAvgW,
+    this.powerMaxW,
+    this.temperatureMaxC,
+    this.memPeakBytes,
+    this.memTotalBytes,
+    this.energyJ,
+  });
+
+  /// Index in zml-smi's device list.
+  final int device;
+
+  /// `cuda`, `rocm`, `oneapi`, `neuron` or `tpu`.
+  final String kind;
+  final String? name;
+  final int samples;
+  final double? utilAvg;
+  final int? utilMax;
+  final double? powerAvgW;
+  final double? powerMaxW;
+  final int? temperatureMaxC;
+  final int? memPeakBytes;
+  final int? memTotalBytes;
+
+  /// Power integrated over the run, in joules.
+  final double? energyJ;
+
+  Map<String, dynamic> toMap() => {
+    'd': device,
+    'k': kind,
+    'n': ?name,
+    's': samples,
+    'ua': ?utilAvg,
+    'um': ?utilMax,
+    'pa': ?powerAvgW,
+    'pm': ?powerMaxW,
+    'tm': ?temperatureMaxC,
+    'mp': ?memPeakBytes,
+    'mt': ?memTotalBytes,
+    'e': ?energyJ,
+  };
+
+  factory PerfChipStat.fromMap(Map<String, dynamic> m) => PerfChipStat(
+    device: (m['d'] as num?)?.toInt() ?? 0,
+    kind: m['k'] as String? ?? '',
+    name: m['n'] as String?,
+    samples: (m['s'] as num?)?.toInt() ?? 0,
+    utilAvg: (m['ua'] as num?)?.toDouble(),
+    utilMax: (m['um'] as num?)?.toInt(),
+    powerAvgW: (m['pa'] as num?)?.toDouble(),
+    powerMaxW: (m['pm'] as num?)?.toDouble(),
+    temperatureMaxC: (m['tm'] as num?)?.toInt(),
+    memPeakBytes: (m['mp'] as num?)?.toInt(),
+    memTotalBytes: (m['mt'] as num?)?.toInt(),
+    energyJ: (m['e'] as num?)?.toDouble(),
   );
 }
 
@@ -250,6 +315,8 @@ class PerfReport {
     required this.series,
     required this.ttftHistogram,
     required this.itlHistogram,
+    this.chips = const [],
+    this.joulesPerToken,
   });
 
   final String id;
@@ -297,6 +364,13 @@ class PerfReport {
   final PerfHistogram ttftHistogram;
   final PerfHistogram itlHistogram;
 
+  /// The accelerators zml-smi reported during the run (empty when it
+  /// wasn't answering).
+  final List<PerfChipStat> chips;
+
+  /// Energy per token, every chip together (null without power readings).
+  final double? joulesPerToken;
+
   PerfReport copyWith({String? name}) => PerfReport(
     id: id,
     name: name ?? this.name,
@@ -321,6 +395,8 @@ class PerfReport {
     series: series,
     ttftHistogram: ttftHistogram,
     itlHistogram: itlHistogram,
+    chips: chips,
+    joulesPerToken: joulesPerToken,
   );
 
   /// Server label for badges — 'zml' reads better as 'llmd' in this app.
@@ -345,6 +421,8 @@ class PerfReport {
     'series': [for (final s in series) s.toMap()],
     'ttft': ttftHistogram.toMap(),
     'itl': itlHistogram.toMap(),
+    if (chips.isNotEmpty) 'chips': [for (final c in chips) c.toMap()],
+    'jpt': ?joulesPerToken,
   };
 
   /// Rebuilds a report from its DB row: the scalar list-display columns plus
@@ -396,5 +474,10 @@ class PerfReport {
     itlHistogram: PerfHistogram.fromMap(
       (m['itl'] as Map?)?.cast<String, dynamic>() ?? const {},
     ),
+    chips: [
+      for (final c in (m['chips'] as List? ?? const []))
+        PerfChipStat.fromMap((c as Map).cast<String, dynamic>()),
+    ],
+    joulesPerToken: (m['jpt'] as num?)?.toDouble(),
   );
 }

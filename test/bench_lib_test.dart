@@ -229,7 +229,11 @@ void main() {
 
   testWidgets('the perf tab runs the library to a report', (tester) async {
     await real(tester, () async {
-      final server = await _fakeServer(words: 20);
+      // Slow enough (~3 s) for several zml-smi samples.
+      final server = await _fakeServer(
+        words: 20,
+        pace: const Duration(milliseconds: 30),
+      );
       addTearDown(() => server.close(force: true));
       final db = AppDatabase(NativeDatabase.memory());
       final container = ProviderContainer(
@@ -270,7 +274,8 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 100));
       container.read(settingsControllerProvider.notifier)
         ..setPerfDatasetPath(_dataset(tmp, 12).path)
-        ..setPerfChipMetricsUrl('http://{host}:${smi.port}');
+        // Just a port: zml-smi on the target's host.
+        ..setPerfChipMetricsUrl(':${smi.port}');
 
       final provider = perfControllerProvider('t');
       final perf = container.read(provider.notifier)
@@ -303,6 +308,14 @@ void main() {
       expect(report.tokensPerSecond, greaterThan(0));
       expect(report.cancelled, isFalse);
       expect(run.chips, isTrue);
+      // The chip, summed up over the run (zml-smi said the same each time).
+      final chip = report.chips.single;
+      expect(chip.name, 'NVIDIA GeForce RTX 4090');
+      expect(chip.samples, greaterThanOrEqualTo(2));
+      expect(chip.utilAvg, 97);
+      expect(chip.powerMaxW, 312.5);
+      expect(chip.energyJ, greaterThan(0));
+      expect(report.joulesPerToken, greaterThan(0));
 
       // The recording: written in the background once the run is done.
       if (libduckdbSkip != null) return;
@@ -343,6 +356,10 @@ void main() {
       });
       expect((meta['params'] as Map)['concurrency'], 4);
       expect((meta['summary'] as Map)['requests'], 24);
+      expect(
+        (meta['summary'] as Map)['joules_per_token'],
+        report.joulesPerToken,
+      );
 
       // Discarding an unsaved run removes its recording.
       perf.discard();

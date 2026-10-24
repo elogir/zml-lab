@@ -5,9 +5,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
 import '../domain/run_recorder.dart';
 
-/// "Export run…": the run's meta.json, prefilled with what was detected, to
-/// complete (label, commit, quantization, notes, tags…); then where to save
-/// the `.zmlrun.parquet`. Resolves to the exported path, or null.
+/// "Export run": the run's meta.json, prefilled with what was detected, to
+/// complete (label, server version and commit, notes, tags…); then where to
+/// save the `.zmlrun.parquet`. Resolves to the exported path, or null. The
+/// hardware isn't asked: it's the target machine's, or what zml-smi saw.
 Future<String?> showExportRunDialog(
   BuildContext context, {
   required String runFile,
@@ -21,10 +22,8 @@ Future<String?> showExportRunDialog(
 const runMetaFields = [
   'label',
   'model.name',
-  'model.quantization',
   'server.version',
   'server.commit',
-  'hardware.description',
   'tags',
   'notes',
 ];
@@ -205,14 +204,7 @@ class _ExportRunDialogState extends State<ExportRunDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 field('Label', 'label', placeholder: 'how it reads in charts'),
-                pair(
-                  field('Model', 'model.name', mono: true),
-                  field(
-                    'Quantization',
-                    'model.quantization',
-                    placeholder: 'fp8',
-                  ),
-                ),
+                field('Model', 'model.name', mono: true),
                 pair(
                   field('Server version', 'server.version', mono: true),
                   field(
@@ -222,13 +214,19 @@ class _ExportRunDialogState extends State<ExportRunDialog> {
                     placeholder: 'a1b2c3d',
                   ),
                 ),
-                field(
-                  'Hardware',
-                  'hardware.description',
-                  placeholder: '1× RTX 4090',
-                ),
                 field('Tags', 'tags', placeholder: 'comma-separated'),
                 field('Notes', 'notes', lines: 3),
+                const FieldLabel('Hardware'),
+                Text(switch (runMetaField(
+                  _meta ?? const {},
+                  'hardware.description',
+                )) {
+                  '' =>
+                    'not recorded — pick the target machine, or run '
+                        'zml-smi on it',
+                  final hardware => hardware,
+                }, style: context.text.small.copyWith(color: c.textSecondary)),
+                const SizedBox(height: AppSpacing.md),
                 if (_error != null)
                   Text(
                     _error!,
@@ -242,7 +240,7 @@ class _ExportRunDialogState extends State<ExportRunDialog> {
           onPressed: _busy ? null : () => Navigator.of(context).pop(),
         ),
         AppButton(
-          label: _busy ? 'Exporting…' : 'Export…',
+          label: _busy ? 'Exporting' : 'Export',
           icon: AppIcons.download,
           variant: AppButtonVariant.primary,
           onPressed: _busy || _meta == null ? null : _export,

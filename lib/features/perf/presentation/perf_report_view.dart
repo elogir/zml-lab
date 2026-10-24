@@ -12,9 +12,9 @@ String formatStat(double v) {
   return s;
 }
 
-/// The full report of a finished perf run: headline throughput, the
-/// report.sql statistics table, distribution charts, and the exact command
-/// lines (benchmarker + server) the numbers came from.
+/// The full report of a finished perf run: headline throughput, the chips
+/// zml-smi reported, the statistics table, distribution charts, and the
+/// exact command lines (benchmarker + server) the numbers came from.
 class PerfReportView extends StatelessWidget {
   const PerfReportView({super.key, required this.report});
 
@@ -47,6 +47,10 @@ class PerfReportView extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
           ],
           _Headline(report: r),
+          if (r.chips.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            _ChipsTable(chips: r.chips),
+          ],
           const SizedBox(height: AppSpacing.lg),
           _StatsTable(rows: r.stats),
           const SizedBox(height: AppSpacing.lg),
@@ -173,6 +177,12 @@ class _Headline extends StatelessWidget {
                 value: r.totalSeconds.toStringAsFixed(1),
                 unit: 's',
               ),
+              if (r.joulesPerToken case final j?)
+                _Stat(
+                  label: 'ENERGY',
+                  value: j.toStringAsFixed(j < 1 ? 3 : 2),
+                  unit: 'J/tok',
+                ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -204,6 +214,8 @@ class _Stat extends StatelessWidget {
         Text(label, style: context.text.columnHeader),
         const SizedBox(height: 4),
         Row(
+          // As wide as the number: the headline wraps them side by side.
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [
@@ -315,6 +327,108 @@ class _StatsTable extends StatelessWidget {
             ],
           ),
           for (final r in rows) row(r),
+        ],
+      ),
+    );
+  }
+}
+
+/// The accelerators over the run, from zml-smi: one row per device.
+class _ChipsTable extends StatelessWidget {
+  const _ChipsTable({required this.chips});
+
+  final List<PerfChipStat> chips;
+
+  static const _columns = [
+    'util avg',
+    'util max',
+    'power avg',
+    'power max',
+    'temp max',
+    'memory peak',
+  ];
+
+  static String _gib(int bytes) => (bytes / (1 << 30)).toStringAsFixed(1);
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final header = context.text.columnHeader;
+    final mono = context.text.monoSmall.copyWith(color: c.textPrimary);
+    const cellPadding = EdgeInsets.symmetric(
+      horizontal: AppSpacing.sm,
+      vertical: AppSpacing.sm,
+    );
+    Widget cell(String? text) => Padding(
+      padding: cellPadding,
+      child: Text(
+        text ?? '–',
+        style: text == null ? context.text.monoSmall : mono,
+        textAlign: TextAlign.right,
+        maxLines: 1,
+      ),
+    );
+
+    TableRow row(PerfChipStat s) => TableRow(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Text('${s.device}', style: context.text.monoSmall),
+              const SizedBox(width: AppSpacing.sm),
+              Flexible(
+                child: Text(
+                  s.name ?? s.kind,
+                  style: context.text.small.copyWith(color: c.textPrimary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        cell(s.utilAvg == null ? null : '${s.utilAvg!.round()}%'),
+        cell(s.utilMax == null ? null : '${s.utilMax}%'),
+        cell(s.powerAvgW == null ? null : '${s.powerAvgW!.round()} W'),
+        cell(s.powerMaxW == null ? null : '${s.powerMaxW!.round()} W'),
+        cell(s.temperatureMaxC == null ? null : '${s.temperatureMaxC} °C'),
+        cell(switch ((s.memPeakBytes, s.memTotalBytes)) {
+          (final used?, final total?) => '${_gib(used)} / ${_gib(total)} GiB',
+          (final used?, null) => '${_gib(used)} GiB',
+          _ => null,
+        }),
+      ],
+    );
+
+    return AppPanel(
+      padding: EdgeInsets.zero,
+      child: Table(
+        columnWidths: const {0: FlexColumnWidth(2.6), 6: FlexColumnWidth(1.6)},
+        defaultColumnWidth: const FlexColumnWidth(1),
+        border: TableBorder(horizontalInside: BorderSide(color: c.borderMuted)),
+        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+        children: [
+          TableRow(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                child: Text('CHIP', style: header),
+              ),
+              for (final col in _columns)
+                Padding(
+                  padding: cellPadding,
+                  child: Text(col, style: header, textAlign: TextAlign.right),
+                ),
+            ],
+          ),
+          for (final s in chips) row(s),
         ],
       ),
     );

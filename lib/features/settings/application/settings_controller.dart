@@ -148,8 +148,7 @@ class SettingsController extends _$SettingsController {
         : _repo.put('benchCopyTemplate', template);
   }
 
-  /// Stored as typed — empty turns chip metrics off (not back to the
-  /// default), so it's kept even when blank.
+  /// Stored as typed; empty is the default (the target's host).
   void setPerfChipMetricsUrl(String url) {
     final v = url.trim();
     state = state.copyWith(perfChipMetricsUrl: v);

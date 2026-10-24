@@ -11,7 +11,9 @@ import '../application/perf_controller.dart';
 import '../../settings/application/settings_controller.dart';
 import '../application/sharegpt_dataset.dart';
 import '../domain/bench_runner.dart';
+import '../domain/run_recorder_types.dart';
 import '../domain/sharegpt.dart';
+import 'chip_metrics_button.dart';
 import 'export_run_dialog.dart';
 import 'perf_charts.dart';
 import 'perf_report_view.dart';
@@ -172,6 +174,7 @@ class _PerfViewState extends ConsumerState<PerfView> {
         children: [
           _Controls(
             run: run,
+            host: widget.host,
             duration: _duration,
             concurrency: _concurrency,
             maxTokens: _maxTokens,
@@ -292,6 +295,7 @@ class _PerfViewState extends ConsumerState<PerfView> {
 class _Controls extends StatelessWidget {
   const _Controls({
     required this.run,
+    required this.host,
     required this.duration,
     required this.concurrency,
     required this.maxTokens,
@@ -304,6 +308,9 @@ class _Controls extends StatelessWidget {
   });
 
   final PerfRun run;
+
+  /// The target's host (where zml-smi is looked for by default).
+  final String host;
   final TextEditingController duration;
   final TextEditingController concurrency;
   final TextEditingController maxTokens;
@@ -403,8 +410,12 @@ class _Controls extends StatelessWidget {
       onChanged: (v) => onPatch((p) => p.copyWith(model: v.trim())),
     );
     // The model field with the run controls beside it at its height:
-    // [withWarmup] puts the warm-up toggle first (when it isn't elsewhere).
-    Widget modelAndActions({required bool withWarmup}) => LabeledControl(
+    // [withWarmup] puts the warm-up toggle first and [withChips] the chip
+    // metrics button last (when they aren't elsewhere).
+    Widget modelAndActions({
+      required bool withWarmup,
+      bool withChips = true,
+    }) => LabeledControl(
       label: 'Model',
       child: FieldWithActions(
         field: modelField,
@@ -424,6 +435,13 @@ class _Controls extends StatelessWidget {
               stretch: stretch,
             ),
             const SizedBox(width: AppSpacing.sm),
+            // The hidden sizing copy gets a stand-in: one live button probes.
+            if (withChips)
+              Center(
+                child: stretch
+                    ? ChipMetricsButton(host: host)
+                    : const ChipMetricsButton.standIn(),
+              ),
             // Same fullscreen as the terminal: sidebar, header and actions
             // panel all collapse away.
             Center(
@@ -505,10 +523,13 @@ class _Controls extends StatelessWidget {
                 prompts,
                 turns,
                 FieldHeight(child: warmup),
+                FieldHeight(
+                  child: Center(child: ChipMetricsButton(host: host)),
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            modelAndActions(withWarmup: false),
+            modelAndActions(withWarmup: false, withChips: false),
           ],
         );
       },
@@ -625,6 +646,11 @@ class _StatusBar extends StatelessWidget {
                     '${run.elapsed.inSeconds}s / '
                     '${run.params.durationSeconds}s',
               ),
+              // zml-smi's latest sample, every chip together.
+              if (_chipUtil(run.liveChips) case final util?)
+                _Stat(label: 'CHIP UTIL', value: '$util%'),
+              if (_chipPower(run.liveChips) case final watts?)
+                _Stat(label: 'POWER', value: '$watts W'),
             ],
           )
         : run.phase == PerfPhase.done
@@ -683,7 +709,7 @@ class _StatusBar extends StatelessWidget {
           AsyncCopyButton(textBuilder: copyText!, label: 'Copy results'),
         if (onExport != null)
           AppButton(
-            label: 'Export run…',
+            label: 'Export run',
             icon: AppIcons.download,
             dense: true,
             onPressed: onExport,
@@ -741,6 +767,20 @@ class _StatusBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Average utilization over the chips that report it.
+int? _chipUtil(List<ChipReading> chips) {
+  final utils = [for (final c in chips) ?c.utilPercent];
+  if (utils.isEmpty) return null;
+  return (utils.fold(0, (a, b) => a + b) / utils.length).round();
+}
+
+/// Power drawn by the chips that report it, together.
+int? _chipPower(List<ChipReading> chips) {
+  final watts = [for (final c in chips) ?c.powerW];
+  if (watts.isEmpty) return null;
+  return watts.fold(0.0, (a, b) => a + b).round();
 }
 
 class _Stat extends StatelessWidget {

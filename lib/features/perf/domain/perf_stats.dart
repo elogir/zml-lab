@@ -97,6 +97,9 @@ class PerfAccumulator {
   String? _firstError;
 
   int get eventCount => _events;
+
+  /// Chunks with text, answer or reasoning.
+  int get tokenCount => _tokens;
   int get errorCount => _errors;
   int get requestCount => _requests.length;
   int get maxSeq => _maxSeq;
