@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 import '../theme/app_theme.dart';
@@ -196,6 +198,18 @@ class _SettingFieldState extends State<SettingField> {
     _menu.hide();
   }
 
+  /// The presets menu's height limit: the room between the field and the
+  /// window's bottom edge, so the list scrolls only when the window is too
+  /// short to show it all.
+  double _menuMaxHeight(BuildContext overlay) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return 320;
+    final fieldBottom = box.localToGlobal(Offset(0, box.size.height)).dy;
+    final room = MediaQuery.sizeOf(overlay).height - fieldBottom;
+    // The menu's 4 px offset, and a margin above the window edge.
+    return math.max(120, room - 4 - AppSpacing.md);
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -267,7 +281,7 @@ class _SettingFieldState extends State<SettingField> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints.tightFor(
                       width: 120,
-                    ).copyWith(maxHeight: 320),
+                    ).copyWith(maxHeight: _menuMaxHeight(context)),
                     child: AppPanel(
                       color: c.surface,
                       padding: const EdgeInsets.all(AppSpacing.xs),
