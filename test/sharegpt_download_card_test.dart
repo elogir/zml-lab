@@ -35,8 +35,8 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 300));
     expect(tester.takeException(), isNull);
-    if (find.text('Change…').evaluate().isNotEmpty) {
-      await tester.tap(find.text('Change…'));
+    if (find.text('Change folder…').evaluate().isNotEmpty) {
+      await tester.tap(find.text('Change folder…'));
     }
     return chose;
   }
@@ -50,7 +50,15 @@ void main() {
     );
     expect(find.text('Download ShareGPT'), findsOneWidget);
     expect(find.text('673 MB  ·  to $folder'), findsOneWidget);
-    expect(chose, 1); // Change… opens the folder picker
+    expect(chose, 1); // Change folder… opens the folder picker
+    // The path is shown whole (not cut short by the link), the link below.
+    final where = tester.getRect(find.text('673 MB  ·  to $folder'));
+    final link = tester.getRect(find.text('Change folder…'));
+    expect(link.top, greaterThan(where.bottom));
+    expect(
+      tester.widget<Text>(find.text('673 MB  ·  to $folder')).overflow,
+      isNull,
+    );
     expect(find.textContaining('%'), findsNothing);
   });
 
@@ -76,7 +84,7 @@ void main() {
       findsOneWidget,
     );
     // No folder change mid-download.
-    expect(find.text('Change…'), findsNothing);
+    expect(find.text('Change folder…'), findsNothing);
   });
 
   testWidgets('interrupted: resume from where it stopped', (tester) async {

@@ -97,14 +97,25 @@ class ShareGptDataset extends _$ShareGptDataset {
   Future<void> _check(String path) async {
     final missing = await datasetProblem(path) != null;
     if (!ref.mounted || state.path != path) return;
+    // A check never interrupts a download, and keeps a failure's message
+    // until the file turns up.
+    if (state.phase == DatasetPhase.downloading) return;
+    if (missing && state.phase == DatasetPhase.failed) return;
     final partial = partialDownloadBytes(expandUserPath(path));
-    state = DatasetState(
+    final next = DatasetState(
       phase: missing ? DatasetPhase.missing : DatasetPhase.ready,
       path: path,
       received: missing ? partial : ShareGpt.bytes,
       total: ShareGpt.bytes,
     );
+    if (next.phase != state.phase || next.received != state.received) {
+      state = next;
+    }
   }
+
+  /// Looks again — the file may have been deleted, moved or put there
+  /// since (in Finder, say).
+  Future<void> refresh() => _check(state.path);
 
   /// Downloads (or resumes) the dataset to the configured path.
   void download() {

@@ -53,8 +53,15 @@ class _PerfViewState extends ConsumerState<PerfView> {
   String? _preflightProblem;
   String? _exportedTo;
 
+  /// Re-checks the dataset when the app comes back to the front — it may
+  /// have been deleted or moved in Finder meanwhile.
+  late final AppLifecycleListener _lifecycle;
+
   PerfController get _controller =>
       ref.read(perfControllerProvider(widget.jobId).notifier);
+
+  void _refreshDataset() =>
+      ref.read(shareGptDatasetProvider.notifier).refresh();
 
   @override
   void initState() {
@@ -68,7 +75,10 @@ class _PerfViewState extends ConsumerState<PerfView> {
     _model = TextEditingController(text: run.params.model);
     // The dataset has its own card (with a download); this is the rest.
     _preflightProblem = _controller.libraryProblem();
+    _lifecycle = AppLifecycleListener(onResume: _refreshDataset);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Every visit looks again (the dataset state outlives the tab).
+      _refreshDataset();
       await _controller.prefillModel(host: widget.host, port: widget.port);
       if (!mounted) return;
       final model = ref.read(perfControllerProvider(widget.jobId)).params.model;
@@ -78,6 +88,7 @@ class _PerfViewState extends ConsumerState<PerfView> {
 
   @override
   void dispose() {
+    _lifecycle.dispose();
     _duration.dispose();
     _concurrency.dispose();
     _maxTokens.dispose();

@@ -37,23 +37,21 @@ class ShareGptDownload extends StatelessWidget {
     final mono = context.text.monoSmall.copyWith(color: c.textMuted);
     final total = state.total ?? ShareGpt.bytes;
 
-    final destination = Row(
+    // The whole path, wrapped if need be, and the folder picker under it.
+    final destination = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Flexible(
-          child: Text(
-            '${_mb(ShareGpt.bytes, digits: 0)}  ·  to $folder',
-            style: mono.copyWith(color: c.textFaint),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+        Text(
+          '${_mb(ShareGpt.bytes, digits: 0)}  ·  to $folder',
+          style: mono.copyWith(color: c.textFaint),
+          textAlign: TextAlign.center,
         ),
         if (onChooseFolder != null) ...[
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
           HoverRegion(
             onTap: onChooseFolder,
             builder: (context, hovered) => Text(
-              'Change…',
+              'Change folder…',
               style: context.text.small.copyWith(
                 color: hovered ? c.textPrimary : c.accent,
               ),
