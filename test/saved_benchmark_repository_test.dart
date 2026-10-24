@@ -37,28 +37,44 @@ void main() {
     return roundTrip(AppDatabase(NativeDatabase.memory()));
   });
 
+  /// A database at user_version 11; [newer] adds what v12/v13 would have.
+  AppDatabase v11({bool newer = false}) => AppDatabase(
+    NativeDatabase.memory(
+      setup: (raw) {
+        // saved_benchmarks as schema v11 left it.
+        raw.execute('''
+          CREATE TABLE saved_benchmarks (
+            id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL,
+            endpoint TEXT NOT NULL, machine_name TEXT,
+            command TEXT NOT NULL DEFAULT '', prompt TEXT NOT NULL,
+            batch_size INTEGER NOT NULL,
+            aggregate_tokens_per_second REAL NOT NULL,
+            completed INTEGER NOT NULL, median_ttft_ms INTEGER NOT NULL,
+            elapsed_ms INTEGER NOT NULL, created_at INTEGER NOT NULL,
+            requests_json TEXT NOT NULL DEFAULT '[]',
+            samples_json TEXT NOT NULL DEFAULT '[]'
+            ${newer ? ', model TEXT, max_tokens INTEGER, temperature REAL' : ''}
+          )''');
+        if (newer) {
+          raw.execute('''
+            CREATE TABLE api_endpoints (
+              id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL,
+              base_url TEXT NOT NULL, has_api_key INTEGER NOT NULL DEFAULT 0,
+              created_at INTEGER NOT NULL
+            )''');
+        }
+        raw.execute('PRAGMA user_version = 11');
+      },
+    ),
+  );
+
   test('the v12 upgrade adds the columns to an existing v11 table', () {
-    return roundTrip(
-      AppDatabase(
-        NativeDatabase.memory(
-          setup: (raw) {
-            // saved_benchmarks as schema v11 left it.
-            raw.execute('''
-              CREATE TABLE saved_benchmarks (
-                id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL,
-                endpoint TEXT NOT NULL, machine_name TEXT,
-                command TEXT NOT NULL DEFAULT '', prompt TEXT NOT NULL,
-                batch_size INTEGER NOT NULL,
-                aggregate_tokens_per_second REAL NOT NULL,
-                completed INTEGER NOT NULL, median_ttft_ms INTEGER NOT NULL,
-                elapsed_ms INTEGER NOT NULL, created_at INTEGER NOT NULL,
-                requests_json TEXT NOT NULL DEFAULT '[]',
-                samples_json TEXT NOT NULL DEFAULT '[]'
-              )''');
-            raw.execute('PRAGMA user_version = 11');
-          },
-        ),
-      ),
-    );
+    return roundTrip(v11());
+  });
+
+  test('upgrading again after an older build opened the file', () {
+    // An older build "downgrades" user_version but leaves the schema as is:
+    // the upgrade has to cope with columns and tables that already exist.
+    return roundTrip(v11(newer: true));
   });
 }

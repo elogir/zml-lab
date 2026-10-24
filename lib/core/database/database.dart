@@ -94,13 +94,29 @@ class AppDatabase extends _$AppDatabase {
         await m.database.customStatement('DROP TABLE IF EXISTS jobs');
         await m.database.customStatement('DROP TABLE IF EXISTS launch_configs');
       }
+      // From here on, steps are idempotent: an older build opening the same
+      // file "downgrades" user_version without undoing anything, so these can
+      // run again over a schema that already has them.
       if (from < 12) {
         // Saved runs keep their request settings, for "Copy results".
-        await m.addColumn(savedBenchmarks, savedBenchmarks.model);
-        await m.addColumn(savedBenchmarks, savedBenchmarks.maxTokens);
-        await m.addColumn(savedBenchmarks, savedBenchmarks.temperature);
+        final have = await _columns('saved_benchmarks');
+        for (final col in [
+          savedBenchmarks.model,
+          savedBenchmarks.maxTokens,
+          savedBenchmarks.temperature,
+        ]) {
+          if (!have.contains(col.name)) {
+            await m.addColumn(savedBenchmarks, col);
+          }
+        }
       }
+      // CREATE TABLE IF NOT EXISTS.
       if (from < 13) await m.createTable(apiEndpoints);
     },
   );
+
+  Future<Set<String>> _columns(String table) async {
+    final rows = await customSelect('PRAGMA table_info($table)').get();
+    return {for (final r in rows) r.read<String>('name')};
+  }
 }
