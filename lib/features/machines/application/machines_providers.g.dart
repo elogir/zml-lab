@@ -173,7 +173,7 @@ String _$machineMapHash() => r'6285cac17f368386f274efbd3d6fff1938688109';
 /// Live reachability of a machine: null while the first probe runs, then a
 /// fresh answer every 10s while somebody is watching (auto-dispose stops the
 /// polling when no dot is on screen). Local is always reachable; a remote is
-/// probed with a silent TCP connect to its ssh port.
+/// pinged.
 
 @ProviderFor(machineReachable)
 final machineReachableProvider = MachineReachableFamily._();
@@ -181,7 +181,7 @@ final machineReachableProvider = MachineReachableFamily._();
 /// Live reachability of a machine: null while the first probe runs, then a
 /// fresh answer every 10s while somebody is watching (auto-dispose stops the
 /// polling when no dot is on screen). Local is always reachable; a remote is
-/// probed with a silent TCP connect to its ssh port.
+/// pinged.
 
 final class MachineReachableProvider
     extends $FunctionalProvider<AsyncValue<bool?>, bool?, Stream<bool?>>
@@ -189,7 +189,7 @@ final class MachineReachableProvider
   /// Live reachability of a machine: null while the first probe runs, then a
   /// fresh answer every 10s while somebody is watching (auto-dispose stops the
   /// polling when no dot is on screen). Local is always reachable; a remote is
-  /// probed with a silent TCP connect to its ssh port.
+  /// pinged.
   MachineReachableProvider._({
     required MachineReachableFamily super.from,
     required String super.argument,
@@ -233,12 +233,12 @@ final class MachineReachableProvider
   }
 }
 
-String _$machineReachableHash() => r'34d52c020ac8827f57427093d0a2d48d54adcf2f';
+String _$machineReachableHash() => r'500e2821c379959169e52b41fc2d201d7fb0f33a';
 
 /// Live reachability of a machine: null while the first probe runs, then a
 /// fresh answer every 10s while somebody is watching (auto-dispose stops the
 /// polling when no dot is on screen). Local is always reachable; a remote is
-/// probed with a silent TCP connect to its ssh port.
+/// pinged.
 
 final class MachineReachableFamily extends $Family
     with $FunctionalFamilyOverride<Stream<bool?>, String> {
@@ -254,7 +254,7 @@ final class MachineReachableFamily extends $Family
   /// Live reachability of a machine: null while the first probe runs, then a
   /// fresh answer every 10s while somebody is watching (auto-dispose stops the
   /// polling when no dot is on screen). Local is always reachable; a remote is
-  /// probed with a silent TCP connect to its ssh port.
+  /// pinged.
 
   MachineReachableProvider call(String machineId) =>
       MachineReachableProvider._(argument: machineId, from: this);

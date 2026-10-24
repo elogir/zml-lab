@@ -1,14 +1,11 @@
 import 'package:drift/drift.dart';
 
-/// The local box plus remote hosts benchmarks and terminals target.
+/// The local box plus remote hosts benchmarks target.
 @DataClassName('MachineRow')
 class Machines extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
   TextColumn get address => text()();
-  IntColumn get sshPort => integer().withDefault(const Constant(22))();
-  TextColumn get user => text().nullable()();
-  TextColumn get sshKey => text().nullable()();
 
   /// [Vendor.name], or null if unknown.
   TextColumn get vendor => text().nullable()();

@@ -32,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -112,6 +112,18 @@ class AppDatabase extends _$AppDatabase {
       }
       // CREATE TABLE IF NOT EXISTS.
       if (from < 13) await m.createTable(apiEndpoints);
+      if (from < 14) {
+        // Machines lost their ssh settings: terminals stay local, and the
+        // reachability dot pings.
+        final have = await _columns('machines');
+        for (final col in ['ssh_port', 'user', 'ssh_key']) {
+          if (have.contains(col)) {
+            await m.database.customStatement(
+              'ALTER TABLE machines DROP COLUMN "$col"',
+            );
+          }
+        }
+      }
     },
   );
 

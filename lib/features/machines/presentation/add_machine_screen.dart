@@ -21,9 +21,6 @@ class AddMachineScreen extends ConsumerStatefulWidget {
 class _AddMachineScreenState extends ConsumerState<AddMachineScreen> {
   final _name = TextEditingController();
   final _address = TextEditingController();
-  final _port = TextEditingController(text: '22');
-  final _user = TextEditingController();
-  final _sshKey = TextEditingController();
   final _gpus = TextEditingController();
   final _memory = TextEditingController();
 
@@ -48,9 +45,6 @@ class _AddMachineScreenState extends ConsumerState<AddMachineScreen> {
       _original = machine;
       _name.text = machine.name;
       _address.text = machine.address;
-      _port.text = '${machine.sshPort}';
-      _user.text = machine.user ?? '';
-      _sshKey.text = machine.sshKey ?? '';
       _gpus.text = machine.gpus ?? '';
       _memory.text = machine.memory ?? '';
     });
@@ -58,15 +52,7 @@ class _AddMachineScreenState extends ConsumerState<AddMachineScreen> {
 
   @override
   void dispose() {
-    for (final ctrl in [
-      _name,
-      _address,
-      _port,
-      _user,
-      _sshKey,
-      _gpus,
-      _memory,
-    ]) {
+    for (final ctrl in [_name, _address, _gpus, _memory]) {
       ctrl.dispose();
     }
     super.dispose();
@@ -79,9 +65,6 @@ class _AddMachineScreenState extends ConsumerState<AddMachineScreen> {
       id: _original?.id ?? 'm-${DateTime.now().microsecondsSinceEpoch}',
       name: _orNull(_name.text) ?? 'machine',
       address: _orNull(_address.text) ?? '',
-      sshPort: int.tryParse(_port.text) ?? 22,
-      user: _orNull(_user.text),
-      sshKey: _orNull(_sshKey.text),
       vendor: _original?.vendor,
       gpus: _orNull(_gpus.text),
       memory: _orNull(_memory.text),
@@ -114,7 +97,7 @@ class _AddMachineScreenState extends ConsumerState<AddMachineScreen> {
               Text(
                 _isEditing
                     ? 'Update this remote host.'
-                    : 'Register a remote host to benchmark and open terminals on.',
+                    : 'Register a remote host to benchmark.',
                 style: context.text.subtitle,
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -127,45 +110,10 @@ class _AddMachineScreenState extends ConsumerState<AddMachineScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
 
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: LabeledInput(
-                      label: 'Address',
-                      placeholder: 'host.example.com',
-                      controller: _address,
-                      mono: true,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  SizedBox(
-                    width: 110,
-                    child: LabeledInput(
-                      label: 'Port',
-                      placeholder: '22',
-                      controller: _port,
-                      mono: true,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-
               LabeledInput(
-                label: 'User',
-                hint: 'optional',
-                placeholder: 'ubuntu',
-                controller: _user,
-                mono: true,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-
-              LabeledInput(
-                label: 'SSH key',
-                hint: 'optional',
-                placeholder: '~/.ssh/id_ed25519',
-                controller: _sshKey,
+                label: 'Address',
+                placeholder: 'host.example.com',
+                controller: _address,
                 mono: true,
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -175,7 +123,7 @@ class _AddMachineScreenState extends ConsumerState<AddMachineScreen> {
               const SectionLabel('Hardware'),
               const SizedBox(height: 2),
               Text(
-                'optional, otherwise detected on connect',
+                'optional, recorded with perf runs on this machine',
                 style: context.text.smallMuted,
               ),
               const SizedBox(height: AppSpacing.md),

@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Machine {
 
- String get id; String get name; String get address; int get sshPort; String? get user; String? get sshKey; Vendor? get vendor; String? get gpus; String? get memory; bool get online;
+ String get id; String get name; String get address; Vendor? get vendor; String? get gpus; String? get memory; bool get online;
 /// Create a copy of Machine
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +30,20 @@ $MachineCopyWith<Machine> get copyWith => _$MachineCopyWithImpl<Machine>(this as
 @override
 bool operator ==(Object other) {
   final _this = this as Machine;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Machine&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.address, _this.address) || other.address == _this.address)&&(identical(other.sshPort, _this.sshPort) || other.sshPort == _this.sshPort)&&(identical(other.user, _this.user) || other.user == _this.user)&&(identical(other.sshKey, _this.sshKey) || other.sshKey == _this.sshKey)&&(identical(other.vendor, _this.vendor) || other.vendor == _this.vendor)&&(identical(other.gpus, _this.gpus) || other.gpus == _this.gpus)&&(identical(other.memory, _this.memory) || other.memory == _this.memory)&&(identical(other.online, _this.online) || other.online == _this.online));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Machine&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.address, _this.address) || other.address == _this.address)&&(identical(other.vendor, _this.vendor) || other.vendor == _this.vendor)&&(identical(other.gpus, _this.gpus) || other.gpus == _this.gpus)&&(identical(other.memory, _this.memory) || other.memory == _this.memory)&&(identical(other.online, _this.online) || other.online == _this.online));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as Machine;
-  return Object.hash(runtimeType,_this.id,_this.name,_this.address,_this.sshPort,_this.user,_this.sshKey,_this.vendor,_this.gpus,_this.memory,_this.online);
+  return Object.hash(runtimeType,_this.id,_this.name,_this.address,_this.vendor,_this.gpus,_this.memory,_this.online);
 }
 
 @override
 String toString() {
   final _this = this as Machine;
-  return 'Machine(id: ${_this.id}, name: ${_this.name}, address: ${_this.address}, sshPort: ${_this.sshPort}, user: ${_this.user}, sshKey: ${_this.sshKey}, vendor: ${_this.vendor}, gpus: ${_this.gpus}, memory: ${_this.memory}, online: ${_this.online})';
+  return 'Machine(id: ${_this.id}, name: ${_this.name}, address: ${_this.address}, vendor: ${_this.vendor}, gpus: ${_this.gpus}, memory: ${_this.memory}, online: ${_this.online})';
 }
 
 
@@ -54,7 +54,7 @@ abstract mixin class $MachineCopyWith<$Res>  {
   factory $MachineCopyWith(Machine value, $Res Function(Machine) _then) = _$MachineCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String address, int sshPort, String? user, String? sshKey, Vendor? vendor, String? gpus, String? memory, bool online
+ String id, String name, String address, Vendor? vendor, String? gpus, String? memory, bool online
 });
 
 
@@ -71,15 +71,12 @@ class _$MachineCopyWithImpl<$Res>
 
 /// Create a copy of Machine
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? address = null,Object? sshPort = null,Object? user = freezed,Object? sshKey = freezed,Object? vendor = freezed,Object? gpus = freezed,Object? memory = freezed,Object? online = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? address = null,Object? vendor = freezed,Object? gpus = freezed,Object? memory = freezed,Object? online = null,}) {
   return _then(Machine(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,address: null == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
-as String,sshPort: null == sshPort ? _self.sshPort : sshPort // ignore: cast_nullable_to_non_nullable
-as int,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
-as String?,sshKey: freezed == sshKey ? _self.sshKey : sshKey // ignore: cast_nullable_to_non_nullable
-as String?,vendor: freezed == vendor ? _self.vendor : vendor // ignore: cast_nullable_to_non_nullable
+as String,vendor: freezed == vendor ? _self.vendor : vendor // ignore: cast_nullable_to_non_nullable
 as Vendor?,gpus: freezed == gpus ? _self.gpus : gpus // ignore: cast_nullable_to_non_nullable
 as String?,memory: freezed == memory ? _self.memory : memory // ignore: cast_nullable_to_non_nullable
 as String?,online: null == online ? _self.online : online // ignore: cast_nullable_to_non_nullable
@@ -168,10 +165,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String address,  int sshPort,  String? user,  String? sshKey,  Vendor? vendor,  String? gpus,  String? memory,  bool online)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String address,  Vendor? vendor,  String? gpus,  String? memory,  bool online)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Machine() when $default != null:
-return $default(_that.id,_that.name,_that.address,_that.sshPort,_that.user,_that.sshKey,_that.vendor,_that.gpus,_that.memory,_that.online);case _:
+return $default(_that.id,_that.name,_that.address,_that.vendor,_that.gpus,_that.memory,_that.online);case _:
   return orElse();
 
 }
@@ -189,10 +186,10 @@ return $default(_that.id,_that.name,_that.address,_that.sshPort,_that.user,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String address,  int sshPort,  String? user,  String? sshKey,  Vendor? vendor,  String? gpus,  String? memory,  bool online)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String address,  Vendor? vendor,  String? gpus,  String? memory,  bool online)  $default,) {final _that = this;
 switch (_that) {
 case _Machine():
-return $default(_that.id,_that.name,_that.address,_that.sshPort,_that.user,_that.sshKey,_that.vendor,_that.gpus,_that.memory,_that.online);case _:
+return $default(_that.id,_that.name,_that.address,_that.vendor,_that.gpus,_that.memory,_that.online);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -209,10 +206,10 @@ return $default(_that.id,_that.name,_that.address,_that.sshPort,_that.user,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String address,  int sshPort,  String? user,  String? sshKey,  Vendor? vendor,  String? gpus,  String? memory,  bool online)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String address,  Vendor? vendor,  String? gpus,  String? memory,  bool online)?  $default,) {final _that = this;
 switch (_that) {
 case _Machine() when $default != null:
-return $default(_that.id,_that.name,_that.address,_that.sshPort,_that.user,_that.sshKey,_that.vendor,_that.gpus,_that.memory,_that.online);case _:
+return $default(_that.id,_that.name,_that.address,_that.vendor,_that.gpus,_that.memory,_that.online);case _:
   return null;
 
 }
@@ -224,15 +221,12 @@ return $default(_that.id,_that.name,_that.address,_that.sshPort,_that.user,_that
 @JsonSerializable()
 
 class _Machine extends Machine {
-  const _Machine({required this.id, required this.name, required this.address, this.sshPort = 22, this.user, this.sshKey, this.vendor, this.gpus, this.memory, this.online = true}): super._();
+  const _Machine({required this.id, required this.name, required this.address, this.vendor, this.gpus, this.memory, this.online = true}): super._();
   factory _Machine.fromJson(Map<String, dynamic> json) => _$MachineFromJson(json);
 
 @override final  String id;
 @override final  String name;
 @override final  String address;
-@override@JsonKey() final  int sshPort;
-@override final  String? user;
-@override final  String? sshKey;
 @override final  Vendor? vendor;
 @override final  String? gpus;
 @override final  String? memory;
@@ -251,18 +245,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Machine&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.address, address) || other.address == address)&&(identical(other.sshPort, sshPort) || other.sshPort == sshPort)&&(identical(other.user, user) || other.user == user)&&(identical(other.sshKey, sshKey) || other.sshKey == sshKey)&&(identical(other.vendor, vendor) || other.vendor == vendor)&&(identical(other.gpus, gpus) || other.gpus == gpus)&&(identical(other.memory, memory) || other.memory == memory)&&(identical(other.online, online) || other.online == online));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Machine&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.address, address) || other.address == address)&&(identical(other.vendor, vendor) || other.vendor == vendor)&&(identical(other.gpus, gpus) || other.gpus == gpus)&&(identical(other.memory, memory) || other.memory == memory)&&(identical(other.online, online) || other.online == online));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,name,address,sshPort,user,sshKey,vendor,gpus,memory,online);
+    return Object.hash(runtimeType,id,name,address,vendor,gpus,memory,online);
 }
 
 @override
 String toString() {
-    return 'Machine(id: $id, name: $name, address: $address, sshPort: $sshPort, user: $user, sshKey: $sshKey, vendor: $vendor, gpus: $gpus, memory: $memory, online: $online)';
+    return 'Machine(id: $id, name: $name, address: $address, vendor: $vendor, gpus: $gpus, memory: $memory, online: $online)';
 }
 
 
@@ -273,7 +267,7 @@ abstract mixin class _$MachineCopyWith<$Res> implements $MachineCopyWith<$Res> {
   factory _$MachineCopyWith(_Machine value, $Res Function(_Machine) _then) = __$MachineCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String address, int sshPort, String? user, String? sshKey, Vendor? vendor, String? gpus, String? memory, bool online
+ String id, String name, String address, Vendor? vendor, String? gpus, String? memory, bool online
 });
 
 
@@ -290,15 +284,12 @@ class __$MachineCopyWithImpl<$Res>
 
 /// Create a copy of Machine
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? address = null,Object? sshPort = null,Object? user = freezed,Object? sshKey = freezed,Object? vendor = freezed,Object? gpus = freezed,Object? memory = freezed,Object? online = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? address = null,Object? vendor = freezed,Object? gpus = freezed,Object? memory = freezed,Object? online = null,}) {
   return _then(_Machine(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,address: null == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
-as String,sshPort: null == sshPort ? _self.sshPort : sshPort // ignore: cast_nullable_to_non_nullable
-as int,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
-as String?,sshKey: freezed == sshKey ? _self.sshKey : sshKey // ignore: cast_nullable_to_non_nullable
-as String?,vendor: freezed == vendor ? _self.vendor : vendor // ignore: cast_nullable_to_non_nullable
+as String,vendor: freezed == vendor ? _self.vendor : vendor // ignore: cast_nullable_to_non_nullable
 as Vendor?,gpus: freezed == gpus ? _self.gpus : gpus // ignore: cast_nullable_to_non_nullable
 as String?,memory: freezed == memory ? _self.memory : memory // ignore: cast_nullable_to_non_nullable
 as String?,online: null == online ? _self.online : online // ignore: cast_nullable_to_non_nullable

@@ -125,8 +125,7 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
     final target = ref.watch(benchmarkTargetControllerProvider);
     final fullscreen = ref.watch(appFullscreenProvider);
     final panel = ref.watch(benchmarkTerminalPanelControllerProvider);
-    // New shells open on the target machine (ssh when it's remote); a custom
-    // host gets local shells.
+    // The target machine's hardware goes on perf recordings.
     final machine = target.machineId == null
         ? null
         : ref.watch(machineMapProvider)[target.machineId];
@@ -161,11 +160,7 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
 
     // Mounted only while the panel is open (or animating shut) — the split
     // decides; its shells live on in the mux provider either way.
-    final terminal = TerminalMux(
-      key: _terminalKey,
-      muxId: _terminalMuxId,
-      machine: machine,
-    );
+    final terminal = TerminalMux(key: _terminalKey, muxId: _terminalMuxId);
 
     // In fullscreen the shell already hid the sidebar; drop our own chrome too
     // so the surface fills the window (the perf view re-adds padding).

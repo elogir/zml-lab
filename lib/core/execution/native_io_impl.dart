@@ -371,21 +371,33 @@ Future<void> _chatBatchWorker(
   }
 }
 
-/// Whether something is accepting connections on `host:port` — a bare TCP
-/// connect that's closed immediately, deliberately NOT an HTTP request:
-/// servers log every request, so a `GET /health` heartbeat spams the job's
-/// console. A plain connect never produces a request line to log. Semantics
-/// match the old `/health` probe for llmd, which binds its listener only once
-/// the model is loaded.
-Future<bool> checkHealth(
-  String host,
-  int port, {
-  Duration timeout = const Duration(milliseconds: 1200),
+/// Whether [host] answers a ping (one echo request, given [timeout] to
+/// reply) — the machines' reachability dot. Needs nothing from the host but
+/// ICMP: no ssh, no open port. A host whose firewall drops pings reads as
+/// unreachable.
+Future<bool> pingHost(
+  String host, {
+  Duration timeout = const Duration(seconds: 2),
 }) async {
+  final h = host.trim();
+  if (h.isEmpty) return false;
   try {
-    final socket = await Socket.connect(host, port, timeout: timeout);
-    socket.destroy();
-    return true;
+    final ping = await Process.start(h.contains(':') ? 'ping6' : 'ping', [
+      '-c',
+      '1',
+      '-q',
+      h,
+    ]);
+    unawaited(ping.stdout.drain<void>());
+    unawaited(ping.stderr.drain<void>());
+    final code = await ping.exitCode.timeout(
+      timeout,
+      onTimeout: () {
+        ping.kill();
+        return -1;
+      },
+    );
+    return code == 0;
   } catch (_) {
     return false;
   }

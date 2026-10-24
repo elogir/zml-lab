@@ -38,36 +38,6 @@ class $MachinesTable extends Machines
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _sshPortMeta = const VerificationMeta(
-    'sshPort',
-  );
-  @override
-  late final GeneratedColumn<int> sshPort = GeneratedColumn<int>(
-    'ssh_port',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(22),
-  );
-  static const VerificationMeta _userMeta = const VerificationMeta('user');
-  @override
-  late final GeneratedColumn<String> user = GeneratedColumn<String>(
-    'user',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _sshKeyMeta = const VerificationMeta('sshKey');
-  @override
-  late final GeneratedColumn<String> sshKey = GeneratedColumn<String>(
-    'ssh_key',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _vendorMeta = const VerificationMeta('vendor');
   @override
   late final GeneratedColumn<String> vendor = GeneratedColumn<String>(
@@ -113,9 +83,6 @@ class $MachinesTable extends Machines
     id,
     name,
     address,
-    sshPort,
-    user,
-    sshKey,
     vendor,
     gpus,
     memory,
@@ -153,24 +120,6 @@ class $MachinesTable extends Machines
       );
     } else if (isInserting) {
       context.missing(_addressMeta);
-    }
-    if (data.containsKey('ssh_port')) {
-      context.handle(
-        _sshPortMeta,
-        sshPort.isAcceptableOrUnknown(data['ssh_port']!, _sshPortMeta),
-      );
-    }
-    if (data.containsKey('user')) {
-      context.handle(
-        _userMeta,
-        user.isAcceptableOrUnknown(data['user']!, _userMeta),
-      );
-    }
-    if (data.containsKey('ssh_key')) {
-      context.handle(
-        _sshKeyMeta,
-        sshKey.isAcceptableOrUnknown(data['ssh_key']!, _sshKeyMeta),
-      );
     }
     if (data.containsKey('vendor')) {
       context.handle(
@@ -217,18 +166,6 @@ class $MachinesTable extends Machines
         DriftSqlType.string,
         data['${effectivePrefix}address'],
       )!,
-      sshPort: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}ssh_port'],
-      )!,
-      user: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}user'],
-      ),
-      sshKey: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}ssh_key'],
-      ),
       vendor: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}vendor'],
@@ -258,9 +195,6 @@ class MachineRow extends DataClass implements Insertable<MachineRow> {
   final String id;
   final String name;
   final String address;
-  final int sshPort;
-  final String? user;
-  final String? sshKey;
 
   /// [Vendor.name], or null if unknown.
   final String? vendor;
@@ -271,9 +205,6 @@ class MachineRow extends DataClass implements Insertable<MachineRow> {
     required this.id,
     required this.name,
     required this.address,
-    required this.sshPort,
-    this.user,
-    this.sshKey,
     this.vendor,
     this.gpus,
     this.memory,
@@ -285,13 +216,6 @@ class MachineRow extends DataClass implements Insertable<MachineRow> {
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
     map['address'] = Variable<String>(address);
-    map['ssh_port'] = Variable<int>(sshPort);
-    if (!nullToAbsent || user != null) {
-      map['user'] = Variable<String>(user);
-    }
-    if (!nullToAbsent || sshKey != null) {
-      map['ssh_key'] = Variable<String>(sshKey);
-    }
     if (!nullToAbsent || vendor != null) {
       map['vendor'] = Variable<String>(vendor);
     }
@@ -310,11 +234,6 @@ class MachineRow extends DataClass implements Insertable<MachineRow> {
       id: Value(id),
       name: Value(name),
       address: Value(address),
-      sshPort: Value(sshPort),
-      user: user == null && nullToAbsent ? const Value.absent() : Value(user),
-      sshKey: sshKey == null && nullToAbsent
-          ? const Value.absent()
-          : Value(sshKey),
       vendor: vendor == null && nullToAbsent
           ? const Value.absent()
           : Value(vendor),
@@ -335,9 +254,6 @@ class MachineRow extends DataClass implements Insertable<MachineRow> {
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       address: serializer.fromJson<String>(json['address']),
-      sshPort: serializer.fromJson<int>(json['sshPort']),
-      user: serializer.fromJson<String?>(json['user']),
-      sshKey: serializer.fromJson<String?>(json['sshKey']),
       vendor: serializer.fromJson<String?>(json['vendor']),
       gpus: serializer.fromJson<String?>(json['gpus']),
       memory: serializer.fromJson<String?>(json['memory']),
@@ -351,9 +267,6 @@ class MachineRow extends DataClass implements Insertable<MachineRow> {
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'address': serializer.toJson<String>(address),
-      'sshPort': serializer.toJson<int>(sshPort),
-      'user': serializer.toJson<String?>(user),
-      'sshKey': serializer.toJson<String?>(sshKey),
       'vendor': serializer.toJson<String?>(vendor),
       'gpus': serializer.toJson<String?>(gpus),
       'memory': serializer.toJson<String?>(memory),
@@ -365,9 +278,6 @@ class MachineRow extends DataClass implements Insertable<MachineRow> {
     String? id,
     String? name,
     String? address,
-    int? sshPort,
-    Value<String?> user = const Value.absent(),
-    Value<String?> sshKey = const Value.absent(),
     Value<String?> vendor = const Value.absent(),
     Value<String?> gpus = const Value.absent(),
     Value<String?> memory = const Value.absent(),
@@ -376,9 +286,6 @@ class MachineRow extends DataClass implements Insertable<MachineRow> {
     id: id ?? this.id,
     name: name ?? this.name,
     address: address ?? this.address,
-    sshPort: sshPort ?? this.sshPort,
-    user: user.present ? user.value : this.user,
-    sshKey: sshKey.present ? sshKey.value : this.sshKey,
     vendor: vendor.present ? vendor.value : this.vendor,
     gpus: gpus.present ? gpus.value : this.gpus,
     memory: memory.present ? memory.value : this.memory,
@@ -389,9 +296,6 @@ class MachineRow extends DataClass implements Insertable<MachineRow> {
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       address: data.address.present ? data.address.value : this.address,
-      sshPort: data.sshPort.present ? data.sshPort.value : this.sshPort,
-      user: data.user.present ? data.user.value : this.user,
-      sshKey: data.sshKey.present ? data.sshKey.value : this.sshKey,
       vendor: data.vendor.present ? data.vendor.value : this.vendor,
       gpus: data.gpus.present ? data.gpus.value : this.gpus,
       memory: data.memory.present ? data.memory.value : this.memory,
@@ -405,9 +309,6 @@ class MachineRow extends DataClass implements Insertable<MachineRow> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('address: $address, ')
-          ..write('sshPort: $sshPort, ')
-          ..write('user: $user, ')
-          ..write('sshKey: $sshKey, ')
           ..write('vendor: $vendor, ')
           ..write('gpus: $gpus, ')
           ..write('memory: $memory, ')
@@ -417,18 +318,8 @@ class MachineRow extends DataClass implements Insertable<MachineRow> {
   }
 
   @override
-  int get hashCode => Object.hash(
-    id,
-    name,
-    address,
-    sshPort,
-    user,
-    sshKey,
-    vendor,
-    gpus,
-    memory,
-    online,
-  );
+  int get hashCode =>
+      Object.hash(id, name, address, vendor, gpus, memory, online);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -436,9 +327,6 @@ class MachineRow extends DataClass implements Insertable<MachineRow> {
           other.id == this.id &&
           other.name == this.name &&
           other.address == this.address &&
-          other.sshPort == this.sshPort &&
-          other.user == this.user &&
-          other.sshKey == this.sshKey &&
           other.vendor == this.vendor &&
           other.gpus == this.gpus &&
           other.memory == this.memory &&
@@ -449,9 +337,6 @@ class MachinesCompanion extends UpdateCompanion<MachineRow> {
   final Value<String> id;
   final Value<String> name;
   final Value<String> address;
-  final Value<int> sshPort;
-  final Value<String?> user;
-  final Value<String?> sshKey;
   final Value<String?> vendor;
   final Value<String?> gpus;
   final Value<String?> memory;
@@ -461,9 +346,6 @@ class MachinesCompanion extends UpdateCompanion<MachineRow> {
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.address = const Value.absent(),
-    this.sshPort = const Value.absent(),
-    this.user = const Value.absent(),
-    this.sshKey = const Value.absent(),
     this.vendor = const Value.absent(),
     this.gpus = const Value.absent(),
     this.memory = const Value.absent(),
@@ -474,9 +356,6 @@ class MachinesCompanion extends UpdateCompanion<MachineRow> {
     required String id,
     required String name,
     required String address,
-    this.sshPort = const Value.absent(),
-    this.user = const Value.absent(),
-    this.sshKey = const Value.absent(),
     this.vendor = const Value.absent(),
     this.gpus = const Value.absent(),
     this.memory = const Value.absent(),
@@ -489,9 +368,6 @@ class MachinesCompanion extends UpdateCompanion<MachineRow> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? address,
-    Expression<int>? sshPort,
-    Expression<String>? user,
-    Expression<String>? sshKey,
     Expression<String>? vendor,
     Expression<String>? gpus,
     Expression<String>? memory,
@@ -502,9 +378,6 @@ class MachinesCompanion extends UpdateCompanion<MachineRow> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (address != null) 'address': address,
-      if (sshPort != null) 'ssh_port': sshPort,
-      if (user != null) 'user': user,
-      if (sshKey != null) 'ssh_key': sshKey,
       if (vendor != null) 'vendor': vendor,
       if (gpus != null) 'gpus': gpus,
       if (memory != null) 'memory': memory,
@@ -517,9 +390,6 @@ class MachinesCompanion extends UpdateCompanion<MachineRow> {
     Value<String>? id,
     Value<String>? name,
     Value<String>? address,
-    Value<int>? sshPort,
-    Value<String?>? user,
-    Value<String?>? sshKey,
     Value<String?>? vendor,
     Value<String?>? gpus,
     Value<String?>? memory,
@@ -530,9 +400,6 @@ class MachinesCompanion extends UpdateCompanion<MachineRow> {
       id: id ?? this.id,
       name: name ?? this.name,
       address: address ?? this.address,
-      sshPort: sshPort ?? this.sshPort,
-      user: user ?? this.user,
-      sshKey: sshKey ?? this.sshKey,
       vendor: vendor ?? this.vendor,
       gpus: gpus ?? this.gpus,
       memory: memory ?? this.memory,
@@ -552,15 +419,6 @@ class MachinesCompanion extends UpdateCompanion<MachineRow> {
     }
     if (address.present) {
       map['address'] = Variable<String>(address.value);
-    }
-    if (sshPort.present) {
-      map['ssh_port'] = Variable<int>(sshPort.value);
-    }
-    if (user.present) {
-      map['user'] = Variable<String>(user.value);
-    }
-    if (sshKey.present) {
-      map['ssh_key'] = Variable<String>(sshKey.value);
     }
     if (vendor.present) {
       map['vendor'] = Variable<String>(vendor.value);
@@ -586,9 +444,6 @@ class MachinesCompanion extends UpdateCompanion<MachineRow> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('address: $address, ')
-          ..write('sshPort: $sshPort, ')
-          ..write('user: $user, ')
-          ..write('sshKey: $sshKey, ')
           ..write('vendor: $vendor, ')
           ..write('gpus: $gpus, ')
           ..write('memory: $memory, ')
@@ -3036,9 +2891,6 @@ typedef $$MachinesTableCreateCompanionBuilder =
       required String id,
       required String name,
       required String address,
-      Value<int> sshPort,
-      Value<String?> user,
-      Value<String?> sshKey,
       Value<String?> vendor,
       Value<String?> gpus,
       Value<String?> memory,
@@ -3050,9 +2902,6 @@ typedef $$MachinesTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> name,
       Value<String> address,
-      Value<int> sshPort,
-      Value<String?> user,
-      Value<String?> sshKey,
       Value<String?> vendor,
       Value<String?> gpus,
       Value<String?> memory,
@@ -3081,21 +2930,6 @@ class $$MachinesTableFilterComposer
 
   ColumnFilters<String> get address => $composableBuilder(
     column: $table.address,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get sshPort => $composableBuilder(
-    column: $table.sshPort,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get user => $composableBuilder(
-    column: $table.user,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get sshKey => $composableBuilder(
-    column: $table.sshKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3144,21 +2978,6 @@ class $$MachinesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get sshPort => $composableBuilder(
-    column: $table.sshPort,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get user => $composableBuilder(
-    column: $table.user,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get sshKey => $composableBuilder(
-    column: $table.sshKey,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get vendor => $composableBuilder(
     column: $table.vendor,
     builder: (column) => ColumnOrderings(column),
@@ -3197,15 +3016,6 @@ class $$MachinesTableAnnotationComposer
 
   GeneratedColumn<String> get address =>
       $composableBuilder(column: $table.address, builder: (column) => column);
-
-  GeneratedColumn<int> get sshPort =>
-      $composableBuilder(column: $table.sshPort, builder: (column) => column);
-
-  GeneratedColumn<String> get user =>
-      $composableBuilder(column: $table.user, builder: (column) => column);
-
-  GeneratedColumn<String> get sshKey =>
-      $composableBuilder(column: $table.sshKey, builder: (column) => column);
 
   GeneratedColumn<String> get vendor =>
       $composableBuilder(column: $table.vendor, builder: (column) => column);
@@ -3254,9 +3064,6 @@ class $$MachinesTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> address = const Value.absent(),
-                Value<int> sshPort = const Value.absent(),
-                Value<String?> user = const Value.absent(),
-                Value<String?> sshKey = const Value.absent(),
                 Value<String?> vendor = const Value.absent(),
                 Value<String?> gpus = const Value.absent(),
                 Value<String?> memory = const Value.absent(),
@@ -3266,9 +3073,6 @@ class $$MachinesTableTableManager
                 id: id,
                 name: name,
                 address: address,
-                sshPort: sshPort,
-                user: user,
-                sshKey: sshKey,
                 vendor: vendor,
                 gpus: gpus,
                 memory: memory,
@@ -3280,9 +3084,6 @@ class $$MachinesTableTableManager
                 required String id,
                 required String name,
                 required String address,
-                Value<int> sshPort = const Value.absent(),
-                Value<String?> user = const Value.absent(),
-                Value<String?> sshKey = const Value.absent(),
                 Value<String?> vendor = const Value.absent(),
                 Value<String?> gpus = const Value.absent(),
                 Value<String?> memory = const Value.absent(),
@@ -3292,9 +3093,6 @@ class $$MachinesTableTableManager
                 id: id,
                 name: name,
                 address: address,
-                sshPort: sshPort,
-                user: user,
-                sshKey: sshKey,
                 vendor: vendor,
                 gpus: gpus,
                 memory: memory,

@@ -8,10 +8,10 @@ ZML-Lab is a **Flutter desktop (macOS) control panel** for launching and benchma
 
 The main surfaces (each is a `lib/features/<name>/`):
 - **Benchmark tab** (home, `/`, `features/perf/presentation/benchmark_tool_screen.dart`) — a target bar (machine or custom host + port), the **benchmark** / **perf** tools, and a resizable **terminal** panel beside them where the server under test is launched by hand.
-- **terminal** — the tmux-style terminal multiplexer (splittable panes, tabs, embedded web tabs). New shells open on the benchmark target's machine (ssh when remote).
+- **terminal** — the tmux-style terminal multiplexer (splittable panes, tabs, embedded web tabs). New shells are always local; you ssh to a box by hand.
 - **benchmark** — fires a concurrent batch at `/v1/chat/completions`, shows per-request streaming + live/aggregate tok/s; any request expands into a multi-turn chat popup; runs can be saved (**saved_benchmarks**).
 - **perf** — runs the bundled load generator (prebuilt `native/libzmlbench.dylib`, over FFI) against the target with ShareGPT prompts (downloaded once from the tab) and turns its event stream into live charts + a report. Statistics follow the run format's definitions (`docs/perf-run-format.md`, checked against its SQL in `test/perf_contract_test.dart`); each run is recorded as a `.zmlrun.parquet`.
-- **machines** — the local box plus remote hosts (address, ssh port/user/key, hardware); live reachability dots.
+- **machines** — the local box plus remote hosts (name, address, hardware); live reachability dots (a ping).
 - **settings** — theme, terminal font size, port range, health-check interval, benchmark/perf defaults.
 
 ## Commands
@@ -57,7 +57,7 @@ flutter build macos --debug     # use this to surface a compile error the analyz
 **Processes are started by hand in the terminal panel.** There is no job supervisor: each pane is a real PTY (`TerminalSession`) running the user's login shell, owned by the `terminalMux` keep-alive provider. Closing the window closes the PTYs (the shells SIGHUP their jobs). Fullscreen is shared state (`core/shell/app_fullscreen.dart`, `FullscreenSurface.terminal | perf`); a view tearing down only drops its own surface (`exitIf`).
 
 **Platform-specific code uses conditional exports**, so the app still compiles on web while real IO/terminals are native-only. The pattern is a facade file that re-exports a stub or an impl by `dart.library.io`:
-- `core/execution/native_io.dart` → `native_io_stub.dart` | `native_io_impl.dart` (`streamChat`, the machine reachability check).
+- `core/execution/native_io.dart` → `native_io_stub.dart` | `native_io_impl.dart` (`streamChat`, `pingHost` for the machine reachability dot).
 - `features/terminal/presentation/terminal_session.dart` → `terminal_session_web.dart` | `terminal_session_native.dart` (flterm controller + `flutter_pty` PTY on native, stub on web).
 - `features/perf/domain/bench_runner.dart`, `core/logging/app_log.dart` follow the same shape.
 When you add a native capability, add it to BOTH the impl and the stub so web keeps building.

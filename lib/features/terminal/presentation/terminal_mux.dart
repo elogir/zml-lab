@@ -24,7 +24,6 @@ import '../../../core/providers/terminal_font.dart';
 import '../../../core/shell/app_fullscreen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
-import '../../../models/machine.dart';
 import '../../settings/application/settings_controller.dart';
 import '../application/browser_history.dart';
 import 'terminal_session.dart';
@@ -180,13 +179,11 @@ TerminalMuxState terminalMux(Ref ref, String muxId) {
 
 /// A real terminal multiplexer — tabs, split panes (draggable dividers). Each
 /// pane is either a live interactive flterm terminal running the user's shell,
-/// or an embedded web view with its own browser chrome. New shells open on
-/// [machine]: a local shell, or an ssh into it when it's remote.
+/// or an embedded web view with its own browser chrome. New shells are local.
 class TerminalMux extends ConsumerStatefulWidget {
-  const TerminalMux({super.key, required this.muxId, this.machine});
+  const TerminalMux({super.key, required this.muxId});
 
   final String muxId;
-  final Machine? machine;
 
   @override
   ConsumerState<TerminalMux> createState() => _TerminalMuxState();
@@ -290,21 +287,8 @@ class _TerminalMuxState extends ConsumerState<TerminalMux> {
     return root;
   }
 
-  /// A fresh interactive shell. On a remote [TerminalMux.machine] it types an
-  /// ssh into that machine at the local prompt, so the pane lands remote but
-  /// Ctrl+D out of the ssh returns to the local shell (a second Ctrl+D then
-  /// closes the pane as usual).
-  TerminalSession _newShell() {
-    final m = widget.machine;
-    if (m == null || m.isLocal) return TerminalSession();
-    final ssh = StringBuffer('ssh');
-    if (m.sshPort != 22) ssh.write(' -p ${m.sshPort}');
-    if (m.sshKey != null && m.sshKey!.isNotEmpty) {
-      ssh.write(" -i '${m.sshKey}'");
-    }
-    ssh.write(' ${m.sshTarget}');
-    return TerminalSession(initialCommand: ssh.toString());
-  }
+  /// A fresh interactive shell, always local (ssh to a box by hand).
+  TerminalSession _newShell() => TerminalSession();
 
   /// A new pane of the same kind as [source] — splitting a terminal yields a
   /// terminal, splitting a web view yields another web view at the same URL.

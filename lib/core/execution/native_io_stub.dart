@@ -65,8 +65,7 @@ Stream<List<ChatBatchDelta>> streamChatBatch(
   ]);
 }
 
-Future<bool> checkHealth(
-  String host,
-  int port, {
-  Duration timeout = const Duration(milliseconds: 1200),
+Future<bool> pingHost(
+  String host, {
+  Duration timeout = const Duration(seconds: 2),
 }) async => false;
