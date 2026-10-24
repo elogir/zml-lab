@@ -324,8 +324,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _SettingRow(
                     title: 'Benchmarker directory',
                     description:
-                        'The Go benchmarker — built with go and '
-                        'run locally against the target endpoint.',
+                        'The Go benchmarker — where the duckdb '
+                        'copy command runs (for its report.sql). The '
+                        'benchmarker itself is built into the app.',
                     stacked: true,
                     control: AppTextField(
                       controller: _perfToolDir,

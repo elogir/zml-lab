@@ -1,32 +1,10 @@
-// Web stub: no dart:io, so the perf benchmarker (a local Go process) can't
-// run. Signatures mirror bench_runner_io.dart; everything degrades to
+// Web stub: no dart:io (and no FFI), so the perf benchmarker can't run. Signatures mirror bench_runner_io.dart; everything degrades to
 // "unavailable".
 
 String expandUserPath(String path) => path;
 
-Future<String?> benchPreflight({
-  required String toolDir,
-  required String datasetPath,
-}) async => 'perf benchmarks need the desktop app';
-
-Future<String> buildBenchmarker({required String toolDir}) async =>
-    throw UnsupportedError('perf benchmarks need the desktop app');
-
-class BenchProcess {
-  BenchProcess._();
-
-  Future<int> get exited async => -1;
-  void interrupt() {}
-  void kill() {}
-}
-
-Future<BenchProcess> startBenchmarker({
-  required String binPath,
-  required String toolDir,
-  required List<String> args,
-  required void Function(String chunk) onCsv,
-  required void Function(String line) onStderr,
-}) async => throw UnsupportedError('perf benchmarks need the desktop app');
+Future<String?> datasetProblem(String datasetPath) async =>
+    'perf benchmarks need the desktop app';
 
 Future<List<String>> fetchModelIds({
   required String host,

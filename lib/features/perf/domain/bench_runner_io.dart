@@ -2,15 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// Where the benchmarker binary lives.
-Directory _workDir() =>
-    Directory('${Directory.systemTemp.path}/zml_lab_perf')..createSync(
-      recursive: true,
-    );
-
 String _loginShell() => Platform.environment['SHELL'] ?? '/bin/zsh';
-
-String _shSingleQuote(String s) => "'${s.replaceAll("'", r"'\''")}'";
 
 /// Expands a leading `~` to the home directory.
 String expandUserPath(String path) {
@@ -21,84 +13,12 @@ String expandUserPath(String path) {
   return path;
 }
 
-/// Checks the pieces a run needs. Returns a human-readable problem, or null
-/// when everything is in place.
-Future<String?> benchPreflight({
-  required String toolDir,
-  required String datasetPath,
-}) async {
-  final dir = expandUserPath(toolDir);
-  if (!File('$dir/benchmark.go').existsSync()) {
-    return 'benchmark.go not found in $toolDir';
-  }
-  if (!File(expandUserPath(datasetPath)).existsSync()) {
-    return 'ShareGPT dataset not found at $datasetPath';
-  }
-  try {
-    final r = await Process.run(_loginShell(), ['-lc', 'command -v go']);
-    if (r.exitCode != 0) return 'go not found on PATH — install Go to run';
-  } catch (e) {
-    return 'could not check for go: $e';
-  }
-  return null;
-}
-
-/// Compiles the benchmarker (cached by the Go toolchain, sub-second when
-/// unchanged). Returns the binary path; throws with the compiler output on
-/// failure.
-Future<String> buildBenchmarker({required String toolDir}) async {
-  final dir = expandUserPath(toolDir);
-  final bin = '${_workDir().path}/zml-bench';
-  final r = await Process.run(_loginShell(), [
-    '-lc',
-    'cd ${_shSingleQuote(dir)} && go build -o ${_shSingleQuote(bin)} benchmark.go',
-  ]);
-  if (r.exitCode != 0) {
-    final err = '${r.stderr}'.trim();
-    throw Exception('go build failed: ${err.isEmpty ? r.stdout : err}');
-  }
-  return bin;
-}
-
-/// A running benchmarker process.
-class BenchProcess {
-  BenchProcess._(this._process);
-
-  final Process _process;
-
-  Future<int> get exited => _process.exitCode;
-
-  /// First cancel: SIGINT — the tool drains its workers and flushes the CSV.
-  void interrupt() => _process.kill(ProcessSignal.sigint);
-
-  /// Escalation.
-  void kill() => _process.kill(ProcessSignal.sigkill);
-}
-
-/// Starts the benchmarker. stdout (the CSV event stream) goes to [onCsv] in
-/// decoded chunks for live stats; stderr lines go to [onStderr] (progress:
-/// dataset loaded, workers started, final summary).
-Future<BenchProcess> startBenchmarker({
-  required String binPath,
-  required String toolDir,
-  required List<String> args,
-  required void Function(String chunk) onCsv,
-  required void Function(String line) onStderr,
-}) async {
-  final process = await Process.start(
-    binPath,
-    args,
-    workingDirectory: expandUserPath(toolDir),
-  );
-  process.stdout
-      .transform(utf8.decoder)
-      .listen(onCsv, onError: (Object _) {});
-  process.stderr
-      .transform(utf8.decoder)
-      .transform(const LineSplitter())
-      .listen(onStderr, onError: (Object _) {});
-  return BenchProcess._(process);
-}
+/// Why the ShareGPT dataset at [datasetPath] can't be used; null when it's
+/// there.
+Future<String?> datasetProblem(String datasetPath) async =>
+    File(expandUserPath(datasetPath)).existsSync()
+    ? null
+    : 'ShareGPT dataset not found at $datasetPath';
 
 /// GET /v1/models → model ids, for prefilling the form (vLLM needs a real
 /// model name; llmd ignores it). Empty on any failure.
@@ -111,10 +31,7 @@ Future<List<String>> fetchModelIds({
   try {
     final request = await client.get(host, port, '/v1/models').timeout(timeout);
     final response = await request.close().timeout(timeout);
-    final body = await response
-        .transform(utf8.decoder)
-        .join()
-        .timeout(timeout);
+    final body = await response.transform(utf8.decoder).join().timeout(timeout);
     final decoded = jsonDecode(body);
     if (decoded is! Map) return const [];
     final data = decoded['data'];
@@ -139,8 +56,7 @@ Future<void> warmupRequest({
   required String model,
   Duration timeout = const Duration(seconds: 300),
 }) async {
-  final client = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 10);
+  final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
   try {
     final request = await client.post(host, port, '/v1/chat/completions');
     request.headers.contentType = ContentType.json;
@@ -204,11 +120,10 @@ Future<String?> runDuckdb({
   required String csv,
 }) async {
   try {
-    final process = await Process.start(
-      _loginShell(),
-      ['-lc', command],
-      workingDirectory: expandUserPath(toolDir),
-    );
+    final process = await Process.start(_loginShell(), [
+      '-lc',
+      command,
+    ], workingDirectory: expandUserPath(toolDir));
     final stdoutFuture = process.stdout.transform(utf8.decoder).join();
     final stderrFuture = process.stderr.transform(utf8.decoder).join();
     process.stdin.write(csv);

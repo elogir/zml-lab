@@ -7,6 +7,7 @@ import '../../../core/logging/app_log.dart';
 import '../../../models/perf_report.dart';
 import '../../../repositories/perf_report_repository.dart';
 import '../../settings/application/settings_controller.dart';
+import '../domain/bench_lib.dart';
 import '../domain/bench_runner.dart';
 import '../domain/csv_events.dart';
 import '../domain/perf_stats.dart';
@@ -17,11 +18,12 @@ part 'perf_controller.g.dart';
 enum PerfPhase {
   idle,
 
-  /// Building the Go binary, warming the server up, loading the dataset.
+  /// Warming the server up, loading the dataset.
   preparing,
   running,
 
-  /// Cancel requested — the tool is draining workers and flushing its CSV.
+  /// Cancel requested — the benchmarker is cancelling its requests and
+  /// flushing its CSV.
   stopping,
   done,
   failed;
@@ -103,23 +105,24 @@ class PerfRun {
   );
 }
 
-/// Runs the Go benchmarker (tools/benchmark) against a job's
-/// endpoint and turns its CSV event stream into live charts and a final
-/// report. The tool does the load generation; the app only consumes its
-/// native output (see PerfAccumulator for the report.sql parity).
+/// Runs the Go benchmarker (tools/benchmark, embedded as a shared
+/// library — see bench_lib.dart) against a job's endpoint and turns its CSV
+/// event stream into live charts and a final report. The library does the
+/// load generation; the app only consumes its output (see PerfAccumulator
+/// for the report.sql parity).
 @Riverpod(keepAlive: true)
 class PerfController extends _$PerfController {
   PerfCsvParser? _parser;
   PerfAccumulator? _acc;
-  BenchProcess? _process;
+  BenchLibRun? _run;
   Timer? _ticker;
   DateTime? _runningSince;
   bool _cancelRequested = false;
   bool _seriesDirty = false;
   int _runSeq = 0;
-  String? _lastStderr;
+  String? _lastLog;
 
-  /// The finished run's raw event CSV (the tool's stdout), kept in memory so
+  /// The finished run's raw event CSV (what the CLI prints), kept in memory so
   /// "Copy results" can pipe it through a duckdb command. Not persisted.
   final StringBuffer _rawCsv = StringBuffer();
   String _finishedCsv = '';
@@ -164,13 +167,11 @@ class PerfController extends _$PerfController {
   }
 
   /// What a run needs and doesn't have — null when good to go.
-  Future<String?> preflight() {
-    final s = ref.read(settingsControllerProvider);
-    return benchPreflight(
-      toolDir: s.perfToolDir,
-      datasetPath: s.perfDatasetPath,
-    );
-  }
+  Future<String?> preflight() async =>
+      benchLibProblem() ??
+      await datasetProblem(
+        ref.read(settingsControllerProvider).perfDatasetPath,
+      );
 
   Future<void> start({
     required String host,
@@ -189,7 +190,7 @@ class PerfController extends _$PerfController {
     _host = host;
     _port = port;
     _cancelRequested = false;
-    _lastStderr = null;
+    _lastLog = null;
     _parser = PerfCsvParser();
     _acc = PerfAccumulator();
     _rawCsv.clear();
@@ -198,7 +199,7 @@ class PerfController extends _$PerfController {
     final settings = ref.read(settingsControllerProvider);
     state = state.copyWith(
       phase: PerfPhase.preparing,
-      message: 'building benchmarker…',
+      message: 'starting…',
       series: const [],
       events: 0,
       requests: 0,
@@ -209,17 +210,14 @@ class PerfController extends _$PerfController {
       report: null,
       saved: false,
     );
-    AppLog.write('perf run start job=$jobName endpoint=$host:$port '
-        'd=${params.durationSeconds}s c=${params.concurrency}');
+    AppLog.write(
+      'perf run start job=$jobName endpoint=$host:$port '
+      'd=${params.durationSeconds}s c=${params.concurrency}',
+    );
 
     try {
-      final problem = await benchPreflight(
-        toolDir: settings.perfToolDir,
-        datasetPath: settings.perfDatasetPath,
-      );
+      final problem = await preflight();
       if (problem != null) throw Exception(problem);
-      final bin = await buildBenchmarker(toolDir: settings.perfToolDir);
-      if (seq != _runSeq) return;
 
       if (params.warmup) {
         state = state.copyWith(message: 'warming up the server…');
@@ -228,25 +226,19 @@ class PerfController extends _$PerfController {
       }
 
       state = state.copyWith(message: 'loading ShareGPT dataset…');
-      final process = await startBenchmarker(
-        binPath: bin,
-        toolDir: settings.perfToolDir,
-        args: _args(params, host, port, settings.perfDatasetPath),
+      final run = startBenchLib(
+        _config(params, host, port, settings.perfDatasetPath),
         onCsv: (chunk) => _onCsv(seq, chunk),
-        onStderr: (line) => _onStderr(seq, line),
+        onLog: (line) => _onLog(seq, line),
       );
-      if (seq != _runSeq) {
-        process.kill();
-        return;
-      }
-      _process = process;
+      _run = run;
       _ticker = Timer.periodic(
         const Duration(milliseconds: 250),
         (_) => _tick(),
       );
-      final code = await process.exited;
+      final summary = await run.done;
       if (seq != _runSeq) return;
-      _finish(code);
+      _finish(summary);
     } catch (e) {
       if (seq != _runSeq) return;
       _stopTicker();
@@ -259,22 +251,21 @@ class PerfController extends _$PerfController {
   // The trailing slash on /v1/ matters: openai-go resolves the route
   // RFC 3986-relative against the base URL, so without it the /v1 segment
   // is dropped (llmd tolerates that via a root-level route; vLLM 404s).
-  List<String> _args(
+  BenchLibConfig _config(
     PerfParams p,
     String host,
     int port,
     String datasetPath,
-  ) => [
-    '-u', 'http://$host:$port/v1/',
-    '-d', '${p.durationSeconds}',
-    '--concurrency', '${p.concurrency}',
-    '--sequence_type', p.sequenceType,
-    '--mode', p.mode,
-    if (p.maxCompletionTokens != null)
-      ...['--max-completion-tokens', '${p.maxCompletionTokens}'],
-    if (p.model.isNotEmpty) ...['-m', p.model],
-    '-i', expandUserPath(datasetPath),
-  ];
+  ) => BenchLibConfig(
+    url: 'http://$host:$port/v1/',
+    inputFile: expandUserPath(datasetPath),
+    model: p.model,
+    concurrency: p.concurrency,
+    durationSeconds: p.durationSeconds,
+    maxCompletionTokens: p.maxCompletionTokens,
+    mode: p.mode,
+    sequenceType: p.sequenceType,
+  );
 
   /// The invocation in the guide's `go run` form — stored on the report so
   /// results can be quoted with the exact command line.
@@ -298,23 +289,19 @@ class PerfController extends _$PerfController {
     _acc?.addAll(events);
     _seriesDirty = true;
     if (state.phase == PerfPhase.preparing) {
-      // First events beat the "Starting workers" stderr line sometimes.
+      // First events beat the "Starting workers" log line sometimes.
       _markRunning();
     }
   }
 
-  void _onStderr(int seq, String line) {
+  void _onLog(int seq, String line) {
     if (seq != _runSeq) return;
-    _lastStderr = line;
+    _lastLog = line;
     if (line.contains('Number of conversations:')) {
       final n = line.split(':').last.trim();
       state = state.copyWith(message: '$n conversations loaded');
     } else if (line.contains('Starting') && line.contains('workers')) {
       _markRunning();
-    } else if (line.contains('Error reading file') ||
-        line.contains('Error unmarshalling file')) {
-      // The tool exits 0 on these — surface them as the failure reason.
-      _lastStderr = 'benchmarker: ${line.replaceFirst(RegExp(r'^[\d/: ]+'), '')}';
     }
   }
 
@@ -340,13 +327,16 @@ class PerfController extends _$PerfController {
     _seriesDirty = false;
   }
 
-  void _finish(int exitCode) {
+  void _finish(BenchLibSummary summary) {
     _stopTicker();
     final acc = _acc;
-    _process = null;
+    _run = null;
     _finishedCsv = _rawCsv.toString();
+    if (summary.error != null) {
+      AppLog.write('perf benchmarker: ${summary.error}');
+    }
     if (acc == null || acc.eventCount == 0) {
-      final reason = _lastStderr ?? 'exit code $exitCode';
+      final reason = summary.error ?? _lastLog ?? 'the server sent nothing';
       AppLog.write('perf run produced no events ($reason)');
       state = state.copyWith(
         phase: PerfPhase.failed,
@@ -397,25 +387,22 @@ class PerfController extends _$PerfController {
     );
   }
 
-  /// First press: SIGINT — the tool drains and flushes, and a partial report
-  /// still lands. Second press: SIGKILL. During the preparing phase (go
-  /// build / warmup) there's no process yet — the run is abandoned instead:
-  /// bumping the sequence makes every pending await in start() a no-op.
+  /// Stops the benchmarker like the CLI's Ctrl-C: in-flight requests are
+  /// cancelled, the CSV flushed, and a partial report still lands. During
+  /// the warm-up there's no run yet — it's abandoned instead: bumping the
+  /// sequence makes every pending await in start() a no-op.
   void cancel() {
-    final process = _process;
-    if (process == null) {
+    final run = _run;
+    if (run == null) {
       if (state.phase == PerfPhase.preparing) {
         _runSeq++;
         state = state.copyWith(phase: PerfPhase.idle, message: null);
       }
       return;
     }
-    if (_cancelRequested) {
-      process.kill();
-      return;
-    }
+    if (_cancelRequested) return;
     _cancelRequested = true;
-    process.interrupt();
+    run.stop();
     state = state.copyWith(
       phase: PerfPhase.stopping,
       message: 'stopping — flushing events…',
@@ -430,7 +417,10 @@ class PerfController extends _$PerfController {
     final report = state.report;
     if (report == null) return '';
     final fallback = perfReportTable(report);
-    final command = ref.read(settingsControllerProvider).perfDuckdbCommand.trim();
+    final command = ref
+        .read(settingsControllerProvider)
+        .perfDuckdbCommand
+        .trim();
     if (command.isEmpty || _finishedCsv.isEmpty) return fallback;
     final out = await runDuckdb(
       command: command,
@@ -471,7 +461,7 @@ class PerfController extends _$PerfController {
   void _teardown() {
     _runSeq++;
     _stopTicker();
-    _process?.kill();
-    _process = null;
+    _run?.stop();
+    _run = null;
   }
 }
