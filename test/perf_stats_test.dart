@@ -15,11 +15,61 @@ import 'package:zml_lab/models/perf_report.dart';
 // report.sql output (ROUND(x, 2)) for test/fixtures/perf_events.csv:
 //                            avg     min    max     p50     p75     p90     p95     p99     p999
 const _expected = <String, List<double>>{
-  'Time to first token':    [148.87, 54.34, 252.52, 145.81, 188.76, 220.96, 243.99, 251.62, 252.43],
-  'Inter-token latency':    [22.57, 0.04, 44.79, 23.31, 33.38, 39.59, 42.01, 44.02, 44.68],
-  'Request latency':        [387.48, 170.72, 576.12, 384.21, 427.92, 498.83, 518.78, 561.20, 574.63],
-  'Output sequence length': [10.51, 7.0, 14.0, 11.0, 13.0, 14.0, 14.0, 14.0, 14.0],
-  'Input sequence length':  [411.15, 30.0, 882.0, 397.5, 611.5, 806.3, 861.9, 880.82, 881.88],
+  'Time to first token': [
+    148.87,
+    54.34,
+    252.52,
+    145.81,
+    188.76,
+    220.96,
+    243.99,
+    251.62,
+    252.43,
+  ],
+  'Inter-token latency': [
+    22.57,
+    0.04,
+    44.79,
+    23.31,
+    33.38,
+    39.59,
+    42.01,
+    44.02,
+    44.68,
+  ],
+  'Request latency': [
+    387.48,
+    170.72,
+    576.12,
+    384.21,
+    427.92,
+    498.83,
+    518.78,
+    561.20,
+    574.63,
+  ],
+  'Output sequence length': [
+    10.51,
+    7.0,
+    14.0,
+    11.0,
+    13.0,
+    14.0,
+    14.0,
+    14.0,
+    14.0,
+  ],
+  'Input sequence length': [
+    411.15,
+    30.0,
+    882.0,
+    397.5,
+    611.5,
+    806.3,
+    861.9,
+    880.82,
+    881.88,
+  ],
 };
 const _expectedTokensPerSecond = 116.8277256025044;
 const _expectedRequestsPerSecond = 10.166178690089541;
@@ -64,8 +114,15 @@ void main() {
     for (final MapEntry(key: label, value: want) in _expected.entries) {
       final row = rows[label]!;
       final got = [
-        row.avg, row.min, row.max,
-        row.p50, row.p75, row.p90, row.p95, row.p99, row.p999,
+        row.avg,
+        row.min,
+        row.max,
+        row.p50,
+        row.p75,
+        row.p90,
+        row.p95,
+        row.p99,
+        row.p999,
       ];
       for (var i = 0; i < want.length; i++) {
         expect(
@@ -75,25 +132,73 @@ void main() {
         );
       }
     }
+    expect(acc.tokensPerSecond, closeTo(_expectedTokensPerSecond, 1e-6));
+    expect(acc.requestsPerSecond, closeTo(_expectedRequestsPerSecond, 1e-6));
+  });
+
+  test('the live series: a point per 100 ms, rates over the last second', () {
+    // Two requests, an event each every 50 ms for 1 s, then nothing until
+    // one last event at 2 s.
+    const ms = 1000000;
+    final acc = PerfAccumulator()
+      ..addAll([
+        for (var t = 0; t < 1000; t += 50)
+          for (final id in ['a', 'b'])
+            PerfEvent(
+              timestampNs: t * ms,
+              requestId: id,
+              seq: t ~/ 50,
+              requestTimestampNs: 0,
+              inputTokens: 0,
+              outputTokens: t ~/ 50,
+              concurrency: 2,
+              server: '',
+              error: '',
+            ),
+        const PerfEvent(
+          timestampNs: 2000 * ms,
+          requestId: 'a',
+          seq: 99,
+          requestTimestampNs: 0,
+          inputTokens: 0,
+          outputTokens: 99,
+          concurrency: 2,
+          server: '',
+          error: '',
+        ),
+      ]);
+    final s = acc.series(includeLast: true);
+    expect(s, hasLength(21)); // 0.1 s … 2.1 s
+    expect(s.first.elapsedMs, 100);
+    // 4 events per 100 ms = 40/s, from the very first point (a partial
+    // window is averaged over what it covers).
+    expect(s[0].tps, closeTo(40, 1e-9));
+    expect(s[9].tps, closeTo(40, 1e-9));
+    // After the stop the rate glides down over a second rather than
+    // dropping: at 1.5 s the window (0.5–1.5 s) holds 0.5 s of events.
+    expect(s[14].tps, closeTo(20, 1e-9));
+    expect(s[14].active, 2);
+    expect(s[19].tps, closeTo(0, 1e-9));
+    expect(s[19].active, 0);
+    expect(s.last.requests, 2);
+    // The chart's view while running drops the partial newest bucket.
+    expect(acc.series(includeLast: false), hasLength(20));
+    // Asking again (cached settled points) gives the same series.
     expect(
-      acc.tokensPerSecond,
-      closeTo(_expectedTokensPerSecond, 1e-6),
-    );
-    expect(
-      acc.requestsPerSecond,
-      closeTo(_expectedRequestsPerSecond, 1e-6),
+      acc.series(includeLast: true).map((p) => p.tps),
+      s.map((p) => p.tps),
     );
   });
 
-  test('series buckets cover the run and sum to the event count', () {
+  test('series cover the run and count every request', () {
     final acc = accumulate([csv]);
     final series = acc.series(includeLast: true);
     expect(series, isNotEmpty);
-    final tokens = series.fold<double>(
-      0,
-      (sum, p) => sum + p.tps * PerfAccumulator.bucketMs / 1000,
+    expect(
+      series.last.elapsedMs,
+      greaterThanOrEqualTo((acc.totalSeconds * 1000).floor()),
     );
-    expect(tokens.round(), _expectedEvents);
+    expect(series.every((p) => p.tps >= 0), isTrue);
     expect(series.last.requests, _expectedRequests);
     final itl = acc.itlHistogram();
     expect(itl.counts.fold<int>(0, (a, b) => a + b), greaterThan(0));
@@ -128,8 +233,9 @@ void main() {
       ttftHistogram: acc.ttftHistogram(),
       itlHistogram: acc.itlHistogram(),
     );
-    final reference =
-        File('test/fixtures/report_reference.csv').readAsStringSync();
+    final reference = File(
+      'test/fixtures/report_reference.csv',
+    ).readAsStringSync();
     expect(perfReportCsv(report).trim(), reference.trim());
     // The clipboard table carries the same numbers in duckdb's box layout.
     final table = perfReportTable(report);

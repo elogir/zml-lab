@@ -61,8 +61,13 @@ class _RequestState {
 /// Ingests [PerfEvent]s as they stream in and produces both the live series
 /// (for the charts while running) and the final [PerfReport] numbers.
 class PerfAccumulator {
-  /// Width of one live-series bucket.
-  static const bucketMs = 500;
+  /// Width of one live-series bucket — a chart point every 100 ms, so the
+  /// live charts move smoothly.
+  static const bucketMs = 100;
+
+  /// Each point's rate and streaming count are taken over this many trailing
+  /// buckets (1 s), so the fine buckets don't make the line jitter.
+  static const windowBuckets = 10;
 
   final Map<String, _RequestState> _requests = {};
   final List<double> _itlGapsMs = [];
@@ -74,12 +79,15 @@ class PerfAccumulator {
   int _maxTsNs = 0;
   String server = '';
 
-  // Live series: per-bucket event counts and distinct streaming requests.
+  // Live series: per-bucket event counts, distinct streaming requests, and
+  // requests first seen.
   final List<int> _bucketEvents = [];
   final List<Set<String>> _bucketIds = [];
+  final List<int> _bucketNewRequests = [];
 
-  /// First-seen bucket per request, for the cumulative request count.
-  final Map<String, int> _firstBucket = {};
+  /// Points that can't change anymore (a window behind the newest bucket),
+  /// so a long run's series isn't recomputed from scratch on every refresh.
+  final List<PerfSeriesPoint> _settled = [];
 
   String? _firstError;
 
@@ -124,6 +132,7 @@ class PerfAccumulator {
     );
     _maxTsNs = math.max(_maxTsNs, e.timestampNs);
 
+    final isNew = !_requests.containsKey(e.requestId);
     final r = _requests.putIfAbsent(
       e.requestId,
       () => _RequestState(e.requestTimestampNs),
@@ -145,31 +154,48 @@ class PerfAccumulator {
     while (_bucketEvents.length <= bucket) {
       _bucketEvents.add(0);
       _bucketIds.add(<String>{});
+      _bucketNewRequests.add(0);
     }
     _bucketEvents[bucket]++;
     _bucketIds[bucket].add(e.requestId);
-    _firstBucket.putIfAbsent(e.requestId, () => bucket);
+    if (isNew) _bucketNewRequests[bucket]++;
   }
 
-  /// The time series so far. While running the last (partial) bucket is
-  /// dropped so the tail of the chart doesn't dip.
+  /// The time series so far: a point per bucket, its rate and streaming
+  /// count over the trailing [windowBuckets]. While running the last
+  /// (partial) bucket is dropped so the tail of the chart doesn't dip.
   List<PerfSeriesPoint> series({required bool includeLast}) {
     final n = includeLast ? _bucketEvents.length : _bucketEvents.length - 1;
     if (n <= 0) return const [];
-    final counts = List.filled(n, 0);
-    for (final entry in _firstBucket.entries) {
-      if (entry.value < n) counts[entry.value]++;
+    // Late events (out-of-order rows) can still land in the newest window.
+    final settled = math.min(n, _bucketEvents.length - 1 - windowBuckets);
+    while (_settled.length < settled) {
+      _settled.add(_point(_settled.length, _settled.lastOrNull?.requests ?? 0));
     }
-    var cumulative = 0;
-    return [
-      for (var i = 0; i < n; i++)
-        PerfSeriesPoint(
-          elapsedMs: (i + 1) * bucketMs,
-          tps: _bucketEvents[i] * 1000 / bucketMs,
-          active: _bucketIds[i].length,
-          requests: cumulative += counts[i],
-        ),
-    ];
+    final out = _settled.length <= n
+        ? List.of(_settled)
+        : _settled.sublist(0, n);
+    while (out.length < n) {
+      out.add(_point(out.length, out.lastOrNull?.requests ?? 0));
+    }
+    return out;
+  }
+
+  PerfSeriesPoint _point(int i, int requestsBefore) {
+    final from = math.max(0, i - windowBuckets + 1);
+    var events = 0;
+    final streaming = <String>{};
+    for (var j = from; j <= i; j++) {
+      events += _bucketEvents[j];
+      streaming.addAll(_bucketIds[j]);
+    }
+    final seconds = (i - from + 1) * bucketMs / 1000;
+    return PerfSeriesPoint(
+      elapsedMs: (i + 1) * bucketMs,
+      tps: events / seconds,
+      active: streaming.length,
+      requests: requestsBefore + _bucketNewRequests[i],
+    );
   }
 
   List<PerfStatRow> statRows() {
@@ -217,17 +243,13 @@ class PerfAccumulator {
   }
 
   /// Time-to-first-token distribution across requests.
-  PerfHistogram ttftHistogram({int bins = 30}) => _histogram(
-    [
-      for (final r in _requests.values)
-        if (r.ttftMs != null) r.ttftMs!,
-    ],
-    bins,
-  );
+  PerfHistogram ttftHistogram({int bins = 30}) => _histogram([
+    for (final r in _requests.values)
+      if (r.ttftMs != null) r.ttftMs!,
+  ], bins);
 
   /// Inter-token latency distribution across all gaps.
-  PerfHistogram itlHistogram({int bins = 40}) =>
-      _histogram(_itlGapsMs, bins);
+  PerfHistogram itlHistogram({int bins = 40}) => _histogram(_itlGapsMs, bins);
 
   double get totalSeconds => _totalSeconds;
   double get tokensPerSecond => liveTokensPerSecond;

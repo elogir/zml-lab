@@ -224,8 +224,9 @@ class PerfController extends _$PerfController {
         onLog: (line) => _onLog(seq, line),
       );
       _run = run;
+      // One refresh per series bucket (the library flushes every 50 ms).
       _ticker = Timer.periodic(
-        const Duration(milliseconds: 250),
+        const Duration(milliseconds: PerfAccumulator.bucketMs),
         (_) => _tick(),
       );
       final summary = await run.done;
@@ -292,12 +293,17 @@ class PerfController extends _$PerfController {
     final acc = _acc;
     if (acc == null || !state.phase.isActive) return;
     final since = _runningSince;
+    // The chart leaves out the newest (partial) bucket so its tail doesn't
+    // dip; ACTIVE reads it.
+    final series = acc.series(includeLast: true);
     state = state.copyWith(
       elapsed: since == null ? Duration.zero : DateTime.now().difference(since),
-      series: _seriesDirty ? acc.series(includeLast: false) : null,
+      series: _seriesDirty && series.length > 1
+          ? series.sublist(0, series.length - 1)
+          : null,
       events: acc.eventCount,
       requests: acc.requestCount,
-      active: acc.series(includeLast: true).lastOrNull?.active ?? 0,
+      active: series.lastOrNull?.active ?? 0,
       errors: acc.errorCount,
       liveTps: acc.liveTokensPerSecond,
     );

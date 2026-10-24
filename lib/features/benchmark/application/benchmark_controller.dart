@@ -85,7 +85,9 @@ class BenchmarkController extends _$BenchmarkController {
   // state.copyWith only churns when a point is actually added.
   final List<BenchmarkSample> _samples = [];
   List<BenchmarkSample> _samplesSnapshot = const [];
-  static const _sampleIntervalMs = 250;
+
+  /// A chart point every 100 ms, so the live charts move smoothly.
+  static const _sampleIntervalMs = 100;
 
   @override
   BenchmarkRun build(String jobId) {
@@ -200,7 +202,7 @@ class BenchmarkController extends _$BenchmarkController {
     // Slow tick just keeps the live elapsed / tok-s readout advancing between
     // tokens; token *text* is flushed per-token (frame-coalesced) below.
     _ticker = Timer.periodic(
-      const Duration(milliseconds: 200),
+      const Duration(milliseconds: _sampleIntervalMs),
       (_) => _flush(),
     );
   }
