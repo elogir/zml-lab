@@ -283,7 +283,14 @@ class PerfController extends _$PerfController {
         if (seq != _runSeq) return;
       }
 
-      await _startRecording(seq, settings.perfChipMetricsUrl);
+      await _startRecording(
+        seq,
+        zmlSmiUrl(
+          settings.perfChipMetricsUrl,
+          host,
+          port: settings.perfZmlSmiPort,
+        ),
+      );
       if (seq != _runSeq) return;
 
       state = state.copyWith(message: 'loading ShareGPT dataset…');
@@ -330,10 +337,9 @@ class PerfController extends _$PerfController {
     sequenceType: p.sequenceType,
   );
 
-  /// Opens the run's spool, and — when zml-smi answers ([chipSetting],
-  /// resolved against the target's host) — starts sampling it. Recording is
-  /// best-effort: a run goes ahead without it.
-  Future<void> _startRecording(int seq, String chipSetting) async {
+  /// Opens the run's spool, and — when zml-smi answers at [chipUrl] — starts
+  /// sampling it. Recording is best-effort: a run goes ahead without it.
+  Future<void> _startRecording(int seq, String chipUrl) async {
     try {
       _spool = await RunSpool.create(_runId);
     } catch (e) {
@@ -346,7 +352,7 @@ class PerfController extends _$PerfController {
         if (seq == _runSeq) _serverVersion = v;
       }),
     );
-    final url = zmlSmiUrl(chipSetting, _host);
+    final url = chipUrl;
     if (_spool == null) return;
     final first = await fetchChips(url);
     if (seq != _runSeq) return;

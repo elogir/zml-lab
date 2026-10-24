@@ -334,6 +334,10 @@ void main() {
     expect(zmlSmiUrl('https://smi.lan/api', 'x'), 'https://smi.lan:9090/api');
     expect(zmlSmiUrl('http://{host}:9095', 'gpu-box'), 'http://gpu-box:9095');
     expect(zmlSmiUrl('[::1]:9091', 'x'), 'http://[::1]:9091');
+    // The Settings port is the default; the popover's address overrides it.
+    expect(zmlSmiUrl('', 'gpu-box', port: 9200), 'http://gpu-box:9200');
+    expect(zmlSmiUrl('other', 'gpu-box', port: 9200), 'http://other:9200');
+    expect(zmlSmiUrl(':9091', 'gpu-box', port: 9200), 'http://gpu-box:9091');
   });
 
   test('chips are described as people name hardware', () {

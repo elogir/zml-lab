@@ -70,7 +70,7 @@ final class PerfControllerProvider
   }
 }
 
-String _$perfControllerHash() => r'3a1a2ad45d5492d432af4f3f7650676068166e2a';
+String _$perfControllerHash() => r'6a0daeed51655737127c9dd4ff2c7e2aa6c4ebd8';
 
 /// Runs the bundled Go benchmarker (native/zmlbench, over FFI — see
 /// bench_lib.dart) against a job's endpoint and turns its CSV event stream

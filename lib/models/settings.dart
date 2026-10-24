@@ -11,8 +11,11 @@ const defaultPerfDatasetPath =
     'ShareGPT_V3_unfiltered_cleaned_split.json';
 
 /// Where perf runs look for `zml-smi --api` (chip metrics): empty = the
-/// target's host on zml-smi's port (see `zmlSmiUrl`).
+/// target's host on the zml-smi port (see `zmlSmiUrl`).
 const defaultChipMetricsUrl = '';
+
+/// zml-smi's port when only a host is known (zml-smi's own default).
+const defaultZmlSmiPort = 9090;
 
 /// The prompt a fresh benchmark run starts with when none is configured.
 const defaultBenchmarkPrompt =
@@ -82,9 +85,12 @@ abstract class AppSettings with _$AppSettings {
     @Default(defaultPerfDatasetPath) String perfDatasetPath,
 
     /// `zml-smi --api` to sample chip metrics from during perf runs, as typed
-    /// in the Perf tab: empty = the target's host, or a port, host:port or
-    /// URL (resolved by `zmlSmiUrl`).
+    /// in the Perf tool's Metrics popover: empty = the target's host on
+    /// [perfZmlSmiPort], or a port, host:port or URL (see `zmlSmiUrl`).
     @Default(defaultChipMetricsUrl) String perfChipMetricsUrl,
+
+    /// zml-smi's port wherever only a host is given (Settings).
+    @Default(defaultZmlSmiPort) int perfZmlSmiPort,
 
     /// Last-used perf run parameters — the form remembers them so nothing has
     /// to be re-entered between runs.

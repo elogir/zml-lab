@@ -57,6 +57,10 @@ class SettingsController extends _$SettingsController {
       benchCopyTemplate: raw['benchCopyTemplate'] ?? def.benchCopyTemplate,
       perfDatasetPath: raw['perfDatasetPath'] ?? def.perfDatasetPath,
       perfChipMetricsUrl: raw['perfChipMetricsUrl'] ?? def.perfChipMetricsUrl,
+      perfZmlSmiPort: switch (i('perfZmlSmiPort')) {
+        final n? when n > 0 && n < 65536 => n,
+        _ => def.perfZmlSmiPort,
+      },
       perfParams: _decodePerfParams(raw['perfParams']) ?? def.perfParams,
     );
     // Settings that no longer exist (the benchmarker's folder, the
@@ -155,6 +159,17 @@ class SettingsController extends _$SettingsController {
     v == defaultChipMetricsUrl
         ? _repo.remove('perfChipMetricsUrl')
         : _repo.put('perfChipMetricsUrl', v);
+  }
+
+  /// Null (or out of range) goes back to the default.
+  void setPerfZmlSmiPort(int? port) {
+    final v = port != null && port > 0 && port < 65536
+        ? port
+        : defaultZmlSmiPort;
+    state = state.copyWith(perfZmlSmiPort: v);
+    v == defaultZmlSmiPort
+        ? _repo.remove('perfZmlSmiPort')
+        : _repo.put('perfZmlSmiPort', '$v');
   }
 
   void setPerfDatasetPath(String path) {

@@ -28,9 +28,11 @@ class _ChipMetricsButtonState extends ConsumerState<ChipMetricsButton> {
   final _menu = OverlayPortalController();
   late final TextEditingController _field;
 
-  /// The setting as of the last build (probes don't touch `ref`: they can
-  /// land while the widget is on its way out).
+  /// The address override and the Settings port as of the last build
+  /// (probes don't touch `ref`: they can land while the widget is on its
+  /// way out).
   late String _setting;
+  late int _port;
 
   /// zml-smi's devices at [_url]; null until the first answer (or none).
   List<ChipReading>? _found;
@@ -48,7 +50,9 @@ class _ChipMetricsButtonState extends ConsumerState<ChipMetricsButton> {
   @override
   void initState() {
     super.initState();
-    _setting = ref.read(settingsControllerProvider).perfChipMetricsUrl;
+    final settings = ref.read(settingsControllerProvider);
+    _setting = settings.perfChipMetricsUrl;
+    _port = settings.perfZmlSmiPort;
     _field = TextEditingController(text: _setting);
     // Not during initState: probing sets state.
     scheduleMicrotask(_probe);
@@ -73,7 +77,7 @@ class _ChipMetricsButtonState extends ConsumerState<ChipMetricsButton> {
 
   Future<void> _probe() async {
     if (!mounted) return;
-    final url = zmlSmiUrl(_setting, _host);
+    final url = zmlSmiUrl(_setting, _host, port: _port);
     final seq = ++_probeSeq;
     setState(() {
       if (url != _url) _found = null;
@@ -140,11 +144,14 @@ class _ChipMetricsButtonState extends ConsumerState<ChipMetricsButton> {
     final blur = ref.watch(
       settingsControllerProvider.select((s) => s.blurHost),
     );
-    final setting = ref.watch(
-      settingsControllerProvider.select((s) => s.perfChipMetricsUrl),
+    final (setting, port) = ref.watch(
+      settingsControllerProvider.select(
+        (s) => (s.perfChipMetricsUrl, s.perfZmlSmiPort),
+      ),
     );
-    if (setting != _setting) {
+    if (setting != _setting || port != _port) {
       _setting = setting;
+      _port = port;
       // Once typing pauses.
       _debounce?.cancel();
       _debounce = Timer(const Duration(milliseconds: 400), _probe);
@@ -261,15 +268,15 @@ class _ChipMetricsButtonState extends ConsumerState<ChipMetricsButton> {
                       dense: true,
                       autofocus: !_answering,
                       placeholder: host.isEmpty
-                          ? ':$zmlSmiPort'
-                          : shown(zmlSmiUrl('', host)),
+                          ? ':$_port'
+                          : shown(zmlSmiUrl('', host, port: _port)),
                       onChanged: _edited,
                       onSubmitted: (_) => _close(),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Empty: the target\'s host on $zmlSmiPort. Or a port, '
-                      'host:port or URL.',
+                      'Empty: the target\'s host on port $_port (set in '
+                      'Settings). Or a port, host:port or URL.',
                       style: context.text.smallMuted,
                     ),
                   ],

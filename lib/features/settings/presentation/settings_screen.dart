@@ -26,6 +26,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _benchModel;
   late final TextEditingController _copyTemplate;
   late final TextEditingController _perfDataset;
+  late final TextEditingController _perfZmlSmiPort;
   late final TextEditingController _perfDuration;
   late final TextEditingController _perfConcurrency;
   late final TextEditingController _perfMaxTokens;
@@ -49,6 +50,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _benchModel = TextEditingController(text: s.benchModel);
     _copyTemplate = TextEditingController(text: s.benchCopyTemplate);
     _perfDataset = TextEditingController(text: s.perfDatasetPath);
+    _perfZmlSmiPort = TextEditingController(
+      text: s.perfZmlSmiPort == defaultZmlSmiPort ? '' : '${s.perfZmlSmiPort}',
+    );
     _perfDuration = TextEditingController(
       text: '${s.perfParams.durationSeconds}',
     );
@@ -70,6 +74,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _benchModel.dispose();
     _copyTemplate.dispose();
     _perfDataset.dispose();
+    _perfZmlSmiPort.dispose();
     _perfDuration.dispose();
     _perfConcurrency.dispose();
     _perfMaxTokens.dispose();
@@ -98,6 +103,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _benchModel.text = '';
       _copyTemplate.text = s.benchCopyTemplate;
       _perfDataset.text = s.perfDatasetPath;
+      _perfZmlSmiPort.text = '';
       _perfDuration.text = '${s.perfParams.durationSeconds}';
       _perfConcurrency.text = '${s.perfParams.concurrency}';
       _perfMaxTokens.text = '';
@@ -334,6 +340,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         fill: stretch,
                         onPressed: () =>
                             revealInFinder(expandUserPath(s.perfDatasetPath)),
+                      ),
+                    ),
+                  ),
+                  _SettingRow(
+                    title: 'zml-smi port',
+                    description:
+                        'Where Metrics looks for zml-smi --api on the '
+                        'target\'s host, for power, utilization and memory '
+                        'during runs. The Metrics popover can point '
+                        'elsewhere.',
+                    control: SizedBox(
+                      width: 72,
+                      child: AppTextField(
+                        controller: _perfZmlSmiPort,
+                        mono: true,
+                        placeholder: '$defaultZmlSmiPort',
+                        onChanged: (v) => _controller.setPerfZmlSmiPort(
+                          int.tryParse(v.trim()),
+                        ),
                       ),
                     ),
                   ),

@@ -7,18 +7,17 @@ library;
 import 'dart:math' as math;
 
 import '../../../models/perf_report.dart';
+import '../../../models/settings.dart';
 import 'run_recorder_types.dart';
 
-/// zml-smi's port when only a host is known.
-const zmlSmiPort = 9090;
-
-/// zml-smi's URL for a run against [host], from the Perf tab's setting:
-/// empty is [host] on [zmlSmiPort]; a port (`9091`, `:9091`) is [host] on
-/// that port; a host, host:port or URL is taken as given (on [zmlSmiPort]
-/// when it names no port). `{host}` in it stands for [host].
-String zmlSmiUrl(String setting, String host) {
+/// zml-smi's URL for a run against [host], from the Metrics popover's
+/// setting: empty is [host] on [port] (the Settings default); a port
+/// (`9091`, `:9091`) is [host] on that port; a host, host:port or URL is
+/// taken as given (on [port] when it names none). `{host}` in it stands for
+/// [host].
+String zmlSmiUrl(String setting, String host, {int port = defaultZmlSmiPort}) {
   var s = setting.trim().replaceAll('{host}', host);
-  if (s.isEmpty) return 'http://$host:$zmlSmiPort';
+  if (s.isEmpty) return 'http://$host:$port';
   if (RegExp(r'^:?(\d+)$').firstMatch(s) case final port?) {
     return 'http://$host:${port[1]}';
   }
@@ -27,7 +26,7 @@ String zmlSmiUrl(String setting, String host) {
   final authority = RegExp(r'^[^/?#]*').stringMatch(s.substring(start)) ?? '';
   if (RegExp(r':\d+$').hasMatch(authority)) return s;
   final end = start + authority.length;
-  return '${s.substring(0, end)}:$zmlSmiPort${s.substring(end)}';
+  return '${s.substring(0, end)}:$port${s.substring(end)}';
 }
 
 /// [chips] as people name hardware: `2× NVIDIA H100 80GB HBM3`, grouped by

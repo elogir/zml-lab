@@ -200,8 +200,9 @@ role and finish chunks.
 
 - During a run the benchmarker's event stream is spooled to disk, and — when
   `zml-smi --api` answers (Metrics, in the Perf tool's target bar: the target's
-  host on port 9090 unless set otherwise) — chip samples too, shown live and
-  summed up in the report (per chip, and energy per token).
+  host on the Settings port, 9090 by default, unless the popover points
+  elsewhere) — chip samples too, shown live and summed up in the report (per
+  chip, and energy per token).
 - When the run ends, embedded DuckDB (`dart_duckdb`) turns the spools into
   the run's Parquet file (text dropped, its length kept) with the
   automatic `meta.json`, kept under `~/Library/Application Support/ZML-Lab/runs/`.

@@ -274,8 +274,8 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 100));
       container.read(settingsControllerProvider.notifier)
         ..setPerfDatasetPath(_dataset(tmp, 12).path)
-        // Just a port: zml-smi on the target's host.
-        ..setPerfChipMetricsUrl(':${smi.port}');
+        // The Settings port, no override: zml-smi on the target's host.
+        ..setPerfZmlSmiPort(smi.port);
 
       final provider = perfControllerProvider('t');
       final perf = container.read(provider.notifier)
