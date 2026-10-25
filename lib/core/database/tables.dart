@@ -77,7 +77,8 @@ class PerfReports extends Table {
 }
 
 /// Saved OpenAI-compatible endpoints (hosted APIs, servers by URL). API keys
-/// are in the Keychain, keyed by [id]; [hasApiKey] only records one is there.
+/// are in a private file (`ApiKeyStore`), keyed by [id]; [hasApiKey] only
+/// records one is there.
 @DataClassName('ApiEndpointRow')
 class ApiEndpoints extends Table {
   TextColumn get id => text()();

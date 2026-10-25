@@ -1,6 +1,6 @@
 /// A saved OpenAI-compatible endpoint the Benchmark tab can target: a hosted
 /// API (OpenAI, …) or a server reached by URL. Its API key, if any, lives in
-/// the Keychain under [id] — [hasApiKey] only records that one is stored.
+/// the `ApiKeyStore` under [id] — [hasApiKey] only records that one is stored.
 class ApiEndpoint {
   const ApiEndpoint({
     required this.id,

@@ -50,10 +50,10 @@ class BenchmarkTarget {
   final String endpointName;
   final String baseUrl;
 
-  /// The endpoint's key, loaded from the Keychain when it's selected.
+  /// The endpoint's key, loaded from the key store when it's selected.
   final String? apiKey;
 
-  /// The key typed for a custom host (kept in the Keychain too).
+  /// The key typed for a custom host (kept in the key store too).
   final String customKey;
 
   bool get isEndpoint => endpointId != null;
@@ -155,7 +155,7 @@ class BenchmarkTargetController extends _$BenchmarkTargetController {
     return const BenchmarkTarget();
   }
 
-  /// The custom host's key is kept in the Keychain under this id.
+  /// The custom host's key is kept in the key store under this id.
   static const customKeyId = 'custom-host';
 
   Future<void> _loadCustomKey() async {

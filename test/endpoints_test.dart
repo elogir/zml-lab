@@ -8,6 +8,7 @@ import 'package:flutter/material.dart' show DefaultMaterialLocalizations;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zml_lab/core/bootstrap.dart';
 import 'package:zml_lab/core/database/database.dart';
 import 'package:zml_lab/core/database/database_provider.dart';
 import 'package:zml_lab/core/execution/native_io.dart';
@@ -17,6 +18,7 @@ import 'package:zml_lab/features/endpoints/presentation/endpoints_screen.dart';
 import 'package:zml_lab/features/machines/application/machines_providers.dart';
 import 'package:zml_lab/features/perf/application/benchmark_target.dart';
 import 'package:zml_lab/models/api_endpoint.dart';
+import 'package:zml_lab/repositories/api_key_file_io.dart';
 import 'package:zml_lab/repositories/endpoint_repository.dart';
 
 class _MemoryKeys implements ApiKeyStore {
@@ -262,8 +264,9 @@ void main() {
 
     expect(find.text('2 APIs to benchmark against.'), findsOneWidget);
     expect(find.text('https://api.openai.com/v1'), findsOneWidget);
-    expect(find.text('key saved'), findsOneWidget);
-    expect(find.text('no key'), findsOneWidget);
+    // OpenAI's key is masked on its card; llmd has none.
+    expect(find.text('•' * 16), findsOneWidget);
+    expect(find.text('—'), findsOneWidget);
 
     // Search matches the URL too.
     await tester.enterText(find.byType(EditableText), '4090');
@@ -273,18 +276,36 @@ void main() {
     await tester.enterText(find.byType(EditableText), '');
     await tester.pump();
 
-    // A key replaced from the row reaches the Benchmark tab's target, though
+    // A key replaced from the card reaches the Benchmark tab's target, though
     // no endpoint field changed.
     await tester.tap(find.text('OpenAI'));
     await tester.pumpAndSettle();
     expect(find.text('Edit endpoint'), findsOneWidget);
+    // The dialog holds the saved key, masked until the eye shows it.
+    EditableText keyField() =>
+        tester.widget<EditableText>(find.byType(EditableText).last);
+    expect(keyField().controller.text, 'sk-old');
+    expect(keyField().obscureText, isTrue);
+    await tester.tap(find.byIcon(AppIcons.reveal));
+    await tester.pump();
+    expect(keyField().obscureText, isFalse);
     await tester.enterText(find.byType(EditableText).last, 'sk-new');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(keys.keys['ep-1'], 'sk-new');
     expect(target().apiKey, 'sk-new');
 
-    // Deleting from the row's hover button drops the row and its key, and
+    // Emptying the field removes the key.
+    await tester.tap(find.text('OpenAI'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText).last, '');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(keys.keys, isEmpty);
+    expect(target().apiKey, isNull);
+    expect(find.text('—'), findsNWidgets(2));
+
+    // Deleting from the card's hover button drops the row and its key, and
     // the target lets go of it.
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await mouse.addPointer(location: tester.getCenter(find.text('OpenAI')));
@@ -294,10 +315,82 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('OpenAI'), findsNothing);
     expect(repo.all.keys, ['ep-2']);
-    expect(keys.keys, isEmpty);
     expect(target().isEndpoint, isFalse);
     expect(find.text('1 API to benchmark against.'), findsOneWidget);
   });
+
+  group('FileApiKeyStore', () {
+    late Directory dir;
+    late String path;
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('zml_keys');
+      path = '${dir.path}/zml-lab/api-keys.json';
+    });
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    test('keeps keys in a file only the user can read', () async {
+      final keys = FileApiKeyStore(path);
+      expect(await keys.read('ep-1'), isNull);
+      await keys.write('ep-1', 'sk-one');
+      await keys.write('ep-2', 'sk-two');
+      await keys.delete('ep-2');
+
+      // A fresh store (the next launch) reads them back.
+      final reopened = FileApiKeyStore(path);
+      expect(await reopened.read('ep-1'), 'sk-one');
+      expect(await reopened.read('ep-2'), isNull);
+      if (!Platform.isWindows) {
+        expect(File(path).statSync().mode & 0x1FF, 0x180); // 0600
+        expect(Directory('${dir.path}/zml-lab').statSync().mode & 0x1FF, 0x1C0);
+      }
+    });
+
+    test('writes fired back to back all land', () async {
+      final keys = FileApiKeyStore(path);
+      // The custom host's key is saved per keystroke, unawaited.
+      await Future.wait([
+        for (var i = 0; i < 20; i++) keys.write('custom-host', 'sk-${'x' * i}'),
+        keys.write('ep-1', 'sk-one'),
+      ]);
+      final reopened = FileApiKeyStore(path);
+      expect(await reopened.read('custom-host'), 'sk-${'x' * 19}');
+      expect(await reopened.read('ep-1'), 'sk-one');
+    });
+
+    test('an unreadable file reads as empty', () async {
+      File(path)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('not json');
+      final keys = FileApiKeyStore(path);
+      expect(await keys.read('ep-1'), isNull);
+      await keys.write('ep-1', 'sk-one');
+      expect(await FileApiKeyStore(path).read('ep-1'), 'sk-one');
+    });
+  });
+
+  test(
+    'startup marks endpoints by whether their key is really stored',
+    () async {
+      final stale = ApiEndpoint(
+        id: 'ep-1',
+        name: 'OpenAI',
+        baseUrl: 'https://api.openai.com/v1',
+        hasApiKey: true, // its key was in the Keychain
+        createdAt: DateTime(2026),
+      );
+      final edited = ApiEndpoint(
+        id: 'ep-2',
+        name: 'llmd',
+        baseUrl: 'http://4090:8000/v1',
+        createdAt: DateTime(2026),
+      );
+      final repo = _MemoryEndpoints([stale, edited]);
+      final keys = _MemoryKeys()..keys['ep-2'] = 'sk-hand-written';
+      await syncEndpointKeys(repo, keys);
+      expect(repo.all['ep-1']!.hasApiKey, isFalse);
+      expect(repo.all['ep-2']!.hasApiKey, isTrue);
+    },
+  );
 
   test('a custom host can be a URL, with a key', () async {
     final keys = _MemoryKeys();

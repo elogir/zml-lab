@@ -57,12 +57,17 @@ final class EndpointRepositoryProvider
 String _$endpointRepositoryHash() =>
     r'1d72f97d4d127185af68a11103d2604ae189171f';
 
+/// A private file on native (see `FileApiKeyStore`).
+
 @ProviderFor(apiKeyStore)
 final apiKeyStoreProvider = ApiKeyStoreProvider._();
+
+/// A private file on native (see `FileApiKeyStore`).
 
 final class ApiKeyStoreProvider
     extends $FunctionalProvider<ApiKeyStore, ApiKeyStore, ApiKeyStore>
     with $Provider<ApiKeyStore> {
+  /// A private file on native (see `FileApiKeyStore`).
   ApiKeyStoreProvider._()
     : super(
         from: null,
@@ -96,4 +101,4 @@ final class ApiKeyStoreProvider
   }
 }
 
-String _$apiKeyStoreHash() => r'5d3febfb520d0791274b99c6298fdc3115a63562';
+String _$apiKeyStoreHash() => r'8438d87d7aa4c7e1bee4a786578e94b88430772d';

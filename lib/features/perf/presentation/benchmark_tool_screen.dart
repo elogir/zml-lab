@@ -99,7 +99,7 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
     ) {
       if (_host.text != hostText) _host.text = hostText;
     });
-    // The saved custom key arrives from the Keychain after the first frame.
+    // The saved custom key arrives from the key store after the first frame.
     ref.listen(benchmarkTargetControllerProvider.select((t) => t.customKey), (
       _,
       key,

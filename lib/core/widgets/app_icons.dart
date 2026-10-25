@@ -38,6 +38,8 @@ abstract final class AppIcons {
   static const IconData more = LucideIcons.ellipsis;
   static const IconData folder = LucideIcons.folderOpen;
   static const IconData apiKey = LucideIcons.keyRound;
+  static const IconData reveal = LucideIcons.eye;
+  static const IconData conceal = LucideIcons.eyeOff;
 
   // Terminal multiplexer chrome
   static const IconData splitHorizontal = LucideIcons.columns2;

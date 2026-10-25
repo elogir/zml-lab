@@ -10,6 +10,7 @@ import 'app.dart';
 import 'core/bootstrap.dart';
 import 'core/logging/app_log.dart';
 import 'features/settings/application/settings_controller.dart';
+import 'repositories/endpoint_repository.dart';
 import 'repositories/machine_repository.dart';
 
 Future<void> main() async {
@@ -83,6 +84,14 @@ Future<void> _run() async {
     await ensureLocalMachine(container.read(machineRepositoryProvider));
   } catch (e) {
     debugPrint('ensureLocalMachine failed: $e');
+  }
+  try {
+    await syncEndpointKeys(
+      container.read(endpointRepositoryProvider),
+      container.read(apiKeyStoreProvider),
+    );
+  } catch (e) {
+    debugPrint('syncEndpointKeys failed: $e');
   }
   AppLog.write('boot ok — starting UI');
 

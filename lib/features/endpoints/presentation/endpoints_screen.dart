@@ -63,13 +63,24 @@ class _EndpointsScreenState extends ConsumerState<EndpointsScreen> {
                       style: context.text.smallMuted,
                     ),
                   )
-                // A row each: there's only a name, a URL and a key to show.
-                : ListView.separated(
-                    itemCount: endpoints.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppSpacing.sm),
-                    itemBuilder: (context, i) =>
-                        _EndpointRow(endpoint: endpoints[i]),
+                : SingleChildScrollView(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        const gap = AppSpacing.lg;
+                        final width = (constraints.maxWidth - gap) / 2;
+                        return Wrap(
+                          spacing: gap,
+                          runSpacing: gap,
+                          children: [
+                            for (final endpoint in endpoints)
+                              SizedBox(
+                                width: width,
+                                child: _EndpointCard(endpoint: endpoint),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
           ),
         ],
@@ -78,13 +89,13 @@ class _EndpointsScreenState extends ConsumerState<EndpointsScreen> {
   }
 }
 
-class _EndpointRow extends ConsumerWidget {
-  const _EndpointRow({required this.endpoint});
+class _EndpointCard extends ConsumerWidget {
+  const _EndpointCard({required this.endpoint});
 
   final ApiEndpoint endpoint;
 
   Future<void> _edit(BuildContext context, WidgetRef ref) async {
-    // Read before the dialog: the row may be gone (deleted) once it closes.
+    // Read before the dialog: the card may be gone (deleted) once it closes.
     final target = ref.read(benchmarkTargetControllerProvider.notifier);
     final saved = await showEndpointDialog(context, existing: endpoint);
     // A replaced or removed key changes no row, so tell the Benchmark tab's
@@ -95,8 +106,9 @@ class _EndpointRow extends ConsumerWidget {
   Future<void> _delete(WidgetRef ref) async {
     final keys = ref.read(apiKeyStoreProvider);
     final repo = ref.read(endpointRepositoryProvider);
-    await keys.delete(endpoint.id);
+    // The row first: a key that fails to go mustn't keep the endpoint around.
     await repo.delete(endpoint.id);
+    await keys.delete(endpoint.id);
   }
 
   @override
@@ -109,41 +121,67 @@ class _EndpointRow extends ConsumerWidget {
     return AppCard(
       onTap: () => _edit(context, ref),
       onDelete: () => _delete(ref),
-      // 10 vertical centers the line on the card's fixed top-right slot.
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: 10,
-      ),
-      radius: AppRadius.mdAll,
-      // Swaps with the delete button on hover.
-      topRight: Text(
-        endpoint.hasApiKey ? 'key saved' : 'no key',
-        style: context.text.smallMuted,
-      ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(AppIcons.web, size: 13, color: c.textFaint),
-          const SizedBox(width: AppSpacing.sm),
-          SizedBox(
-            width: 200,
-            child: Text(
-              endpoint.name,
-              style: context.text.mono.copyWith(fontWeight: FontWeight.w700),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+          Row(
+            children: [
+              Icon(AppIcons.web, size: 13, color: c.textFaint),
+              const SizedBox(width: AppSpacing.sm),
+              Flexible(
+                child: Text(
+                  endpoint.name,
+                  style: context.text.mono.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.lg),
+          _DetailRow(
+            label: 'URL',
+            value: blurHost ? maskHost(endpoint.baseUrl) : endpoint.baseUrl,
+          ),
+          // A fixed run of bullets, so the mask doesn't give away the key's
+          // length; the edit dialog can show it.
+          _DetailRow(
+            label: 'API key',
+            value: endpoint.hasApiKey ? '•' * 16 : '—',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 72,
+            child: Text(label, style: context.text.smallMuted),
+          ),
           Expanded(
             child: Text(
-              blurHost ? maskHost(endpoint.baseUrl) : endpoint.baseUrl,
-              style: context.text.monoSmall.copyWith(color: c.textMuted),
+              value,
+              style: context.text.monoSmall,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // Room for the key status / delete button pinned top-right.
-          const SizedBox(width: 80),
         ],
       ),
     );

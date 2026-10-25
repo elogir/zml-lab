@@ -1,10 +1,10 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../core/database/database.dart';
 import '../core/database/database_provider.dart';
 import '../models/api_endpoint.dart';
+import 'api_key_file.dart';
 
 part 'endpoint_repository.g.dart';
 
@@ -60,35 +60,14 @@ class DriftEndpointRepository implements EndpointRepository {
 EndpointRepository endpointRepository(Ref ref) =>
     DriftEndpointRepository(ref.watch(appDatabaseProvider));
 
-/// API keys for saved endpoints, kept out of the database.
+/// API keys for saved endpoints, kept out of the database (which sits in
+/// ~/Documents, and may be synced or shared).
 abstract interface class ApiKeyStore {
   Future<String?> read(String endpointId);
   Future<void> write(String endpointId, String key);
   Future<void> delete(String endpointId);
 }
 
-/// The macOS login Keychain. `usesDataProtectionKeychain: false` keeps it on
-/// the classic keychain, which needs no keychain-access-group entitlement (so
-/// unsigned dev builds work too).
-class KeychainApiKeyStore implements ApiKeyStore {
-  static const _storage = FlutterSecureStorage(
-    mOptions: MacOsOptions(usesDataProtectionKeychain: false),
-  );
-
-  static String _key(String endpointId) => 'zml-lab.endpoint.$endpointId';
-
-  @override
-  Future<String?> read(String endpointId) =>
-      _storage.read(key: _key(endpointId));
-
-  @override
-  Future<void> write(String endpointId, String key) =>
-      _storage.write(key: _key(endpointId), value: key);
-
-  @override
-  Future<void> delete(String endpointId) =>
-      _storage.delete(key: _key(endpointId));
-}
-
+/// A private file on native (see `FileApiKeyStore`).
 @Riverpod(keepAlive: true)
-ApiKeyStore apiKeyStore(Ref ref) => KeychainApiKeyStore();
+ApiKeyStore apiKeyStore(Ref ref) => createApiKeyStore();

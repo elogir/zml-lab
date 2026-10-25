@@ -8,7 +8,7 @@ import '../../../models/api_endpoint.dart';
 import '../../../repositories/endpoint_repository.dart';
 
 /// Creates (or, with [existing], edits) a saved endpoint: a name, its API
-/// root, and an optional key (stored in the Keychain). Resolves to the saved
+/// root, and an optional key (kept in the [ApiKeyStore]). Resolves to the saved
 /// endpoint, or null if cancelled or deleted.
 Future<ApiEndpoint?> showEndpointDialog(
   BuildContext context, {
@@ -31,8 +31,23 @@ class _EndpointDialogState extends ConsumerState<_EndpointDialog> {
   late final _name = TextEditingController(text: widget.existing?.name);
   late final _url = TextEditingController(text: widget.existing?.baseUrl);
   final _key = TextEditingController();
-  late bool _hasKey = widget.existing?.hasApiKey ?? false;
+  bool _showKey = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadKey();
+  }
+
+  /// Fills the key field with the saved key, masked until the eye shows it.
+  Future<void> _loadKey() async {
+    final e = widget.existing;
+    if (e == null || !e.hasApiKey) return;
+    final key = await ref.read(apiKeyStoreProvider).read(e.id);
+    // Unless typing already started.
+    if (mounted && key != null && _key.text.isEmpty) _key.text = key;
+  }
 
   @override
   void dispose() {
@@ -56,19 +71,19 @@ class _EndpointDialogState extends ConsumerState<_EndpointDialog> {
     final keys = ref.read(apiKeyStoreProvider);
     final id =
         widget.existing?.id ?? 'ep-${DateTime.now().microsecondsSinceEpoch}';
-    final newKey = _key.text.trim();
-    // A typed key replaces the stored one; an empty field keeps it (unless
-    // removed with "Remove key").
-    if (newKey.isNotEmpty) {
-      await keys.write(id, newKey);
-    } else if (!_hasKey) {
-      await keys.delete(id);
+    // The field holds the key itself: emptied, there's none.
+    final key = _key.text.trim();
+    try {
+      key.isEmpty ? await keys.delete(id) : await keys.write(id, key);
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Could not save the key: $e');
+      return;
     }
     final endpoint = ApiEndpoint(
       id: id,
       name: name,
       baseUrl: url.toString(),
-      hasApiKey: newKey.isNotEmpty || _hasKey,
+      hasApiKey: key.isNotEmpty,
       createdAt: widget.existing?.createdAt ?? DateTime.now(),
     );
     await ref.read(endpointRepositoryProvider).save(endpoint);
@@ -77,9 +92,11 @@ class _EndpointDialogState extends ConsumerState<_EndpointDialog> {
 
   Future<void> _delete() async {
     final e = widget.existing!;
-    await ref.read(apiKeyStoreProvider).delete(e.id);
+    final keys = ref.read(apiKeyStoreProvider);
+    // The row first: a key that fails to go mustn't keep the endpoint around.
     await ref.read(endpointRepositoryProvider).delete(e.id);
     if (mounted) Navigator.of(context).pop();
+    await keys.delete(e.id);
   }
 
   @override
@@ -111,24 +128,16 @@ class _EndpointDialogState extends ConsumerState<_EndpointDialog> {
           AppTextField(
             controller: _key,
             mono: true,
-            obscureText: true,
-            placeholder: _hasKey
-                ? 'saved in Keychain — type to replace'
-                : 'optional — sent as Bearer',
+            obscureText: !_showKey,
+            placeholder: 'optional — sent as Bearer',
             onSubmitted: (_) => _save(),
-          ),
-          if (_hasKey) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: AppButton(
-                label: 'Remove key',
-                variant: AppButtonVariant.ghost,
-                dense: true,
-                onPressed: () => setState(() => _hasKey = false),
-              ),
+            suffix: AppIconButton(
+              icon: _showKey ? AppIcons.conceal : AppIcons.reveal,
+              size: 13,
+              padding: const EdgeInsets.all(3),
+              onPressed: () => setState(() => _showKey = !_showKey),
             ),
-          ],
+          ),
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.md),
             Text(
