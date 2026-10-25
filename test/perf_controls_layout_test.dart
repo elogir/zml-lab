@@ -84,7 +84,15 @@ void main() {
       }
       expect(concurrency.top, closeTo(duration.top, 0.01));
       expect(maxTokens.top, closeTo(duration.top, 0.01));
-      expect(run.top, closeTo(model.top, 0.01));
+      // The run controls beside the model, or (narrowest) on a line under
+      // it, the model field then a whole line wide.
+      if (width >= 460) {
+        expect(run.top, closeTo(model.top, 0.01));
+        expect(run.left, greaterThan(model.right));
+      } else {
+        expect(run.top, greaterThan(model.bottom));
+        expect(model.width, closeTo(width, 1));
+      }
       if (width >= 1100) {
         // Everything on one line.
         for (final r in [prompts, turns, model]) {
@@ -109,7 +117,6 @@ void main() {
             .last, // the pinned copy, not the hidden sizing one
       );
       expect(fullscreen.right, closeTo(width, 1));
-      expect(run.left, greaterThan(model.right));
     });
   }
 }

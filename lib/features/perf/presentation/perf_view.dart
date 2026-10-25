@@ -84,14 +84,20 @@ class _PerfViewState extends ConsumerState<PerfView> {
     // The dataset has its own card (with a download); this is the rest.
     _preflightProblem = _controller.libraryProblem();
     _lifecycle = AppLifecycleListener(onResume: _refreshDataset);
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       // Every visit looks again (the dataset state outlives the tab).
       _refreshDataset();
-      await _controller.prefillModel(host: widget.host, port: widget.port);
-      if (!mounted) return;
-      final model = ref.read(perfControllerProvider(widget.jobId)).params.model;
-      if (_model.text.isEmpty && model.isNotEmpty) _model.text = model;
+      _controller.detectModels(host: widget.host, port: widget.port);
     });
+  }
+
+  @override
+  void didUpdateWidget(PerfView old) {
+    super.didUpdateWidget(old);
+    // Another target: another server, maybe other models.
+    if (old.host != widget.host || old.port != widget.port) {
+      _controller.detectModels(host: widget.host, port: widget.port);
+    }
   }
 
   @override
@@ -177,6 +183,16 @@ class _PerfViewState extends ConsumerState<PerfView> {
             concurrency: _concurrency,
             maxTokens: _maxTokens,
             model: _model,
+            loadModels: () async {
+              await _controller.detectModels(
+                host: widget.host,
+                port: widget.port,
+              );
+              return ref
+                      .read(perfControllerProvider(widget.jobId))
+                      .serverModels ??
+                  const [];
+            },
             fullscreen: fullscreen,
             onToggleFullscreen: () => ref
                 .read(appFullscreenProvider.notifier)
@@ -297,6 +313,7 @@ class _Controls extends StatelessWidget {
     required this.concurrency,
     required this.maxTokens,
     required this.model,
+    required this.loadModels,
     required this.fullscreen,
     required this.onToggleFullscreen,
     required this.onPatch,
@@ -309,6 +326,9 @@ class _Controls extends StatelessWidget {
   final TextEditingController concurrency;
   final TextEditingController maxTokens;
   final TextEditingController model;
+
+  /// The target's `/v1/models`, for the Model field's ▾.
+  final Future<List<String>> Function() loadModels;
   final bool fullscreen;
   final VoidCallback onToggleFullscreen;
   final void Function(PerfParams Function(PerfParams)) onPatch;
@@ -410,12 +430,19 @@ class _Controls extends StatelessWidget {
         ignoreEos,
       ],
     );
-    // Empty model sends the benchmarker's default name — llmd ignores it,
-    // vLLM needs the real one (prefilled from /v1/models).
-    final modelField = AppTextField(
+    // An override, never filled for you: empty, a run uses the server's
+    // model when it serves just one (vLLM needs the real name; llmd ignores
+    // it). The ▾ lists what /v1/models serves, filling in a lone one.
+    final models = run.serverModels;
+    final modelField = SettingField(
       controller: model,
-      mono: true,
-      placeholder: 'from /v1/models',
+      placeholder: switch (models) {
+        [final only] => '$only (auto)',
+        [_, _, ...] => 'pick one of ${models.length} models',
+        _ => 'from /v1/models',
+      },
+      loadPresets: loadModels,
+      noPresets: 'no models at /v1/models',
       onChanged: (v) => onPatch((p) => p.copyWith(model: v.trim())),
     );
     // The model field with the run controls beside it at its height:
@@ -507,7 +534,8 @@ class _Controls extends StatelessWidget {
           );
         }
         // Narrow (terminal open): the choices and the warm-up toggle get a
-        // line of their own so the model field keeps some room.
+        // line of their own so the model field keeps some room — narrower
+        // still, the model gets a whole line, the run controls one under it.
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -524,7 +552,52 @@ class _Controls extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            modelAndActions(withWarmup: false),
+            if (width >= _modelLineWidth)
+              modelAndActions(withWarmup: false)
+            else ...[
+              LabeledControl(label: 'Model', child: modelField),
+              const SizedBox(height: AppSpacing.sm),
+              Stack(
+                children: [
+                  // A field's height…
+                  const Visibility.maintain(
+                    visible: false,
+                    child: AppTextField(mono: true),
+                  ),
+                  // …the run controls at the right, filling it.
+                  Positioned(
+                    top: 0,
+                    bottom: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        RunActions(
+                          label: 'Run benchmark',
+                          icon: AppIcons.play,
+                          running: active,
+                          onRun: active ? null : onRun,
+                          onStop: onCancel,
+                          stretch: true,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Center(
+                          child: AppIconButton(
+                            icon: fullscreen
+                                ? AppIcons.exitFullscreen
+                                : AppIcons.fullscreen,
+                            size: 15,
+                            padding: const EdgeInsets.all(9),
+                            onPressed: onToggleFullscreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         );
       },
@@ -537,6 +610,10 @@ class _Controls extends StatelessWidget {
   /// Below this the run controls get their own line (and below
   /// [_twoLineWidth], the choices too).
   static const _twoLineWidth = 600.0;
+
+  /// Below this the model field gets a line to itself, the run controls
+  /// one under it: beside them it would shrink to nothing.
+  static const _modelLineWidth = 460.0;
 }
 
 /// Live stats while running; save/export actions once done.

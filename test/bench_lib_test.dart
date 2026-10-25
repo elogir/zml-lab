@@ -19,16 +19,30 @@ import 'package:zml_lab/models/perf_report.dart';
 /// deltas ("w0 ", "w1 ", …) [pace] apart, then a stop and [DONE]. With
 /// [reasoning], they come after an empty role chunk and two thinking chunks
 /// (one as `reasoning_content`, one as `reasoning`), as vLLM streams them.
-/// Request bodies go to [bodies] when given.
+/// Request bodies go to [bodies] when given. `/v1/models` lists [models].
 Future<HttpServer> _fakeServer({
   required int words,
   Duration pace = const Duration(milliseconds: 2),
   bool reasoning = false,
   List<Map<String, dynamic>>? bodies,
+  List<String> models = const [],
 }) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   server.listen((req) async {
     final body = await utf8.decoder.bind(req).join();
+    if (req.uri.path == '/v1/models') {
+      req.response
+        ..headers.contentType = ContentType.json
+        ..write(
+          jsonEncode({
+            'data': [
+              for (final m in models) {'id': m},
+            ],
+          }),
+        );
+      await req.response.close();
+      return;
+    }
     // Chat completions only (the library also probes the server).
     if (req.method == 'POST' && body.isNotEmpty) {
       bodies?.add(jsonDecode(body) as Map<String, dynamic>);
@@ -253,10 +267,12 @@ void main() {
     await real(tester, () async {
       // Slow enough (~3 s) for several zml-smi samples.
       final bodies = <Map<String, dynamic>>[];
+      // One model served, and the Model field left empty.
       final server = await _fakeServer(
         words: 20,
         pace: const Duration(milliseconds: 30),
         bodies: bodies,
+        models: ['Qwen/Qwen3-8B'],
       );
       addTearDown(() => server.close(force: true));
       final db = AppDatabase(NativeDatabase.memory());
@@ -338,7 +354,12 @@ void main() {
       for (final b in bodies) {
         expect(b['ignore_eos'], isTrue);
         expect(b['max_completion_tokens'], 32);
+        // The server's lone model, though the field was empty…
+        expect(b['model'], 'Qwen/Qwen3-8B');
       }
+      // …and it's the run's, not the form's: the field stays empty.
+      expect(report.params.model, 'Qwen/Qwen3-8B');
+      expect(run.params.model, '');
       // The chip, summed up over the run (zml-smi said the same each time).
       final chip = report.chips.single;
       expect(chip.name, 'NVIDIA GeForce RTX 4090');
@@ -387,6 +408,7 @@ void main() {
       });
       expect((meta['params'] as Map)['concurrency'], 4);
       expect((meta['params'] as Map)['ignore_eos'], isTrue);
+      expect(meta['model'], {'name': 'Qwen/Qwen3-8B'});
       expect((meta['summary'] as Map)['requests'], 24);
       expect(
         (meta['summary'] as Map)['joules_per_token'],
@@ -397,6 +419,50 @@ void main() {
       perf.discard();
       await Future<void>.delayed(const Duration(milliseconds: 200));
       expect(File(file).existsSync(), isFalse);
+    });
+  }, skip: skip);
+
+  testWidgets('several models and none picked: the run asks for one', (
+    tester,
+  ) async {
+    await real(tester, () async {
+      final bodies = <Map<String, dynamic>>[];
+      final server = await _fakeServer(
+        words: 5,
+        bodies: bodies,
+        models: ['a', 'b'],
+      );
+      addTearDown(() => server.close(force: true));
+      final db = AppDatabase(NativeDatabase.memory());
+      final container = ProviderContainer(
+        overrides: [appDatabaseProvider.overrideWithValue(db)],
+      );
+      addTearDown(() async {
+        container.dispose();
+        await db.close();
+      });
+      container.read(settingsControllerProvider);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      container
+          .read(settingsControllerProvider.notifier)
+          .setPerfDatasetPath(_dataset(tmp, 2).path);
+      final provider = perfControllerProvider('m');
+      final perf = container.read(provider.notifier)
+        ..setParams(const PerfParams(durationSeconds: 2, warmup: false));
+      await perf
+          .start(
+            host: '127.0.0.1',
+            port: server.port,
+            jobName: 'test',
+            jobCommand: '',
+            machineName: 'local',
+          )
+          .timeout(const Duration(seconds: 10));
+      final run = container.read(provider);
+      expect(run.phase, PerfPhase.failed);
+      expect(run.message, contains('pick one'));
+      expect(run.serverModels, ['a', 'b']);
+      expect(bodies, isEmpty); // nothing was sent
     });
   }, skip: skip);
 

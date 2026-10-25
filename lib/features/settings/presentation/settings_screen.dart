@@ -502,7 +502,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     title: 'Model',
                     description:
                         'Sent in each request. vLLM needs the real name; llmd '
-                        'ignores it. Empty = pull from /v1/models.',
+                        'ignores it. Empty = the server\'s model, when '
+                        '/v1/models lists just one.',
                     stacked: true,
                     control: AppTextField(
                       controller: _perfModel,

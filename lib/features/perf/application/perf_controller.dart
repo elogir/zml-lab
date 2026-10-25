@@ -55,6 +55,7 @@ class PerfRun {
     this.runFile,
     this.chips = false,
     this.liveChips = const [],
+    this.serverModels,
   });
 
   final PerfPhase phase;
@@ -90,6 +91,9 @@ class PerfRun {
   /// zml-smi's latest sample while running, for the live readout.
   final List<ChipReading> liveChips;
 
+  /// What the target's `/v1/models` lists; null until asked.
+  final List<String>? serverModels;
+
   static const _unset = Object();
 
   PerfRun copyWith({
@@ -108,6 +112,7 @@ class PerfRun {
     Object? runFile = _unset,
     bool? chips,
     List<ChipReading>? liveChips,
+    List<String>? serverModels,
   }) => PerfRun(
     phase: phase ?? this.phase,
     message: identical(message, _unset) ? this.message : message as String?,
@@ -124,6 +129,7 @@ class PerfRun {
     runFile: identical(runFile, _unset) ? this.runFile : runFile as String?,
     chips: chips ?? this.chips,
     liveChips: liveChips ?? this.liveChips,
+    serverModels: serverModels ?? this.serverModels,
   );
 }
 
@@ -165,6 +171,9 @@ class PerfController extends _$PerfController {
   ChipAccumulator _chipStats = ChipAccumulator();
   String? _serverVersion;
 
+  /// The running run's params, with the model it actually sends.
+  PerfParams? _runParams;
+
   /// Runs saved as reports: their recordings stay when the run is cleared.
   final _savedRunIds = <String>{};
 
@@ -195,11 +204,28 @@ class PerfController extends _$PerfController {
 
   /// Prefills the model name from the server's /v1/models when the form has
   /// none yet (vLLM requires the real name; llmd ignores it).
-  Future<void> prefillModel({required String host, required int port}) async {
-    if (state.params.model.isNotEmpty) return;
+  /// Asks the target's `/v1/models` what it serves, for the Model field's
+  /// hint. The field itself is left alone: it's an override.
+  Future<void> detectModels({required String host, required int port}) async {
     final ids = await fetchModelIds(host: host, port: port);
-    if (ids.isEmpty || state.params.model.isNotEmpty) return;
-    setParams(state.params.copyWith(model: ids.first));
+    state = state.copyWith(serverModels: ids);
+  }
+
+  /// The model a run sends: the Model field's, else the server's own when it
+  /// serves just one. Several and none picked: an error saying so (a model
+  /// isn't chosen for you). None listed: empty, the benchmarker's default
+  /// name (llmd ignores it).
+  Future<String> _runModel(String host, int port) async {
+    final picked = state.params.model;
+    if (picked.isNotEmpty) return picked;
+    final ids = await fetchModelIds(host: host, port: port);
+    state = state.copyWith(serverModels: ids);
+    if (ids.length > 1) {
+      throw Exception(
+        'the server serves ${ids.length} models: pick one in Model',
+      );
+    }
+    return ids.firstOrNull ?? '';
   }
 
   /// What a run needs and doesn't have — null when good to go.
@@ -231,7 +257,7 @@ class PerfController extends _$PerfController {
       unawaited(deleteRun(previous.id));
     }
     final seq = ++_runSeq;
-    final params = state.params;
+    var params = state.params;
     _jobName = jobName;
     _jobCommand = jobCommand;
     _machineName = machineName;
@@ -276,6 +302,13 @@ class PerfController extends _$PerfController {
     try {
       final problem = await preflight();
       if (problem != null) throw Exception(problem);
+
+      // The run's own copy of the params carries the model it really sent
+      // (the report, the recording, Export run); the form keeps its own.
+      final model = await _runModel(host, port);
+      if (seq != _runSeq) return;
+      params = params.copyWith(model: model);
+      _runParams = params;
 
       if (params.warmup) {
         state = state.copyWith(message: 'warming up the server…');
@@ -555,7 +588,7 @@ class PerfController extends _$PerfController {
       return;
     }
     _stopRecording();
-    final params = state.params;
+    final params = _runParams ?? state.params;
     final report = PerfReport(
       // The recording is kept as runs/<id>.zmlrun.parquet.
       id: _runId,

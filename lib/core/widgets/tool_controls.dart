@@ -163,24 +163,32 @@ class RunActions extends StatelessWidget {
   }
 }
 
-/// A labelled field, label above — the parent sizes it. With [presets], a ▾
-/// segment in the field opens a list of common values; typing any value
-/// still works.
+/// A field with its [label] above (none when null: the parent labels it) —
+/// the parent sizes it. With [presets], a ▾ segment in the field opens a
+/// list of common values; with [loadPresets], the ▾ fetches them instead,
+/// filling the field directly when there's just one. Typing any value still
+/// works.
 class SettingField extends StatefulWidget {
   const SettingField({
     super.key,
-    required this.label,
+    this.label,
     required this.controller,
     required this.onChanged,
     this.placeholder,
     this.presets,
+    this.loadPresets,
+    this.noPresets = 'none found',
   });
 
-  final String label;
+  final String? label;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final String? placeholder;
   final List<String>? presets;
+  final Future<List<String>> Function()? loadPresets;
+
+  /// Shown in the menu when [loadPresets] finds nothing.
+  final String noPresets;
 
   @override
   State<SettingField> createState() => _SettingFieldState();
@@ -192,10 +200,34 @@ class _SettingFieldState extends State<SettingField> {
   final _link = LayerLink();
   final _menu = OverlayPortalController();
 
+  /// What [SettingField.loadPresets] last found; null until it answers.
+  List<String>? _loaded;
+  bool _loading = false;
+
   void _pick(String value) {
     widget.controller.text = value;
     widget.onChanged(value);
     _menu.hide();
+  }
+
+  Future<void> _toggle() async {
+    if (_menu.isShowing) return _menu.hide();
+    final load = widget.loadPresets;
+    if (load == null) return _menu.show();
+    if (_loading) return;
+    setState(() => _loading = true);
+    final found = await load();
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _loaded = found;
+    });
+    // Just one: nothing to choose.
+    if (found.length == 1) {
+      _pick(found.single);
+    } else {
+      _menu.show();
+    }
   }
 
   /// The presets menu's height limit: the room between the field and the
@@ -213,16 +245,23 @@ class _SettingFieldState extends State<SettingField> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final presets = widget.presets;
+    final loads = widget.loadPresets != null;
+    final presets = loads ? (_loaded ?? const <String>[]) : widget.presets;
+    final hasMenu = loads || presets != null;
+    // Loaded values (model names) are long: the menu is as wide as the field.
+    final box = context.findRenderObject() as RenderBox?;
+    final menuWidth = loads && box != null && box.hasSize
+        ? math.max(120.0, box.size.width)
+        : 120.0;
     Widget field = AppTextField(
       controller: widget.controller,
       mono: true,
       placeholder: widget.placeholder,
       onChanged: widget.onChanged,
       // Keeps the text clear of the dropdown segment laid over the right.
-      suffix: presets == null
-          ? null
-          : const SizedBox(width: _segmentWidth - AppSpacing.md + 4),
+      suffix: hasMenu
+          ? const SizedBox(width: _segmentWidth - AppSpacing.md + 4)
+          : null,
     );
     if (presets != null) {
       field = Stack(
@@ -236,7 +275,7 @@ class _SettingFieldState extends State<SettingField> {
             right: 1,
             width: _segmentWidth,
             child: HoverRegion(
-              onTap: () => _menu.isShowing ? _menu.hide() : _menu.show(),
+              onTap: _toggle,
               builder: (context, hovered) => Container(
                 decoration: BoxDecoration(
                   // One step up from the field's own fill — the same tone
@@ -249,9 +288,11 @@ class _SettingFieldState extends State<SettingField> {
                   ),
                 ),
                 child: Icon(
-                  AppIcons.chevronDown,
+                  _loading ? AppIcons.refresh : AppIcons.chevronDown,
                   size: 14,
-                  color: hovered ? c.textPrimary : c.textMuted,
+                  color: _loading
+                      ? c.textFaint
+                      : (hovered ? c.textPrimary : c.textMuted),
                 ),
               ),
             ),
@@ -279,8 +320,8 @@ class _SettingFieldState extends State<SettingField> {
                 child: Align(
                   alignment: Alignment.topLeft,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints.tightFor(
-                      width: 120,
+                    constraints: BoxConstraints.tightFor(
+                      width: menuWidth,
                     ).copyWith(maxHeight: _menuMaxHeight(context)),
                     child: AppPanel(
                       color: c.surface,
@@ -297,6 +338,14 @@ class _SettingFieldState extends State<SettingField> {
                                   selected: value.text.trim() == p,
                                   onTap: () => _pick(p),
                                 ),
+                              if (presets.isEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.all(AppSpacing.sm),
+                                  child: Text(
+                                    widget.noPresets,
+                                    style: context.text.smallMuted,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -311,7 +360,8 @@ class _SettingFieldState extends State<SettingField> {
         ),
       );
     }
-    return LabeledControl(label: widget.label, child: field);
+    final label = widget.label;
+    return label == null ? field : LabeledControl(label: label, child: field);
   }
 }
 
