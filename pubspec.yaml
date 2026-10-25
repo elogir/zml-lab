@@ -1,53 +1,55 @@
 name: zml_lab
-description: "Desktop control panel for launching and babysitting ML inference jobs on a small fleet of remote machines."
+description: "Desktop app for launching ML inference servers by hand and benchmarking them: chat and perf benchmarks, saved and compared runs, machines and endpoints."
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
   sdk: ^3.12.2
 
-# NOTE: dependency versions are intentionally left unconstrained — `pub get`
-# resolves the best compatible versions.
+# Caret ranges from the versions in use: `pub upgrade` stays within a major
+# version (within a minor below 1.0), so a breaking release is a deliberate
+# edit here. pubspec.lock pins the exact versions and their content hashes,
+# and the release build installs exactly those (`--enforce-lockfile`).
 dependencies:
   flutter:
     sdk: flutter
 
   # Terminal (Ghostty VT engine as a Flutter widget) + PTY backend
-  flterm:
-  flutter_pty:
+  flterm: ^0.0.6
+  flutter_pty: ^0.4.2
 
   # State management — riverpod, generator-based (no manual providers)
-  flutter_riverpod:
-  riverpod_annotation:
+  flutter_riverpod: ^3.4.3
+  riverpod_annotation: ^4.0.7
 
   # Routing — typed routes via go_router_builder
-  go_router:
+  go_router: ^18.1.1
 
   # Models
-  freezed_annotation:
-  json_annotation:
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.12.0
 
   # Persistence
-  drift:
-  drift_flutter:
+  drift: ^2.35.3
+  drift_flutter: ^0.3.1
 
   # Desktop window chrome
-  window_manager:
+  window_manager: ^0.5.2
 
   # Icons + type
-  lucide_icons_flutter:
-  google_fonts:
+  lucide_icons_flutter: ^4.0.1
+  google_fonts: ^9.0.0
 
   # Utilities
-  collection:
+  collection: ^1.19.1
   flutter_inappwebview: ^6.1.5
-  gpt_markdown: ^1.1.7
+  gpt_markdown: ^1.4.0
   # The Material library gpt_markdown is built on. Its Theme is a different
   # class from package:flutter/material.dart's, so AppMarkdown themes with it.
-  material_ui:
+  material_ui: ^1.8.0
 
   # Charts (benchmark throughput over time, per-request breakdown)
-  syncfusion_flutter_charts:
+  syncfusion_flutter_charts: ^35.1.41
   hooks: ^2.2.0
   code_assets: ^2.1.0
   ffi: ^2.2.0
@@ -58,22 +60,22 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints:
+  flutter_lints: ^6.0.0
 
-  build_runner:
+  build_runner: ^2.16.2
 
   # riverpod codegen
-  riverpod_generator:
+  riverpod_generator: ^4.0.9
 
   # freezed / json codegen
-  freezed:
-  json_serializable:
+  freezed: ^4.0.3
+  json_serializable: ^6.15.2
 
   # routing codegen
-  go_router_builder:
+  go_router_builder: ^4.5.2
 
   # drift codegen
-  drift_dev:
+  drift_dev: ^2.35.2
 
 flutter:
   uses-material-design: true

@@ -141,6 +141,12 @@ class UpdateInstaller {
     if (roots.length != 1) {
       throw const UpdateException('The update archive should hold one folder.');
     }
+    if (Platform.isMacOS && !await isCodeSigned(roots.single.path)) {
+      throw const UpdateException(
+        "The update isn't signed with ZML-Lab's certificate, so it isn't "
+        'installed.',
+      );
+    }
     await roots.single.rename(_stagedApp.path);
     await unpacked.delete(recursive: true);
     await archive.delete();
@@ -229,6 +235,23 @@ class UpdateInstaller {
     }
     return body;
   }
+}
+
+/// Whether the macOS app at [path] has a valid code signature, nested code
+/// included, that satisfies [requirement].
+Future<bool> isCodeSigned(
+  String path, {
+  String requirement = updateCodeRequirement,
+}) async {
+  final r = await Process.run('/usr/bin/codesign', [
+    '--verify',
+    '--deep',
+    '--strict',
+    // A leading '=' makes it the requirement's text, not a file.
+    '-R=$requirement',
+    path,
+  ]);
+  return r.exitCode == 0;
 }
 
 /// Waits for the app to exit, then puts the staged build in its place —

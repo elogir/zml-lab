@@ -19,6 +19,15 @@ const updateFeedUrl = String.fromEnvironment(
 /// `dart run tool/update_signing.dart generate`.
 const updatePublicKey = 'tB/rnTWxbzvPSgcviAa/LoShK2dSy9LgxQW15ZOhI5U=';
 
+/// What an unpacked macOS update must be code-signed as, on top of the
+/// archive's signature: our bundle id and the release certificate
+/// (`tool/macos_sign.sh`; the hash is the certificate's SHA-1). macOS keeps
+/// the app's permissions only while this stays the same, so an update that
+/// isn't signed this way (a release built ad hoc by mistake) isn't installed.
+const updateCodeRequirement =
+    'identifier "ai.zml.lab" and '
+    'certificate leaf = H"26030c55cf8570725dff36177ae3f74c4874816a"';
+
 /// The release asset an OS installs from (`Platform.operatingSystem`), or null
 /// when there are no release builds for it.
 String? updateAssetFor(String os) => switch (os) {

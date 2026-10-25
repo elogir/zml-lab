@@ -47,7 +47,8 @@ jobs:
           gh release download zmlbench --pattern "libzmlbench-$(echo "$sha" | cut -c1-12).dylib" --output native/libzmlbench.dylib
           echo "$sha  native/libzmlbench.dylib" | shasum -a 256 -c
 
-      - run: flutter pub get
+      # Exactly the versions and content hashes in pubspec.lock, or fail.
+      - run: flutter pub get --enforce-lockfile
 
       - name: Build
         run: >-

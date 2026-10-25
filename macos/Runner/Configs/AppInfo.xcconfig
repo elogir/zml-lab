@@ -8,7 +8,10 @@
 PRODUCT_NAME = ZML-Lab
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.zmlLab
+// (part of the app's code identity, with the signing certificate: changing it
+// makes macOS ask for every permission again, and updates check it, see
+// updateCodeRequirement).
+PRODUCT_BUNDLE_IDENTIFIER = ai.zml.lab
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 ZML. All rights reserved.
