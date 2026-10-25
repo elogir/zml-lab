@@ -285,12 +285,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     title: 'Model',
                     description:
                         'Sent with each request. vLLM needs the real name; '
-                        'llmd ignores it.',
+                        'llmd ignores it. Empty = the server\'s model, when '
+                        '/v1/models lists just one (else zml_model).',
                     stacked: true,
                     control: AppTextField(
                       controller: _benchModel,
                       mono: true,
-                      placeholder: 'zml_model',
+                      placeholder: 'from /v1/models',
                       onChanged: _controller.setBenchModel,
                     ),
                   ),

@@ -13,7 +13,9 @@ void main() {
   for (final (width, height) in [
     (340.0, 800.0),
     (520.0, 800.0),
+    (650.0, 800.0),
     (900.0, 800.0),
+    (1000.0, 800.0),
     (1400.0, 800.0),
     (340.0, 420.0),
     (900.0, 420.0),
@@ -66,7 +68,8 @@ void main() {
       final batch = rect(batchField);
       final maxTokens = rect(field((f) => f.placeholder == '∞'));
       final temp = rect(field((f) => f.placeholder == 'auto'));
-      final model = rect(field((f) => f.placeholder == 'zml_model'));
+      // (Before the server's models are known.)
+      final model = rect(field((f) => f.placeholder == 'from /v1/models'));
       final prompt = rect(field((f) => f.prefix == '>'));
       // The visible button (the first is a hidden copy reserving its width).
       final send = rect(find.widgetWithText(AppButton, 'Send batch').last);
@@ -75,9 +78,15 @@ void main() {
       expect(maxTokens.top, closeTo(batch.top, 0.01));
       expect(temp.top, closeTo(batch.top, 0.01));
       expect(maxTokens.height, closeTo(batch.height, 0.01));
-      // Send is exactly as tall as the field beside it, on the same line.
-      expect(send.top, closeTo(model.top, 0.01));
+      // Send is exactly a field's height, on the model's line — narrowest,
+      // on the line under it, the model then a whole line wide.
       expect(send.height, closeTo(model.height, 0.01));
+      if (width >= 540) {
+        expect(send.top, closeTo(model.top, 0.01));
+      } else {
+        expect(send.top, greaterThan(model.bottom));
+        expect(model.width, closeTo(width, 1));
+      }
       // Very wide: the prompt joins the settings' line at the same height.
       if (width >= 1150) {
         expect(prompt.top, closeTo(batch.top, 0.01));
@@ -88,24 +97,23 @@ void main() {
       // No trailing gap: Send ends where the row ends (the settings fill it).
       expect(send.right, closeTo(width, 1));
       // Send follows the prompt on the one-row layout, the model otherwise,
-      // with Ignore EOS between them; narrow, Ignore EOS gets a line of its
-      // own above the model. Batch always starts the settings at the left
-      // edge.
+      // with Ignore EOS between them; narrowest, Ignore EOS starts Send's
+      // line. Batch always starts the settings at the left edge.
       final beforeSend = width >= 1150 ? prompt : model;
       final toggle = rect(find.widgetWithText(CheckToggle, 'Ignore EOS').last);
-      if (width >= 600) {
+      expect(toggle.center.dy, closeTo(send.center.dy, 1));
+      if (width >= 540) {
         expect(toggle.left - beforeSend.right, lessThan(20));
         expect(send.left - toggle.right, lessThan(20));
-        expect(toggle.center.dy, closeTo(send.center.dy, 1));
       } else {
-        expect(send.left - beforeSend.right, lessThan(20));
-        expect(toggle.top, greaterThan(batch.bottom));
-        expect(toggle.bottom, lessThan(model.top));
+        expect(toggle.left, closeTo(0, 1));
       }
       expect(batch.left, closeTo(0, 1));
       // Room for a 4-digit batch size beside the dropdown segment (128 px
       // on one line; an equal share of the row when stacked).
-      expect(batch.width, greaterThanOrEqualTo(width >= 600 ? 128 : 100));
+      expect(batch.width, greaterThanOrEqualTo(width >= 960 ? 128 : 100));
+      // Room for a model name, however the row wraps.
+      expect(model.width, greaterThanOrEqualTo(150));
 
       // Stats form a grid: every label starts at one of the first row's
       // column edges, whether they fit on one line or wrap.

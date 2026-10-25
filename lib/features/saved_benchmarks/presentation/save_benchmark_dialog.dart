@@ -92,7 +92,7 @@ class _SaveDialogState extends ConsumerState<_SaveDialog> {
             machineName: widget.machineName,
             command: widget.command,
             prompt: run.prompt,
-            model: run.model,
+            model: run.sentModel,
             maxTokens: run.maxTokens,
             temperature: run.temperature,
             ignoreEos: run.ignoreEos,

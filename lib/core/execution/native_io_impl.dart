@@ -388,6 +388,37 @@ Future<void> _chatBatchWorker(
   }
 }
 
+/// The model ids [endpoint] serves (`GET …/models`, with its bearer key if
+/// any) — for the Model fields' ▾ and an empty Model at run start. Empty on
+/// any failure.
+Future<List<String>> listModels(
+  ChatEndpoint endpoint, {
+  Duration timeout = const Duration(seconds: 4),
+}) async {
+  final client = HttpClient()..connectionTimeout = timeout;
+  try {
+    final request = await client.getUrl(endpoint.models).timeout(timeout);
+    final key = endpoint.apiKey;
+    if (key != null && key.isNotEmpty) {
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $key');
+    }
+    final response = await request.close().timeout(timeout);
+    final body = await response.transform(utf8.decoder).join().timeout(timeout);
+    final decoded = jsonDecode(body);
+    if (decoded is! Map) return const [];
+    final data = decoded['data'];
+    if (data is! List) return const [];
+    return [
+      for (final m in data)
+        if (m is Map && m['id'] is String) m['id'] as String,
+    ];
+  } catch (_) {
+    return const [];
+  } finally {
+    client.close(force: true);
+  }
+}
+
 /// Whether [host] answers a ping (one echo request, given [timeout] to
 /// reply) — the machines' reachability dot. Needs nothing from the host but
 /// ICMP: no ssh, no open port. A host whose firewall drops pings reads as

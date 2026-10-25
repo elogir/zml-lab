@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../../../core/execution/native_io.dart';
+
 /// Expands a leading `~` to the home directory.
 String expandUserPath(String path) {
   final home = Platform.environment['HOME'];
@@ -64,32 +66,13 @@ int? fileSize(String path) {
   return f.existsSync() ? f.lengthSync() : null;
 }
 
-/// GET /v1/models → model ids, for prefilling the form (vLLM needs a real
-/// model name; llmd ignores it). Empty on any failure.
+/// GET /v1/models → model ids (vLLM needs a real model name; llmd ignores
+/// it). Empty on any failure.
 Future<List<String>> fetchModelIds({
   required String host,
   required int port,
   Duration timeout = const Duration(seconds: 4),
-}) async {
-  final client = HttpClient()..connectionTimeout = timeout;
-  try {
-    final request = await client.get(host, port, '/v1/models').timeout(timeout);
-    final response = await request.close().timeout(timeout);
-    final body = await response.transform(utf8.decoder).join().timeout(timeout);
-    final decoded = jsonDecode(body);
-    if (decoded is! Map) return const [];
-    final data = decoded['data'];
-    if (data is! List) return const [];
-    return [
-      for (final m in data)
-        if (m is Map && m['id'] is String) m['id'] as String,
-    ];
-  } catch (_) {
-    return const [];
-  } finally {
-    client.close(force: true);
-  }
-}
+}) => listModels(ChatEndpoint.hostPort(host, port), timeout: timeout);
 
 /// One small non-streaming chat completion, awaited fully — warms the server
 /// up (first request often compiles/allocates) so the measured run starts

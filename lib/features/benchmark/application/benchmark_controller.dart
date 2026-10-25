@@ -132,8 +132,20 @@ class BenchmarkController extends _$BenchmarkController {
 
   void setPrompt(String prompt) => state = state.copyWith(prompt: prompt);
 
-  /// Empty = send `zml_model` (the server-agnostic default).
-  void setModel(String model) => state = state.copyWith(model: model.trim());
+  /// Empty = the server's model, when it serves just one (see [start]).
+  void setModel(String model) =>
+      state = state.copyWith(model: model.trim(), startError: null);
+
+  /// Asks [endpoint] which models it serves, for the Model field's ▾ and
+  /// placeholder. Never fills the field: it stays an override.
+  Future<void> detectModels(ChatEndpoint endpoint) async {
+    final ids = await listModels(endpoint);
+    if (ref.mounted) state = state.copyWith(serverModels: ids);
+  }
+
+  /// Bumped by every [start], so a slower earlier one (still asking for the
+  /// models) gives way.
+  int _startSeq = 0;
 
   void setBatchSize(int size) =>
       state = state.copyWith(batchSize: size < 1 ? 1 : size);
@@ -151,7 +163,27 @@ class BenchmarkController extends _$BenchmarkController {
   void setIgnoreEos(bool on) => state = state.copyWith(ignoreEos: on);
 
   /// Fires the batch at [endpoint]'s `/chat/completions`.
-  void start({required ChatEndpoint endpoint}) {
+  ///
+  /// An empty Model asks the endpoint's `/models` first: its only model is
+  /// sent (and recorded as [BenchmarkRun.sentModel]); several and nothing
+  /// starts, [BenchmarkRun.startError] asking to pick one; none (or no
+  /// answer) sends `zml_model`.
+  Future<void> start({required ChatEndpoint endpoint}) async {
+    final seq = ++_startSeq;
+    var model = state.model;
+    if (model.isEmpty) {
+      final ids = await listModels(endpoint);
+      if (!ref.mounted || seq != _startSeq) return;
+      state = state.copyWith(serverModels: ids);
+      if (ids.length > 1) {
+        state = state.copyWith(
+          startError:
+              'The server serves ${ids.length} models: pick one in Model.',
+        );
+        return;
+      }
+      model = ids.firstOrNull ?? '';
+    }
     _teardown();
     final n = state.batchSize;
     final prompt = state.prompt.trim().isEmpty
@@ -166,6 +198,8 @@ class BenchmarkController extends _$BenchmarkController {
 
     state = state.copyWith(
       isRunning: true,
+      sentModel: model,
+      startError: null,
       elapsed: Duration.zero,
       frozenAggregate: 0,
       runToken: state.runToken + 1,
@@ -189,7 +223,7 @@ class BenchmarkController extends _$BenchmarkController {
           count: n,
           maxTokens: state.maxTokens,
           temperature: state.temperature,
-          model: state.model,
+          model: model,
           ignoreEos: state.ignoreEos,
           // Token-by-token for a small batch; coarser merges for a big one,
           // whose flushes back off anyway (see [_flushInterval]).
@@ -244,11 +278,13 @@ class BenchmarkController extends _$BenchmarkController {
   /// opened from a request in the cleared batch resets instead of mirroring a
   /// request that no longer exists.
   void clear() {
+    _startSeq++; // a Send still asking for the models doesn't start after all
     _teardown();
     _samples.clear();
     _samplesSnapshot = const [];
     state = state.copyWith(
       isRunning: false,
+      startError: null,
       runToken: state.runToken + 1,
       requests: const [],
       samples: const [],

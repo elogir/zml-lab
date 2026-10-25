@@ -113,9 +113,21 @@ abstract class BenchmarkRun with _$BenchmarkRun {
     /// Sampling temperature. Null means the server's default.
     double? temperature,
 
-    /// Model name sent with each request (vLLM requires the real one; llmd
-    /// ignores it). Empty = send `zml_model`.
+    /// The Model field: an override (vLLM requires the real name; llmd
+    /// ignores it). Empty = the server's model when `/models` lists just one,
+    /// else `zml_model` (see [sentModel]).
     @Default('') String model,
+
+    /// The model the current batch was sent with: [model], or what an empty
+    /// one resolved to. Empty = `zml_model`. What saves and copies report.
+    @Default('') String sentModel,
+
+    /// What the endpoint's `/models` listed when last asked (null = not yet):
+    /// the Model field's ▾ and placeholder.
+    List<String>? serverModels,
+
+    /// Why the last Send didn't start a batch (several models, none picked).
+    String? startError,
 
     /// Generate past EOS up to [maxTokens] (`ignore_eos`; llmd, vLLM,
     /// SGLang): every reply the same length, for comparable runs.

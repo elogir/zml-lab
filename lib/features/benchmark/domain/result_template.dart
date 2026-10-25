@@ -28,8 +28,9 @@ class BenchmarkResult {
   }) => BenchmarkResult(
     machine: machine,
     endpoint: endpoint,
-    // What was actually sent: an empty field sends `zml_model`.
-    model: run.model.isEmpty ? 'zml_model' : run.model,
+    // What was actually sent (the field, or the server's only model), else
+    // `zml_model`.
+    model: run.sentModel.isEmpty ? 'zml_model' : run.sentModel,
     prompt: run.prompt,
     batchSize: run.requests.isEmpty ? run.batchSize : run.requests.length,
     maxTokens: run.maxTokens,

@@ -67,6 +67,11 @@ Stream<List<ChatBatchDelta>> streamChatBatch(
   ]);
 }
 
+Future<List<String>> listModels(
+  ChatEndpoint endpoint, {
+  Duration timeout = const Duration(seconds: 4),
+}) async => const [];
+
 Future<bool> pingHost(
   String host, {
   Duration timeout = const Duration(seconds: 2),

@@ -78,6 +78,25 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
       text: run.temperature?.toString() ?? '',
     );
     _model = TextEditingController(text: run.model);
+    // What the server serves, for the Model field's placeholder.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _controller.detectModels(widget.target),
+    );
+  }
+
+  @override
+  void didUpdateWidget(BenchmarkView old) {
+    super.didUpdateWidget(old);
+    // Another target: another server, maybe other models.
+    if (old.target != widget.target) _controller.detectModels(widget.target);
+  }
+
+  /// The Model field's ▾: asks the server again, then lists what it serves.
+  Future<List<String>> _loadModels() async {
+    await _controller.detectModels(widget.target);
+    if (!mounted) return const [];
+    return ref.read(benchmarkControllerProvider(widget.jobId)).serverModels ??
+        const [];
   }
 
   @override
@@ -110,7 +129,7 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
       );
       if (!ok || !mounted) return;
     }
-    _controller.start(endpoint: target);
+    await _controller.start(endpoint: target);
   }
 
   void _saveBenchmark() {
@@ -164,6 +183,8 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
           maxTokens: _maxTokens,
           temperature: _temperature,
           model: _model,
+          serverModels: run.serverModels,
+          loadModels: _loadModels,
           ignoreEos: run.ignoreEos,
           onIgnoreEosChanged: _controller.setIgnoreEos,
           running: run.isRunning,
@@ -183,12 +204,16 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
         ),
         const SizedBox(height: AppSpacing.lg),
         _AggregateBar(run: run, copyText: copyText),
+        if (run.startError case final error?) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _Notice(error, error: true),
+        ],
         // Truncation callout — some replies were cut off by a token limit
         // rather than finishing, so the numbers describe clipped responses.
         // Not when ignoring EOS: hitting the cap is the point then.
         if (!run.isRunning && !run.ignoreEos && run.truncatedCount > 0) ...[
           const SizedBox(height: AppSpacing.sm),
-          _TruncationNotice(run: run),
+          _Notice(_truncationMessage(run)),
         ],
         const SizedBox(height: AppSpacing.lg),
         Expanded(
@@ -232,6 +257,8 @@ class _Controls extends StatelessWidget {
     required this.maxTokens,
     required this.temperature,
     required this.model,
+    required this.serverModels,
+    required this.loadModels,
     required this.ignoreEos,
     required this.onIgnoreEosChanged,
     required this.running,
@@ -250,6 +277,10 @@ class _Controls extends StatelessWidget {
   final TextEditingController maxTokens;
   final TextEditingController temperature;
   final TextEditingController model;
+
+  /// What the server's `/models` listed (null = not asked yet).
+  final List<String>? serverModels;
+  final Future<List<String>> Function() loadModels;
   final bool ignoreEos;
   final ValueChanged<bool> onIgnoreEosChanged;
   final bool running;
@@ -282,6 +313,7 @@ class _Controls extends StatelessWidget {
         // fewer). Otherwise it gets a line of its own above them.
         final oneRow = constraints.maxWidth >= _promptInlineWidth;
         final wide = constraints.maxWidth >= _oneLineWidth;
+        final modelBesideSend = constraints.maxWidth >= _modelLineWidth;
         // Shares of the row: on one line the settings fill it in
         // proportion (Model + Send the biggest, so nothing balloons and
         // no gap trails Send); stacked, the numbers split it equally.
@@ -333,10 +365,20 @@ class _Controls extends StatelessWidget {
             2,
           ),
         ];
-        final modelField = AppTextField(
+        // An override: empty sends the server's model when it serves just
+        // one, `zml_model` when it lists none (llmd ignores the name; vLLM
+        // requires the real one). The ▾ lists what it serves.
+        final models = serverModels;
+        final modelField = SettingField(
           controller: model,
-          mono: true,
-          placeholder: 'zml_model',
+          placeholder: switch (models) {
+            [final only] => '$only (auto)',
+            [_, _, ...] => 'pick one of ${models.length} models',
+            [] => 'zml_model',
+            null => 'from /v1/models',
+          },
+          loadPresets: loadModels,
+          noPresets: 'no models at /v1/models',
           onChanged: onModelChanged,
         );
         // Every reply runs to the token cap: comparable runs.
@@ -345,13 +387,17 @@ class _Controls extends StatelessWidget {
           value: ignoreEos,
           onChanged: onIgnoreEosChanged,
         );
-        // [field] with Send (and Stop) beside it at exactly its height —
-        // and Ignore EOS before them when [withToggle].
-        Widget withActions(
-          String label,
-          Widget field, {
-          bool withToggle = true,
-        }) => LabeledControl(
+        Widget sendButton({required bool stretch}) => RunActions(
+          label: 'Send batch',
+          icon: AppIcons.send,
+          running: running,
+          onRun: onSend,
+          onStop: onCancel,
+          stretch: stretch,
+        );
+        // [field] with Ignore EOS and Send (or Stop) beside it, at exactly
+        // its height.
+        Widget withActions(String label, Widget field) => LabeledControl(
           label: label,
           child: FieldWithActions(
             field: field,
@@ -361,28 +407,16 @@ class _Controls extends StatelessWidget {
                   ? CrossAxisAlignment.stretch
                   : CrossAxisAlignment.center,
               children: [
-                if (withToggle) ...[
-                  ignoreEosToggle,
-                  const SizedBox(width: AppSpacing.md),
-                ],
-                RunActions(
-                  label: 'Send batch',
-                  icon: AppIcons.send,
-                  running: running,
-                  onRun: onSend,
-                  onStop: onCancel,
-                  stretch: stretch,
-                ),
+                ignoreEosToggle,
+                const SizedBox(width: AppSpacing.md),
+                sendButton(stretch: stretch),
               ],
             ),
           ),
         );
-        // Empty model sends `zml_model` — llmd ignores the name, vLLM
-        // requires a real one.
-        // Narrow: Ignore EOS gets its own line, so Send keeps its room.
         final send = Expanded(
-          flex: wide ? 5 : 1,
-          child: withActions('Model', modelField, withToggle: wide),
+          flex: wide ? 8 : 1,
+          child: withActions('Model', modelField),
         );
         // Labels sit above their fields, so fields line up and the
         // button aligns with them at the bottom.
@@ -395,7 +429,7 @@ class _Controls extends StatelessWidget {
               ...numbers,
               const SizedBox(width: AppSpacing.md),
               Expanded(
-                flex: 3,
+                flex: 4,
                 child: LabeledControl(label: 'Model', child: modelField),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -420,12 +454,36 @@ class _Controls extends StatelessWidget {
             else ...[
               Row(children: numbers),
               const SizedBox(height: AppSpacing.sm),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: FieldHeight(child: ignoreEosToggle),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Row(children: [send]),
+              if (modelBesideSend)
+                Row(children: [send])
+              else ...[
+                // Narrowest: the model gets the whole line, Ignore EOS and
+                // Send one under it.
+                LabeledControl(label: 'Model', child: modelField),
+                const SizedBox(height: AppSpacing.sm),
+                Stack(
+                  children: [
+                    // A field's height…
+                    const Visibility.maintain(
+                      visible: false,
+                      child: AppTextField(mono: true),
+                    ),
+                    Positioned(
+                      top: 0,
+                      bottom: 0,
+                      left: 0,
+                      child: Center(child: ignoreEosToggle),
+                    ),
+                    // …Send at the right, filling it.
+                    Positioned(
+                      top: 0,
+                      bottom: 0,
+                      right: 0,
+                      child: sendButton(stretch: true),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ],
         );
@@ -433,30 +491,44 @@ class _Controls extends StatelessWidget {
     );
   }
 
+  // The breakpoints keep the model field ~250 px wide or more: room for a
+  // model name, not just its first letters.
+
   /// From this width the prompt joins the settings' row.
   static const _promptInlineWidth = 1150.0;
 
-  /// Below this the controls split into two rows.
-  static const _oneLineWidth = 600.0;
+  /// Below this the model and Send get a line of their own, under the
+  /// numbers.
+  static const _oneLineWidth = 960.0;
+
+  /// Below this the model gets a line to itself, Ignore EOS and Send one
+  /// under it.
+  static const _modelLineWidth = 540.0;
 }
 
-/// Shown after a run in which replies were cut off by a token limit — either
-/// the configured max-tokens cap or the server's max sequence length.
-class _TruncationNotice extends StatelessWidget {
-  const _TruncationNotice({required this.run});
+/// After a run in which replies were cut off by a token limit — either the
+/// configured max-tokens cap or the server's max sequence length.
+String _truncationMessage(BenchmarkRun run) {
+  final total = run.requests.length;
+  return run.maxTokens == null
+      ? '${run.truncatedCount} of $total responses stopped at the '
+            'server\'s max sequence length before finishing.'
+      : '${run.truncatedCount} of $total responses hit the '
+            '${run.maxTokens}-token cap before finishing.';
+}
 
-  final BenchmarkRun run;
+/// A callout above the results: a warning (replies cut off), or an [error]
+/// (why a Send didn't start).
+class _Notice extends StatelessWidget {
+  const _Notice(this.message, {this.error = false});
+
+  final String message;
+  final bool error;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final color = c.statusStarting;
-    final total = run.requests.length;
-    final message = run.maxTokens == null
-        ? '${run.truncatedCount} of $total responses stopped at the '
-              'server\'s max sequence length before finishing.'
-        : '${run.truncatedCount} of $total responses hit the '
-              '${run.maxTokens}-token cap before finishing.';
+    final color = error ? c.statusFailed : c.statusStarting;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,

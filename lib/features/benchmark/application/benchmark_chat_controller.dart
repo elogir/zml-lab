@@ -236,7 +236,7 @@ class BenchmarkChatController extends _$BenchmarkChatController {
           messages,
           maxTokens: run.maxTokens,
           temperature: run.temperature,
-          model: run.model,
+          model: run.sentModel,
         ).listen(
           (tok) {
             final content = tok.content;

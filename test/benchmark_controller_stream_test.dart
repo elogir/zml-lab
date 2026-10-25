@@ -9,14 +9,29 @@ import 'package:zml_lab/models/benchmark.dart';
 
 /// A minimal OpenAI-style streaming endpoint: every request gets [words]
 /// content deltas ("w0 ", "w1 ", …), a stop, then [DONE]. Request bodies go
-/// to [bodies] when given.
+/// to [bodies] when given. `/v1/models` lists [models] (read per request, so
+/// a test can change them).
 Future<HttpServer> _fakeServer({
   required int words,
   Duration pace = const Duration(milliseconds: 3),
   List<Map<String, dynamic>>? bodies,
+  List<String> models = const ['org/model'],
 }) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   server.listen((req) async {
+    if (req.uri.path == '/v1/models') {
+      req.response
+        ..headers.contentType = ContentType.json
+        ..write(
+          jsonEncode({
+            'data': [
+              for (final m in models) {'id': m},
+            ],
+          }),
+        );
+      await req.response.close();
+      return;
+    }
     final body = await utf8.decoder.bind(req).join();
     bodies?.add(jsonDecode(body) as Map<String, dynamic>);
     // Unbuffered, so each delta goes out as written (like a real server).
@@ -64,7 +79,7 @@ void main() {
       addTearDown(container.dispose);
       final provider = benchmarkControllerProvider('t');
       final controller = container.read(provider.notifier)..setBatchSize(batch);
-      controller.start(
+      await controller.start(
         endpoint: ChatEndpoint.hostPort('127.0.0.1', server.port),
       );
 
@@ -121,9 +136,10 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final provider = benchmarkControllerProvider('t');
-      final controller = container.read(provider.notifier)
-        ..setBatchSize(batch)
-        ..start(endpoint: ChatEndpoint.hostPort('127.0.0.1', server.port));
+      final controller = container.read(provider.notifier)..setBatchSize(batch);
+      await controller.start(
+        endpoint: ChatEndpoint.hostPort('127.0.0.1', server.port),
+      );
       await Future<void>.delayed(const Duration(milliseconds: 1500));
       controller.cancel();
 
@@ -163,7 +179,7 @@ void main() {
       final endpoint = ChatEndpoint.hostPort('127.0.0.1', server.port);
 
       Future<void> runBatch() async {
-        controller.start(endpoint: endpoint);
+        await controller.start(endpoint: endpoint);
         final deadline = DateTime.now().add(const Duration(seconds: 10));
         while (container.read(provider).isRunning &&
             DateTime.now().isBefore(deadline)) {
@@ -184,6 +200,72 @@ void main() {
       await runBatch();
       expect(bodies, hasLength(4));
       expect(bodies.any((b) => b.containsKey('ignore_eos')), isFalse);
+    });
+  });
+
+  testWidgets('an empty Model is resolved from /v1/models, never filled', (
+    tester,
+  ) async {
+    final mocked = HttpOverrides.current;
+    HttpOverrides.global = null;
+    addTearDown(() => HttpOverrides.global = mocked);
+
+    await tester.runAsync(() async {
+      final bodies = <Map<String, dynamic>>[];
+      final models = ['org/only'];
+      final server = await _fakeServer(
+        words: 3,
+        bodies: bodies,
+        models: models,
+      );
+      addTearDown(() => server.close(force: true));
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final provider = benchmarkControllerProvider('t');
+      final controller = container.read(provider.notifier)..setBatchSize(2);
+      final endpoint = ChatEndpoint.hostPort('127.0.0.1', server.port);
+
+      Future<void> runBatch() async {
+        bodies.clear();
+        await controller.start(endpoint: endpoint);
+        final deadline = DateTime.now().add(const Duration(seconds: 10));
+        while (container.read(provider).isRunning &&
+            DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+      }
+
+      // Just one: sent, and recorded as what was sent — the field stays
+      // empty.
+      await runBatch();
+      expect(bodies.map((b) => b['model']), ['org/only', 'org/only']);
+      var run = container.read(provider);
+      expect(run.model, isEmpty);
+      expect(run.sentModel, 'org/only');
+      expect(run.serverModels, ['org/only']);
+
+      // None listed: `zml_model`, as before.
+      models.clear();
+      await runBatch();
+      expect(bodies.map((b) => b['model']), ['zml_model', 'zml_model']);
+      expect(container.read(provider).sentModel, isEmpty);
+
+      // Several: nothing starts (the last batch stays), it asks for one.
+      models.addAll(['org/a', 'org/b']);
+      await runBatch();
+      expect(bodies, isEmpty);
+      run = container.read(provider);
+      expect(run.isRunning, isFalse);
+      expect(run.requests, hasLength(2));
+      expect(run.startError, contains('pick one'));
+      expect(run.serverModels, ['org/a', 'org/b']);
+
+      // Picked: sent as is, and the ask goes away.
+      controller.setModel('org/b');
+      expect(container.read(provider).startError, isNull);
+      await runBatch();
+      expect(bodies.map((b) => b['model']), ['org/b', 'org/b']);
+      expect(container.read(provider).sentModel, 'org/b');
     });
   });
 }
