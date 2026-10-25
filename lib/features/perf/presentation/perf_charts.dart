@@ -264,6 +264,76 @@ class PerfSeriesChart extends StatelessWidget {
   }
 }
 
+/// Several finished runs' throughput over time, one line each — the
+/// Compare view's chart.
+class PerfCompareChart extends StatelessWidget {
+  const PerfCompareChart({super.key, required this.runs});
+
+  final List<({String name, Color color, List<PerfSeriesPoint> series})> runs;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final drawn = [
+      for (final r in runs)
+        if (r.series.length >= 2) r,
+    ];
+    if (drawn.isEmpty) {
+      return Center(
+        child: Text('No time series saved', style: context.text.smallMuted),
+      );
+    }
+    final label = context.text.monoSmall.copyWith(color: c.textFaint);
+    final maxSec = drawn
+        .map((r) => r.series.last.elapsedMs / 1000.0)
+        .fold(0.0, math.max);
+    final step = _niceStep(maxSec);
+    final maxY = drawn
+        .expand((r) => r.series)
+        .map((s) => s.tps)
+        .fold(0.0, math.max);
+    return ChartTrackball(
+      grouped: true,
+      builder: (context, trackball) => SfCartesianChart(
+        backgroundColor: const Color(0x00000000),
+        plotAreaBorderWidth: 0,
+        margin: EdgeInsets.zero,
+        primaryXAxis: NumericAxis(
+          minimum: 0,
+          maximum: (maxSec / step).ceil() * step,
+          interval: step,
+          labelFormat: '{value}s',
+          labelStyle: label,
+          axisLine: AxisLine(width: 0.5, color: c.borderMuted),
+          majorTickLines: const MajorTickLines(size: 0),
+          majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
+        ),
+        primaryYAxis: NumericAxis(
+          minimum: 0,
+          maximum: stableAxisMax(maxY),
+          labelStyle: label,
+          axisLine: const AxisLine(width: 0),
+          majorTickLines: const MajorTickLines(size: 0),
+          majorGridLines: MajorGridLines(width: 0.5, color: c.borderMuted),
+        ),
+        trackballBehavior: trackball,
+        series: <CartesianSeries<PerfSeriesPoint, double>>[
+          for (final r in drawn)
+            LineSeries<PerfSeriesPoint, double>(
+              dataSource: r.series,
+              name: r.name,
+              xValueMapper: (s, _) => s.elapsedMs / 1000.0,
+              yValueMapper: (s, _) => s.tps,
+              color: r.color,
+              width: 2,
+              animationDuration: 0,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Bin {
   const _Bin(this.x, this.count);
 

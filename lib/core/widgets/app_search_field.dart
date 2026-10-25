@@ -5,24 +5,28 @@ import 'app_icons.dart';
 import 'app_text_field.dart';
 
 /// A search input built on [AppTextField]: a magnifier prefix and a clear
-/// button that appears once there's text. Owns its own controller and reports
-/// the query through [onChanged].
+/// button that appears once there's text. Owns its own controller (starting
+/// at [initialValue]) and reports the query through [onChanged].
 class AppSearchField extends StatefulWidget {
   const AppSearchField({
     super.key,
     required this.onChanged,
     this.hintText = 'Search',
+    this.initialValue = '',
   });
 
   final ValueChanged<String> onChanged;
   final String hintText;
+  final String initialValue;
 
   @override
   State<AppSearchField> createState() => _AppSearchFieldState();
 }
 
 class _AppSearchFieldState extends State<AppSearchField> {
-  final TextEditingController _controller = TextEditingController();
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialValue,
+  );
 
   @override
   void dispose() {
