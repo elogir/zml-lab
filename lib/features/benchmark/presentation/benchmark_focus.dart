@@ -60,22 +60,15 @@ class _ChatViewState extends ConsumerState<_ChatView> {
   @override
   void initState() {
     super.initState();
-    // A reply still streaming: open on its tail. A finished chat opens at
-    // its start, the button offering the end.
+    // Open on the end, streaming or finished: the newest reply is what the
+    // card was clicked for. Again a frame later, as the lazy list sizes what
+    // it builds on the way down.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scroll.hasClients) return;
-      final chat = ref.read(
-        benchmarkChatControllerProvider(
-          widget.jobId,
-          widget.index,
-          widget.endpoint,
-        ),
-      );
-      if (chat.isStreaming) {
-        _followToBottom();
-      } else if (_scroll.position.maxScrollExtent > 0) {
-        setState(() => _follow = false);
-      }
+      _jumping = true;
+      _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      _jumping = false;
+      _followToBottom();
     });
   }
 
@@ -112,22 +105,35 @@ class _ChatViewState extends ConsumerState<_ChatView> {
   void _followToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_follow && _scroll.hasClients) {
+        _jumping = true;
         _scroll.jumpTo(_scroll.position.maxScrollExtent);
+        _jumping = false;
       }
     });
   }
 
-  /// The user's scrolling (and our own jumps) decide whether to follow: at
-  /// the bottom, yes. Text arriving doesn't scroll, so it can't turn it off.
+  /// Set while [_followToBottom] scrolls, so [_onScroll] only judges the
+  /// user's scrolling.
+  bool _jumping = false;
+
+  /// The user's scrolling decides whether to follow: the slightest scroll up
+  /// stops it (the next token would yank them back otherwise), scrolling
+  /// back down to the bottom resumes it. Text arriving doesn't scroll, so it
+  /// can't change it.
   bool _onScroll(ScrollUpdateNotification n) {
-    if (n.depth != 0) return false; // a code block's own scrolling
+    if (n.depth != 0 || _jumping) return false; // a code block's own scroll
     final m = n.metrics;
-    final atBottom = m.pixels >= m.maxScrollExtent - _bottomSlack;
-    if (atBottom != _follow) setState(() => _follow = atBottom);
+    final delta = n.scrollDelta ?? 0;
+    // Up, and not the bounce back from overscrolling past the bottom.
+    if (delta < 0 && m.pixels < m.maxScrollExtent) {
+      if (_follow) setState(() => _follow = false);
+    } else if (delta > 0 && m.pixels >= m.maxScrollExtent - _bottomSlack) {
+      if (!_follow) setState(() => _follow = true);
+    }
     return false;
   }
 
-  /// How near the bottom still counts as at it.
+  /// How near the bottom counts as back at it.
   static const _bottomSlack = 24.0;
 
   @override
