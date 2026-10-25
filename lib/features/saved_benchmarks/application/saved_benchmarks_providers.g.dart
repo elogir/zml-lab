@@ -180,7 +180,7 @@ final class SavedBrowserProvider
   }
 }
 
-String _$savedBrowserHash() => r'a2e2711bead9e3e4883cdd8d49365c3ee5816b1d';
+String _$savedBrowserHash() => r'52fa7cee9ad96078a3480a82280185e3a1e1e2c3';
 
 /// The Saved benchmarks tab's filters, sort, view and selection — kept
 /// while you're on other tabs.
