@@ -5,7 +5,7 @@ part 'benchmark_terminal_panel.g.dart';
 /// The terminal panel beside the Benchmark tab's tools: whether it's shown,
 /// and the share of the width it takes. Starts closed: the toggle opens it.
 class BenchmarkTerminalPanel {
-  const BenchmarkTerminalPanel({this.open = false, this.ratio = 0.45});
+  const BenchmarkTerminalPanel({this.open = false, this.ratio = 0.4});
 
   final bool open;
 

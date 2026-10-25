@@ -604,16 +604,19 @@ class _Controls extends StatelessWidget {
     );
   }
 
+  // The breakpoints keep the model field ~250 px wide or more: room for a
+  // model name, not just its first letters.
+
   /// From this width everything fits on one line.
-  static const _oneLineWidth = 1100.0;
+  static const _oneLineWidth = 1400.0;
 
   /// Below this the run controls get their own line (and below
   /// [_twoLineWidth], the choices too).
-  static const _twoLineWidth = 600.0;
+  static const _twoLineWidth = 700.0;
 
   /// Below this the model field gets a line to itself, the run controls
-  /// one under it: beside them it would shrink to nothing.
-  static const _modelLineWidth = 460.0;
+  /// one under it: beside them it would be too cramped for a model name.
+  static const _modelLineWidth = 540.0;
 }
 
 /// Live stats while running; save/export actions once done.
