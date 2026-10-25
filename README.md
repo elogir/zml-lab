@@ -20,6 +20,24 @@ their endpoints, and measure them.
 - **Machines** — the local box plus remote GPU hosts (address, ssh port/key),
   with live reachability dots.
 
+## Install
+
+Download `ZML-Lab.dmg` from the
+[latest release](https://github.com/elogir/zml-lab/releases/latest), open it
+and drag ZML-Lab onto Applications. The app is signed with our own
+certificate, not Apple's, so the first launch is blocked as from an
+unidentified developer: open System Settings → Privacy & Security and click
+**Open Anyway** (once). Or install without the download quarantine:
+
+```sh
+curl -fsSL https://github.com/elogir/zml-lab/releases/latest/download/zml-lab-macos.tar.gz | tar -xz -C /Applications
+```
+
+After that it updates itself (Settings → Updates), keeping its permissions.
+Data lives in `~/Library/Application Support/ZML-Lab`; builds before 0.1.4
+kept the database in `~/Documents`, which Settings → Data → Import brings
+over.
+
 ## Run it
 
 ```sh

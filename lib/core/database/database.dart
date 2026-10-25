@@ -1,13 +1,15 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import '../util/app_data.dart';
 import 'tables.dart';
 
 part 'database.g.dart';
 
-/// The app's single SQLite database (via drift). Starts empty — the local
-/// machine is added at startup (`ensureLocalMachine`); everything else is
-/// created by the user.
+/// The app's single SQLite database (via drift), `zml_lab.sqlite` in
+/// [appDataDir]. Starts empty — the local machine is added at startup
+/// (`ensureLocalMachine`); everything else is created by the user, or
+/// imported from an older install's file ([importFrom]).
 @DriftDatabase(
   tables: [
     Machines,
@@ -24,6 +26,7 @@ class AppDatabase extends _$AppDatabase {
         executor ??
             driftDatabase(
               name: 'zml_lab',
+              native: const DriftNativeOptions(databasePath: appDatabasePath),
               web: DriftWebOptions(
                 sqlite3Wasm: Uri.parse('sqlite3.wasm'),
                 driftWorker: Uri.parse('drift_worker.js'),
@@ -163,8 +166,48 @@ class AppDatabase extends _$AppDatabase {
     },
   );
 
-  Future<Set<String>> _columns(String table) async {
-    final rows = await customSelect('PRAGMA table_info($table)').get();
+  /// Adds what another ZML-Lab database at [path] has and this one doesn't
+  /// — an older install's `~/Documents/zml_lab.sqlite`, say. Rows already
+  /// here (same id or key) are kept as they are. Columns are matched by
+  /// name, so a file from an older schema imports too. Returns how many rows
+  /// each table gained.
+  Future<Map<String, int>> importFrom(String path) async {
+    await customStatement('ATTACH DATABASE ? AS old', [path]);
+    try {
+      final gained = <String, int>{};
+      await transaction(() async {
+        for (final table in allTables) {
+          final name = table.actualTableName;
+          final theirs = await _columns(name, schema: 'old');
+          // A file from before this table existed.
+          if (theirs.isEmpty) continue;
+          final cols = [
+            for (final c in await _columns(name))
+              if (theirs.contains(c)) '"$c"',
+          ].join(', ');
+          final before = await _count(name);
+          await customStatement(
+            'INSERT OR IGNORE INTO main."$name" ($cols) '
+            'SELECT $cols FROM old."$name"',
+          );
+          gained[name] = await _count(name) - before;
+        }
+      });
+      markTablesUpdated(allTables);
+      return gained;
+    } finally {
+      await customStatement('DETACH DATABASE old');
+    }
+  }
+
+  Future<int> _count(String table) async => (await customSelect(
+    'SELECT COUNT(*) AS n FROM main."$table"',
+  ).getSingle()).read<int>('n');
+
+  Future<Set<String>> _columns(String table, {String schema = 'main'}) async {
+    final rows = await customSelect(
+      'PRAGMA $schema.table_info("$table")',
+    ).get();
     return {for (final r in rows) r.read<String>('name')};
   }
 }

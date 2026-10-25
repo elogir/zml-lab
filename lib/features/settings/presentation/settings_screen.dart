@@ -1,10 +1,15 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/bootstrap.dart';
+import '../../../core/database/database_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/util/app_data.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/perf_report.dart';
 import '../../../models/settings.dart';
+import '../../../repositories/endpoint_repository.dart';
 import '../../perf/domain/bench_runner.dart';
 import '../../updates/application/updater.dart';
 import '../../updates/domain/update_release.dart';
@@ -94,23 +99,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _reset() async {
     await ref.read(settingsControllerProvider.notifier).resetAll();
-    if (!mounted) return;
-    // Mirror the fresh defaults back into the (uncontrolled) fields.
+    if (mounted) _mirrorFields();
+  }
+
+  /// Puts the current settings back into the (uncontrolled) fields, after
+  /// they changed under them (a reset, an import).
+  void _mirrorFields() {
     final s = ref.read(settingsControllerProvider);
     setState(() {
       _prompt.text = s.benchPrompt;
       _batch.text = '${s.benchBatchSize}';
-      _maxTokens.text = '';
-      _temperature.text = '';
-      _benchModel.text = '';
+      _maxTokens.text = s.benchMaxTokens?.toString() ?? '';
+      _temperature.text = s.benchTemperature?.toString() ?? '';
+      _benchModel.text = s.benchModel;
       _copyTemplate.text = s.benchCopyTemplate;
       _perfDataset.text = s.perfDatasetPath;
-      _perfZmlSmiPort.text = '';
+      _perfZmlSmiPort.text = s.perfZmlSmiPort == defaultZmlSmiPort
+          ? ''
+          : '${s.perfZmlSmiPort}';
       _perfDuration.text = '${s.perfParams.durationSeconds}';
       _perfConcurrency.text = '${s.perfParams.concurrency}';
-      _perfMaxTokens.text = '';
-      _perfModel.text = '';
+      _perfMaxTokens.text = s.perfParams.maxCompletionTokens?.toString() ?? '';
+      _perfModel.text = s.perfParams.model;
     });
+  }
+
+  /// What the last database import did, under its button.
+  String? _imported;
+
+  /// Picks an older install's database (in a file dialog, so macOS doesn't
+  /// ask for Documents access) and adds what it has to this one.
+  Future<void> _importDatabase() async {
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'ZML-Lab database', extensions: ['sqlite']),
+      ],
+      initialDirectory: legacyDatabaseDir(),
+      confirmButtonText: 'Import',
+    );
+    if (file == null || !mounted) return;
+    String result;
+    try {
+      if (file.path == await appDatabasePath()) {
+        throw 'that is the database in use';
+      }
+      final gained = await ref.read(appDatabaseProvider).importFrom(file.path);
+      // Settings rows may have come in, and endpoints whose keys didn't.
+      await _controller.load();
+      await syncEndpointKeys(
+        ref.read(endpointRepositoryProvider),
+        ref.read(apiKeyStoreProvider),
+      );
+      if (mounted) _mirrorFields();
+      result = _describeImport(gained);
+    } catch (e) {
+      result = 'Import failed: $e';
+    }
+    if (mounted) setState(() => _imported = result);
   }
 
   @override
@@ -523,6 +568,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: AppSpacing.xl),
 
               _Group(
+                label: 'Data',
+                children: [
+                  _SettingRow(
+                    title: 'Database',
+                    description:
+                        'Saved runs, machines, endpoints and settings, kept '
+                        'in ~/Library/Application Support/ZML-Lab. Builds '
+                        'before 0.1.4 kept them in ~/Documents/zml_lab.sqlite: '
+                        'import that file to bring them over. Whatever is '
+                        'already here stays as it is.',
+                    stacked: true,
+                    control: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            AppButton(
+                              label: 'Import…',
+                              icon: AppIcons.folder,
+                              onPressed: _importDatabase,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            AppButton(
+                              label: 'Show in Finder',
+                              icon: AppIcons.folder,
+                              onPressed: () async =>
+                                  revealInFinder(await appDatabasePath()),
+                            ),
+                          ],
+                        ),
+                        if (_imported != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(_imported!, style: context.text.smallMuted),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xl),
+
+              _Group(
                 label: 'Updates',
                 children: [
                   _SettingRow(
@@ -568,6 +655,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+}
+
+/// What an import added (table → rows gained), in words.
+String _describeImport(Map<String, int> gained) {
+  int n(String table) => gained[table] ?? 0;
+  String count(int n, String one, String many) => '$n ${n == 1 ? one : many}';
+  final parts = [
+    if (n('saved_benchmarks') + n('perf_reports') case final runs when runs > 0)
+      count(runs, 'saved run', 'saved runs'),
+    if (n('machines') > 0) count(n('machines'), 'machine', 'machines'),
+    if (n('api_endpoints') > 0)
+      count(n('api_endpoints'), 'endpoint', 'endpoints'),
+    if (n('settings') > 0) count(n('settings'), 'setting', 'settings'),
+  ];
+  if (parts.isEmpty) return 'Nothing new to import.';
+  final list = parts.length == 1
+      ? parts.single
+      : '${parts.take(parts.length - 1).join(', ')} and ${parts.last}';
+  return 'Imported $list.';
 }
 
 /// This build's version and where updating stands, with "Check now".

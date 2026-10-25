@@ -3,8 +3,11 @@
 #   git tag v1.2.0 && git push origin v1.2.0
 #
 # The release gets zml-lab-macos.tar.gz and its signature, which installed
-# apps pick up (lib/features/updates). Needs the ZML_LAB_UPDATE_KEY secret and
-# the pinned perf benchmarker library (native/libzmlbench.dylib.sha256, see
+# apps pick up (lib/features/updates), and ZML-Lab.dmg for a first install.
+# The app is code-signed with the release certificate (tool/macos_sign.sh), so
+# macOS keeps its permissions across updates. Needs the ZML_LAB_UPDATE_KEY,
+# ZML_LAB_CODESIGN_P12 and ZML_LAB_CODESIGN_PASSWORD secrets and the pinned
+# perf benchmarker library (native/libzmlbench.dylib.sha256, see
 # native/README.md).
 name: Release
 
@@ -53,6 +56,12 @@ jobs:
           --build-number="$GITHUB_RUN_NUMBER"
           --dart-define=ZML_LAB_VERSION="$VERSION"
 
+      - name: Code-sign
+        env:
+          ZML_LAB_CODESIGN_P12: ${{ secrets.ZML_LAB_CODESIGN_P12 }}
+          ZML_LAB_CODESIGN_PASSWORD: ${{ secrets.ZML_LAB_CODESIGN_PASSWORD }}
+        run: tool/macos_sign.sh build/macos/Build/Products/Release/ZML-Lab.app
+
       - name: Package and sign
         env:
           ZML_LAB_UPDATE_KEY: ${{ secrets.ZML_LAB_UPDATE_KEY }}
@@ -60,13 +69,14 @@ jobs:
           # COPYFILE_DISABLE: no ._ AppleDouble files in the archive.
           COPYFILE_DISABLE=1 tar -czf zml-lab-macos.tar.gz -C build/macos/Build/Products/Release ZML-Lab.app
           dart run tool/update_signing.dart sign "$VERSION" zml-lab-macos.tar.gz > zml-lab-macos.tar.gz.sig
+          tool/macos_dmg.sh build/macos/Build/Products/Release/ZML-Lab.app ZML-Lab.dmg
 
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
           gh release create "$GITHUB_REF_NAME"
-          zml-lab-macos.tar.gz zml-lab-macos.tar.gz.sig
+          zml-lab-macos.tar.gz zml-lab-macos.tar.gz.sig ZML-Lab.dmg
           --title "ZML-Lab $VERSION"
           --generate-notes
           --verify-tag
