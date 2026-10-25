@@ -1,53 +1,67 @@
-# ZML-Lab
+<p align="center">
+  <img src="assets/images/zml_logo.png" width="120" alt="ZML-Lab logo">
+</p>
 
-A macOS control panel for launching and babysitting LLM inference jobs
-(primarily [llmd](https://github.com/zml/zml)) on your own machines — local or
-remote over SSH. One calm place to start servers, watch their output, poke
-their endpoints, and measure them.
+<h1 align="center">ZML-Lab</h1>
+
+<p align="center">
+  A macOS workbench for launching LLM inference servers and measuring them.
+</p>
+
+<p align="center">
+  <a href="https://github.com/elogir/zml-lab/releases/latest"><img src="https://img.shields.io/github/v/release/elogir/zml-lab?label=release&color=blue" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple" alt="macOS">
+  <a href="https://flutter.dev"><img src="https://img.shields.io/badge/made%20with-Flutter%203.47-02569B?logo=flutter" alt="Made with Flutter"></a>
+  <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white" alt="Dart 3.13"></a>
+</p>
+
+![The Benchmark tab: 16 requests streaming, with the server running in the terminal beside it](docs/images/benchmark.png)
+
+Start a server in the built-in terminal, point the tools at it, and watch it
+work. Built around [llmd](https://github.com/zml/zml), it works with any
+OpenAI-compatible endpoint. Get it from the
+[latest release](https://github.com/elogir/zml-lab/releases/latest).
 
 ## What it does
 
-- **Jobs** — launch from saved configs or a custom command, live status
-  (silent TCP health probes), kill / force-kill / restart, delete.
-- **Terminal** — each job opens on its real stdout in a tmux-style
-  multiplexer: tabs, splits, web tabs. New terminals on a remote job ssh in
-  automatically.
-- **Benchmark** — fire a concurrent batch at `/v1/chat/completions`, watch
-  per-request streams and aggregate tok/s, expand any request into a chat,
-  save runs for later.
-- **Profiler** — capture an `x-zml-profiler` trace and serve it with xprof in
-  an embedded tab, local or port-forwarded over ssh.
-- **Machines** — the local box plus remote GPU hosts (address, ssh port/key),
-  with live reachability dots.
+- **Benchmark**: fires a concurrent batch at `/v1/chat/completions` and
+  streams every reply live, with per-request and aggregate tok/s, TTFT and
+  rendered markdown. Open any request as a multi-turn chat, switch to charts,
+  copy the results or save the run.
+- **Perf**: a load test. It replays ShareGPT conversations at a fixed
+  concurrency for a set duration, with live throughput and in-flight charts,
+  then reports TTFT, inter-token and request latency percentiles. It can also
+  show chip metrics from `zml-smi`. Each run is recorded as a
+  `.zmlrun.parquet` file ([format](docs/perf-run-format.md)) you can export.
+- **Terminal**: a tmux-style multiplexer beside the tools, with tabs, splits
+  and web tabs. Each pane is a real PTY running your login shell.
+- **Saved benchmarks**: chat benchmarks and perf reports with search,
+  filters, sorting, a card or table view and compare. You can also import
+  `.zmlrun.parquet` files.
+- **Machines & Endpoints**: the local box and remote hosts, each with a live
+  reachability dot, plus saved endpoints (URL and API key) to aim the tools
+  at.
+- **Updates**: checks GitHub releases and downloads only when you click
+  *Update to …*.
 
-## Install
+## Screenshots
 
-Download `ZML-Lab.dmg` from the
-[latest release](https://github.com/elogir/zml-lab/releases/latest), open it
-and drag ZML-Lab onto Applications. The app is signed with our own
-certificate, not Apple's, so the first launch is blocked as from an
-unidentified developer: open System Settings → Privacy & Security and click
-**Open Anyway** (once). Or install without the download quarantine:
+![Perf report: throughput, request rate and latency percentiles after a 30 s run at concurrency 16](docs/images/perf-report.png)
 
-```sh
-curl -fsSL https://github.com/elogir/zml-lab/releases/latest/download/zml-lab-macos.tar.gz | tar -xz -C /Applications
-```
+![A benchmark request opened as a chat: the streamed reply with its code block and table](docs/images/chat.png)
 
-After that it updates itself (Settings → Updates), keeping its permissions.
-Data lives in `~/Library/Application Support/ZML-Lab`; builds before 0.1.4
-kept the database in `~/Documents`, which Settings → Data → Import brings
-over.
+<sub>Screenshots were taken against `tool/fake_llm_server.py`, not a real
+model.</sub>
 
-## Run it
+## Build from source
 
 ```sh
 flutter pub get
-dart run build_runner build     # riverpod / freezed / drift codegen
+dart run build_runner build --delete-conflicting-outputs
 flutter run -d macos
 ```
 
-Release build: `flutter build macos --release` →
-`build/macos/Build/Products/Release/ZML-Lab.app`.
-
-Built with Flutter (no Material — custom widgets over `WidgetsApp`), riverpod,
-drift, and [flterm](https://pub.dev/packages/flterm).
+The Perf tab needs the prebuilt benchmarker library,
+`native/libzmlbench.dylib` (see [native/README.md](native/README.md)). To try
+the app without a GPU, run `python3 tool/fake_llm_server.py --port 8000` and
+point the Benchmark tab at `127.0.0.1:8000`.
