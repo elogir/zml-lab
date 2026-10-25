@@ -5,6 +5,11 @@ String formatUptime(Duration d) {
   return '${d.inSeconds}s';
 }
 
+/// Bullets in place of an address, when the Blur host setting is on. Matches
+/// what a text field with `obscureText` shows, so a read-only slot and an
+/// editable field look the same while masked.
+String maskHost(String host) => '•' * host.trim().length;
+
 /// `2.0 s`, `340 ms` — for elapsed / latency readouts.
 String formatMillis(int ms) =>
     ms >= 1000 ? '${(ms / 1000).toStringAsFixed(1)} s' : '$ms ms';

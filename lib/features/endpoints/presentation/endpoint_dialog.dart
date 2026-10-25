@@ -87,7 +87,7 @@ class _EndpointDialogState extends ConsumerState<_EndpointDialog> {
     final c = context.colors;
     final editing = widget.existing != null;
     return AppDialogFrame(
-      icon: AppIcons.machines,
+      icon: AppIcons.web,
       title: editing ? 'Edit endpoint' : 'New endpoint',
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

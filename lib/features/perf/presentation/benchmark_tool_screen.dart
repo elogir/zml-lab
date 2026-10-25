@@ -8,13 +8,13 @@ import 'package:collection/collection.dart';
 
 import '../../../core/shell/app_fullscreen.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/util/format.dart';
 import '../../../core/util/search.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/api_endpoint.dart';
 import '../../../models/machine.dart';
 import '../../benchmark/presentation/benchmark_view.dart';
 import '../../endpoints/application/endpoints_providers.dart';
-import '../../endpoints/presentation/endpoint_dialog.dart';
 import '../../machines/application/machines_providers.dart';
 import '../../settings/application/settings_controller.dart';
 import '../../terminal/presentation/terminal_mux.dart';
@@ -22,11 +22,6 @@ import '../application/benchmark_target.dart';
 import '../application/benchmark_terminal_panel.dart';
 import 'chip_metrics_button.dart';
 import 'perf_view.dart';
-
-/// Bullets in place of an address, when the Blur host setting is on. Matches
-/// what a [AppTextField] with `obscureText` shows, so the read-only slot and
-/// the editable field look the same while masked.
-String maskHost(String host) => '•' * host.trim().length;
 
 /// A stable id so the benchmark/perf controllers keep their state (kept alive)
 /// across visits and tool switches.
@@ -85,16 +80,6 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
       ref.read(appFullscreenProvider.notifier).exitIf(FullscreenSurface.perf);
     }
     _target.setTool(tool);
-  }
-
-  Future<void> _newEndpoint() async {
-    final e = await showEndpointDialog(context);
-    if (e != null) await _target.selectEndpoint(e);
-  }
-
-  Future<void> _editEndpoint(ApiEndpoint e) async {
-    final saved = await showEndpointDialog(context, existing: e);
-    if (saved != null) await _target.reloadKey(saved.id);
   }
 
   void _toggleTerminal() {
@@ -183,8 +168,6 @@ class _BenchmarkToolScreenState extends ConsumerState<BenchmarkToolScreen> {
           target: target,
           onSelectMachine: _target.selectMachine,
           onSelectEndpoint: _target.selectEndpoint,
-          onNewEndpoint: _newEndpoint,
-          onEditEndpoint: _editEndpoint,
           onSelectCustom: _target.selectCustom,
           onHostEdited: _target.setHostText,
           onPortEdited: _target.setPortText,
@@ -450,8 +433,6 @@ class _EndpointBar extends ConsumerWidget {
     required this.target,
     required this.onSelectMachine,
     required this.onSelectEndpoint,
-    required this.onNewEndpoint,
-    required this.onEditEndpoint,
     required this.onSelectCustom,
     required this.onHostEdited,
     required this.onPortEdited,
@@ -466,8 +447,6 @@ class _EndpointBar extends ConsumerWidget {
   final BenchmarkTarget target;
   final ValueChanged<Machine> onSelectMachine;
   final ValueChanged<ApiEndpoint> onSelectEndpoint;
-  final VoidCallback onNewEndpoint;
-  final ValueChanged<ApiEndpoint> onEditEndpoint;
   final VoidCallback onSelectCustom;
   final ValueChanged<String> onHostEdited;
   final ValueChanged<String> onPortEdited;
@@ -508,12 +487,10 @@ class _EndpointBar extends ConsumerWidget {
       selectedEndpointId: target.endpointId,
       onSelectMachine: onSelectMachine,
       onSelectEndpoint: onSelectEndpoint,
-      onNewEndpoint: onNewEndpoint,
-      onEditEndpoint: onEditEndpoint,
       onSelectCustom: onSelectCustom,
       blurHost: blurHost,
     );
-    // A saved endpoint: its URL (read-only, edited from the dropdown) and
+    // A saved endpoint: its URL (read-only, edited on the Endpoints screen) and
     // whether a key is in use, instead of host + port.
     final urlText = Text(
       blurHost ? maskHost(target.baseUrl) : target.baseUrl,
@@ -806,8 +783,6 @@ class _MachineDropdown extends StatefulWidget {
     required this.selectedEndpointId,
     required this.onSelectMachine,
     required this.onSelectEndpoint,
-    required this.onNewEndpoint,
-    required this.onEditEndpoint,
     required this.onSelectCustom,
     required this.blurHost,
   });
@@ -823,8 +798,6 @@ class _MachineDropdown extends StatefulWidget {
   final String? selectedEndpointId;
   final ValueChanged<Machine> onSelectMachine;
   final ValueChanged<ApiEndpoint> onSelectEndpoint;
-  final VoidCallback onNewEndpoint;
-  final ValueChanged<ApiEndpoint> onEditEndpoint;
   final VoidCallback onSelectCustom;
 
   /// Mask the addresses listed under each machine name — leaving them readable
@@ -998,16 +971,18 @@ class _MachineDropdownState extends State<_MachineDropdown> {
                                 style: context.text.smallMuted,
                               ),
                             ),
-                          // Saved endpoints: hosted APIs and servers by URL.
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpacing.sm,
-                              AppSpacing.sm,
-                              AppSpacing.sm,
-                              4,
+                          // Saved endpoints (managed on the Endpoints screen):
+                          // hosted APIs and servers by URL.
+                          if (endpoints.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.sm,
+                                AppSpacing.sm,
+                                AppSpacing.sm,
+                                4,
+                              ),
+                              child: SectionLabel('ENDPOINTS'),
                             ),
-                            child: SectionLabel('ENDPOINTS'),
-                          ),
                           for (final e in endpoints)
                             _MenuRow(
                               icon: AppIcons.web,
@@ -1020,21 +995,7 @@ class _MachineDropdownState extends State<_MachineDropdown> {
                                 widget.onSelectEndpoint(e);
                                 _close();
                               },
-                              onEdit: () {
-                                _close();
-                                widget.onEditEndpoint(e);
-                              },
                             ),
-                          _MenuRow(
-                            icon: AppIcons.add,
-                            title: 'New endpoint…',
-                            subtitle: 'URL + API key',
-                            selected: false,
-                            onTap: () {
-                              _close();
-                              widget.onNewEndpoint();
-                            },
-                          ),
                         ],
                       ),
                     ),
@@ -1057,7 +1018,6 @@ class _MenuRow extends StatelessWidget {
     required this.subtitle,
     required this.selected,
     required this.onTap,
-    this.onEdit,
   });
 
   final IconData icon;
@@ -1065,9 +1025,6 @@ class _MenuRow extends StatelessWidget {
   final String subtitle;
   final bool selected;
   final VoidCallback onTap;
-
-  /// Shows a pencil (on hover) that edits the row's item.
-  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -1108,19 +1065,6 @@ class _MenuRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (onEdit != null) ...[
-              const SizedBox(width: 4),
-              // Always laid out so the subtitle doesn't jump on hover.
-              Opacity(
-                opacity: hovered ? 1 : 0,
-                child: AppIconButton(
-                  icon: AppIcons.edit,
-                  size: 12,
-                  padding: const EdgeInsets.all(3),
-                  onPressed: onEdit,
-                ),
-              ),
-            ],
           ],
         ),
       ),

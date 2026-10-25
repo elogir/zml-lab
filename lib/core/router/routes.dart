@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/endpoints/presentation/endpoints_screen.dart';
 import '../../features/perf/presentation/benchmark_tool_screen.dart';
 import '../../features/saved_benchmarks/presentation/saved_benchmarks_screen.dart';
 import '../../features/machines/presentation/add_machine_screen.dart';
@@ -18,6 +19,7 @@ part 'routes.g.dart';
     TypedGoRoute<MachinesRoute>(path: '/machines'),
     TypedGoRoute<AddMachineRoute>(path: '/machines/new'),
     TypedGoRoute<EditMachineRoute>(path: '/machines/:id/edit'),
+    TypedGoRoute<EndpointsRoute>(path: '/endpoints'),
     TypedGoRoute<SettingsRoute>(path: '/settings'),
   ],
 )
@@ -69,6 +71,14 @@ class EditMachineRoute extends GoRouteData with $EditMachineRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) =>
       AddMachineScreen(machineId: id);
+}
+
+class EndpointsRoute extends GoRouteData with $EndpointsRoute {
+  const EndpointsRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) =>
+      const EndpointsScreen();
 }
 
 class SettingsRoute extends GoRouteData with $SettingsRoute {

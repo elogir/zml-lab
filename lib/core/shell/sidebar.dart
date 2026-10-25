@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/endpoints/application/endpoints_providers.dart';
 import '../../features/machines/application/machines_providers.dart';
 import '../../features/saved_benchmarks/application/saved_benchmarks_providers.dart';
 import '../../features/updates/application/updater.dart';
@@ -47,6 +48,7 @@ class Sidebar extends ConsumerWidget {
         (ref.watch(savedBenchmarksStreamProvider).value?.length ?? 0) +
         (ref.watch(perfReportsStreamProvider).value?.length ?? 0);
     final machineCount = ref.watch(machinesStreamProvider).value?.length ?? 0;
+    final endpointCount = ref.watch(endpointsStreamProvider).value?.length ?? 0;
 
     return TweenAnimationBuilder<double>(
       tween: Tween(end: collapsed ? 0.0 : 1.0),
@@ -89,6 +91,14 @@ class Sidebar extends ConsumerWidget {
                 badge: machineCount,
                 active: loc.startsWith('/machines'),
                 onTap: () => context.go('/machines'),
+              ),
+              _NavItem(
+                t: t,
+                icon: AppIcons.web,
+                label: 'Endpoints',
+                badge: endpointCount,
+                active: loc.startsWith('/endpoints'),
+                onTap: () => context.go('/endpoints'),
               ),
               const Spacer(),
               _UpdateItem(t: t),

@@ -1,12 +1,20 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
+import 'package:flutter/material.dart' show DefaultMaterialLocalizations;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zml_lab/core/database/database.dart';
 import 'package:zml_lab/core/database/database_provider.dart';
 import 'package:zml_lab/core/execution/native_io.dart';
+import 'package:zml_lab/core/theme/app_theme.dart';
+import 'package:zml_lab/core/widgets/widgets.dart';
+import 'package:zml_lab/features/endpoints/presentation/endpoints_screen.dart';
+import 'package:zml_lab/features/machines/application/machines_providers.dart';
 import 'package:zml_lab/features/perf/application/benchmark_target.dart';
 import 'package:zml_lab/models/api_endpoint.dart';
 import 'package:zml_lab/repositories/endpoint_repository.dart';
@@ -19,6 +27,39 @@ class _MemoryKeys implements ApiKeyStore {
   Future<void> write(String id, String key) async => keys[id] = key;
   @override
   Future<void> delete(String id) async => keys.remove(id);
+}
+
+/// Endpoints in memory, re-emitted on every write like drift's `.watch()`.
+class _MemoryEndpoints implements EndpointRepository {
+  _MemoryEndpoints(List<ApiEndpoint> seed) {
+    for (final e in seed) {
+      all[e.id] = e;
+    }
+  }
+
+  final all = <String, ApiEndpoint>{};
+  final _changes = StreamController<void>.broadcast();
+
+  List<ApiEndpoint> get _sorted =>
+      all.values.toList()..sort((a, b) => a.name.compareTo(b.name));
+
+  @override
+  Stream<List<ApiEndpoint>> watchEndpoints() async* {
+    yield _sorted;
+    yield* _changes.stream.map((_) => _sorted);
+  }
+
+  @override
+  Future<void> save(ApiEndpoint e) async {
+    all[e.id] = e;
+    _changes.add(null);
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    all.remove(id);
+    _changes.add(null);
+  }
 }
 
 void main() {
@@ -159,6 +200,103 @@ void main() {
     final custom = container.read(benchmarkTargetControllerProvider);
     expect(custom.chat.apiKey, isNull);
     expect(custom.chat.selfHosted, isTrue);
+  });
+
+  testWidgets('the Endpoints screen edits and deletes saved endpoints', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final openai = ApiEndpoint(
+      id: 'ep-1',
+      name: 'OpenAI',
+      baseUrl: 'https://api.openai.com/v1',
+      hasApiKey: true,
+      createdAt: DateTime(2026),
+    );
+    final llmd = ApiEndpoint(
+      id: 'ep-2',
+      name: 'llmd',
+      baseUrl: 'http://4090:8000/v1',
+      createdAt: DateTime(2026),
+    );
+    final keys = _MemoryKeys()..keys['ep-1'] = 'sk-old';
+    final repo = _MemoryEndpoints([openai, llmd]);
+    final container = ProviderContainer(
+      overrides: [
+        endpointRepositoryProvider.overrideWithValue(repo),
+        apiKeyStoreProvider.overrideWithValue(keys),
+        machinesStreamProvider.overrideWith((ref) => Stream.value(const [])),
+      ],
+    );
+    addTearDown(container.dispose);
+    BenchmarkTarget target() =>
+        container.read(benchmarkTargetControllerProvider);
+    // The Benchmark tab is pointed at OpenAI.
+    await container
+        .read(benchmarkTargetControllerProvider.notifier)
+        .selectEndpoint(openai);
+    expect(target().apiKey, 'sk-old');
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: WidgetsApp(
+          color: const Color(0xFF000000),
+          localizationsDelegates: const [
+            DefaultMaterialLocalizations.delegate,
+            DefaultWidgetsLocalizations.delegate,
+          ],
+          pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
+            settings: settings,
+            pageBuilder: (context, _, _) => builder(context),
+          ),
+          builder: (context, child) =>
+              AppTheme(colors: AppColors.dark, child: child!),
+          home: const EndpointsScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 APIs to benchmark against.'), findsOneWidget);
+    expect(find.text('https://api.openai.com/v1'), findsOneWidget);
+    expect(find.text('key saved'), findsOneWidget);
+    expect(find.text('no key'), findsOneWidget);
+
+    // Search matches the URL too.
+    await tester.enterText(find.byType(EditableText), '4090');
+    await tester.pump();
+    expect(find.text('OpenAI'), findsNothing);
+    expect(find.text('llmd'), findsOneWidget);
+    await tester.enterText(find.byType(EditableText), '');
+    await tester.pump();
+
+    // A key replaced from the row reaches the Benchmark tab's target, though
+    // no endpoint field changed.
+    await tester.tap(find.text('OpenAI'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit endpoint'), findsOneWidget);
+    await tester.enterText(find.byType(EditableText).last, 'sk-new');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(keys.keys['ep-1'], 'sk-new');
+    expect(target().apiKey, 'sk-new');
+
+    // Deleting from the row's hover button drops the row and its key, and
+    // the target lets go of it.
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: tester.getCenter(find.text('OpenAI')));
+    addTearDown(mouse.removePointer);
+    await tester.pump();
+    await tester.tap(find.byIcon(AppIcons.delete));
+    await tester.pumpAndSettle();
+    expect(find.text('OpenAI'), findsNothing);
+    expect(repo.all.keys, ['ep-2']);
+    expect(keys.keys, isEmpty);
+    expect(target().isEndpoint, isFalse);
+    expect(find.text('1 API to benchmark against.'), findsOneWidget);
   });
 
   test('a custom host can be a URL, with a key', () async {
