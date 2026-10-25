@@ -747,6 +747,51 @@ class $SavedBenchmarksTable extends SavedBenchmarks
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _hardwareMeta = const VerificationMeta(
+    'hardware',
+  );
+  @override
+  late final GeneratedColumn<String> hardware = GeneratedColumn<String>(
+    'hardware',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverVersionMeta = const VerificationMeta(
+    'serverVersion',
+  );
+  @override
+  late final GeneratedColumn<String> serverVersion = GeneratedColumn<String>(
+    'server_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverCommitMeta = const VerificationMeta(
+    'serverCommit',
+  );
+  @override
+  late final GeneratedColumn<String> serverCommit = GeneratedColumn<String>(
+    'server_commit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tagsJsonMeta = const VerificationMeta(
+    'tagsJson',
+  );
+  @override
+  late final GeneratedColumn<String> tagsJson = GeneratedColumn<String>(
+    'tags_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -893,6 +938,10 @@ class $SavedBenchmarksTable extends SavedBenchmarks
     prompt,
     model,
     modelAlias,
+    hardware,
+    serverVersion,
+    serverCommit,
+    tagsJson,
     notes,
     maxTokens,
     temperature,
@@ -966,6 +1015,36 @@ class $SavedBenchmarksTable extends SavedBenchmarks
       context.handle(
         _modelAliasMeta,
         modelAlias.isAcceptableOrUnknown(data['model_alias']!, _modelAliasMeta),
+      );
+    }
+    if (data.containsKey('hardware')) {
+      context.handle(
+        _hardwareMeta,
+        hardware.isAcceptableOrUnknown(data['hardware']!, _hardwareMeta),
+      );
+    }
+    if (data.containsKey('server_version')) {
+      context.handle(
+        _serverVersionMeta,
+        serverVersion.isAcceptableOrUnknown(
+          data['server_version']!,
+          _serverVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('server_commit')) {
+      context.handle(
+        _serverCommitMeta,
+        serverCommit.isAcceptableOrUnknown(
+          data['server_commit']!,
+          _serverCommitMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tags_json')) {
+      context.handle(
+        _tagsJsonMeta,
+        tagsJson.isAcceptableOrUnknown(data['tags_json']!, _tagsJsonMeta),
       );
     }
     if (data.containsKey('notes')) {
@@ -1104,6 +1183,22 @@ class $SavedBenchmarksTable extends SavedBenchmarks
         DriftSqlType.string,
         data['${effectivePrefix}model_alias'],
       ),
+      hardware: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hardware'],
+      ),
+      serverVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_version'],
+      ),
+      serverCommit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_commit'],
+      ),
+      tagsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tags_json'],
+      )!,
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -1176,8 +1271,14 @@ class SavedBenchmarkRow extends DataClass
   /// tracked (and, for the last two, runs that left them to the server).
   final String? model;
 
-  /// Edited afterwards: a name shown instead of [model], and notes.
+  /// Edited afterwards, as a perf run's meta.json: a name shown instead of
+  /// [model], the hardware, the server's version and commit, tags (a JSON
+  /// list) and notes.
   final String? modelAlias;
+  final String? hardware;
+  final String? serverVersion;
+  final String? serverCommit;
+  final String tagsJson;
   final String notes;
   final int? maxTokens;
   final double? temperature;
@@ -1202,6 +1303,10 @@ class SavedBenchmarkRow extends DataClass
     required this.prompt,
     this.model,
     this.modelAlias,
+    this.hardware,
+    this.serverVersion,
+    this.serverCommit,
+    required this.tagsJson,
     required this.notes,
     this.maxTokens,
     this.temperature,
@@ -1231,6 +1336,16 @@ class SavedBenchmarkRow extends DataClass
     if (!nullToAbsent || modelAlias != null) {
       map['model_alias'] = Variable<String>(modelAlias);
     }
+    if (!nullToAbsent || hardware != null) {
+      map['hardware'] = Variable<String>(hardware);
+    }
+    if (!nullToAbsent || serverVersion != null) {
+      map['server_version'] = Variable<String>(serverVersion);
+    }
+    if (!nullToAbsent || serverCommit != null) {
+      map['server_commit'] = Variable<String>(serverCommit);
+    }
+    map['tags_json'] = Variable<String>(tagsJson);
     map['notes'] = Variable<String>(notes);
     if (!nullToAbsent || maxTokens != null) {
       map['max_tokens'] = Variable<int>(maxTokens);
@@ -1267,6 +1382,16 @@ class SavedBenchmarkRow extends DataClass
       modelAlias: modelAlias == null && nullToAbsent
           ? const Value.absent()
           : Value(modelAlias),
+      hardware: hardware == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hardware),
+      serverVersion: serverVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverVersion),
+      serverCommit: serverCommit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverCommit),
+      tagsJson: Value(tagsJson),
       notes: Value(notes),
       maxTokens: maxTokens == null && nullToAbsent
           ? const Value.absent()
@@ -1299,6 +1424,10 @@ class SavedBenchmarkRow extends DataClass
       prompt: serializer.fromJson<String>(json['prompt']),
       model: serializer.fromJson<String?>(json['model']),
       modelAlias: serializer.fromJson<String?>(json['modelAlias']),
+      hardware: serializer.fromJson<String?>(json['hardware']),
+      serverVersion: serializer.fromJson<String?>(json['serverVersion']),
+      serverCommit: serializer.fromJson<String?>(json['serverCommit']),
+      tagsJson: serializer.fromJson<String>(json['tagsJson']),
       notes: serializer.fromJson<String>(json['notes']),
       maxTokens: serializer.fromJson<int?>(json['maxTokens']),
       temperature: serializer.fromJson<double?>(json['temperature']),
@@ -1326,6 +1455,10 @@ class SavedBenchmarkRow extends DataClass
       'prompt': serializer.toJson<String>(prompt),
       'model': serializer.toJson<String?>(model),
       'modelAlias': serializer.toJson<String?>(modelAlias),
+      'hardware': serializer.toJson<String?>(hardware),
+      'serverVersion': serializer.toJson<String?>(serverVersion),
+      'serverCommit': serializer.toJson<String?>(serverCommit),
+      'tagsJson': serializer.toJson<String>(tagsJson),
       'notes': serializer.toJson<String>(notes),
       'maxTokens': serializer.toJson<int?>(maxTokens),
       'temperature': serializer.toJson<double?>(temperature),
@@ -1351,6 +1484,10 @@ class SavedBenchmarkRow extends DataClass
     String? prompt,
     Value<String?> model = const Value.absent(),
     Value<String?> modelAlias = const Value.absent(),
+    Value<String?> hardware = const Value.absent(),
+    Value<String?> serverVersion = const Value.absent(),
+    Value<String?> serverCommit = const Value.absent(),
+    String? tagsJson,
     String? notes,
     Value<int?> maxTokens = const Value.absent(),
     Value<double?> temperature = const Value.absent(),
@@ -1371,6 +1508,12 @@ class SavedBenchmarkRow extends DataClass
     prompt: prompt ?? this.prompt,
     model: model.present ? model.value : this.model,
     modelAlias: modelAlias.present ? modelAlias.value : this.modelAlias,
+    hardware: hardware.present ? hardware.value : this.hardware,
+    serverVersion: serverVersion.present
+        ? serverVersion.value
+        : this.serverVersion,
+    serverCommit: serverCommit.present ? serverCommit.value : this.serverCommit,
+    tagsJson: tagsJson ?? this.tagsJson,
     notes: notes ?? this.notes,
     maxTokens: maxTokens.present ? maxTokens.value : this.maxTokens,
     temperature: temperature.present ? temperature.value : this.temperature,
@@ -1398,6 +1541,14 @@ class SavedBenchmarkRow extends DataClass
       modelAlias: data.modelAlias.present
           ? data.modelAlias.value
           : this.modelAlias,
+      hardware: data.hardware.present ? data.hardware.value : this.hardware,
+      serverVersion: data.serverVersion.present
+          ? data.serverVersion.value
+          : this.serverVersion,
+      serverCommit: data.serverCommit.present
+          ? data.serverCommit.value
+          : this.serverCommit,
+      tagsJson: data.tagsJson.present ? data.tagsJson.value : this.tagsJson,
       notes: data.notes.present ? data.notes.value : this.notes,
       maxTokens: data.maxTokens.present ? data.maxTokens.value : this.maxTokens,
       temperature: data.temperature.present
@@ -1433,6 +1584,10 @@ class SavedBenchmarkRow extends DataClass
           ..write('prompt: $prompt, ')
           ..write('model: $model, ')
           ..write('modelAlias: $modelAlias, ')
+          ..write('hardware: $hardware, ')
+          ..write('serverVersion: $serverVersion, ')
+          ..write('serverCommit: $serverCommit, ')
+          ..write('tagsJson: $tagsJson, ')
           ..write('notes: $notes, ')
           ..write('maxTokens: $maxTokens, ')
           ..write('temperature: $temperature, ')
@@ -1450,7 +1605,7 @@ class SavedBenchmarkRow extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     name,
     endpoint,
@@ -1458,6 +1613,10 @@ class SavedBenchmarkRow extends DataClass
     prompt,
     model,
     modelAlias,
+    hardware,
+    serverVersion,
+    serverCommit,
+    tagsJson,
     notes,
     maxTokens,
     temperature,
@@ -1470,7 +1629,7 @@ class SavedBenchmarkRow extends DataClass
     createdAt,
     requestsJson,
     samplesJson,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1482,6 +1641,10 @@ class SavedBenchmarkRow extends DataClass
           other.prompt == this.prompt &&
           other.model == this.model &&
           other.modelAlias == this.modelAlias &&
+          other.hardware == this.hardware &&
+          other.serverVersion == this.serverVersion &&
+          other.serverCommit == this.serverCommit &&
+          other.tagsJson == this.tagsJson &&
           other.notes == this.notes &&
           other.maxTokens == this.maxTokens &&
           other.temperature == this.temperature &&
@@ -1504,6 +1667,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
   final Value<String> prompt;
   final Value<String?> model;
   final Value<String?> modelAlias;
+  final Value<String?> hardware;
+  final Value<String?> serverVersion;
+  final Value<String?> serverCommit;
+  final Value<String> tagsJson;
   final Value<String> notes;
   final Value<int?> maxTokens;
   final Value<double?> temperature;
@@ -1525,6 +1692,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     this.prompt = const Value.absent(),
     this.model = const Value.absent(),
     this.modelAlias = const Value.absent(),
+    this.hardware = const Value.absent(),
+    this.serverVersion = const Value.absent(),
+    this.serverCommit = const Value.absent(),
+    this.tagsJson = const Value.absent(),
     this.notes = const Value.absent(),
     this.maxTokens = const Value.absent(),
     this.temperature = const Value.absent(),
@@ -1547,6 +1718,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     required String prompt,
     this.model = const Value.absent(),
     this.modelAlias = const Value.absent(),
+    this.hardware = const Value.absent(),
+    this.serverVersion = const Value.absent(),
+    this.serverCommit = const Value.absent(),
+    this.tagsJson = const Value.absent(),
     this.notes = const Value.absent(),
     this.maxTokens = const Value.absent(),
     this.temperature = const Value.absent(),
@@ -1578,6 +1753,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     Expression<String>? prompt,
     Expression<String>? model,
     Expression<String>? modelAlias,
+    Expression<String>? hardware,
+    Expression<String>? serverVersion,
+    Expression<String>? serverCommit,
+    Expression<String>? tagsJson,
     Expression<String>? notes,
     Expression<int>? maxTokens,
     Expression<double>? temperature,
@@ -1600,6 +1779,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
       if (prompt != null) 'prompt': prompt,
       if (model != null) 'model': model,
       if (modelAlias != null) 'model_alias': modelAlias,
+      if (hardware != null) 'hardware': hardware,
+      if (serverVersion != null) 'server_version': serverVersion,
+      if (serverCommit != null) 'server_commit': serverCommit,
+      if (tagsJson != null) 'tags_json': tagsJson,
       if (notes != null) 'notes': notes,
       if (maxTokens != null) 'max_tokens': maxTokens,
       if (temperature != null) 'temperature': temperature,
@@ -1625,6 +1808,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     Value<String>? prompt,
     Value<String?>? model,
     Value<String?>? modelAlias,
+    Value<String?>? hardware,
+    Value<String?>? serverVersion,
+    Value<String?>? serverCommit,
+    Value<String>? tagsJson,
     Value<String>? notes,
     Value<int?>? maxTokens,
     Value<double?>? temperature,
@@ -1647,6 +1834,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
       prompt: prompt ?? this.prompt,
       model: model ?? this.model,
       modelAlias: modelAlias ?? this.modelAlias,
+      hardware: hardware ?? this.hardware,
+      serverVersion: serverVersion ?? this.serverVersion,
+      serverCommit: serverCommit ?? this.serverCommit,
+      tagsJson: tagsJson ?? this.tagsJson,
       notes: notes ?? this.notes,
       maxTokens: maxTokens ?? this.maxTokens,
       temperature: temperature ?? this.temperature,
@@ -1687,6 +1878,18 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     }
     if (modelAlias.present) {
       map['model_alias'] = Variable<String>(modelAlias.value);
+    }
+    if (hardware.present) {
+      map['hardware'] = Variable<String>(hardware.value);
+    }
+    if (serverVersion.present) {
+      map['server_version'] = Variable<String>(serverVersion.value);
+    }
+    if (serverCommit.present) {
+      map['server_commit'] = Variable<String>(serverCommit.value);
+    }
+    if (tagsJson.present) {
+      map['tags_json'] = Variable<String>(tagsJson.value);
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
@@ -1742,6 +1945,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
           ..write('prompt: $prompt, ')
           ..write('model: $model, ')
           ..write('modelAlias: $modelAlias, ')
+          ..write('hardware: $hardware, ')
+          ..write('serverVersion: $serverVersion, ')
+          ..write('serverCommit: $serverCommit, ')
+          ..write('tagsJson: $tagsJson, ')
           ..write('notes: $notes, ')
           ..write('maxTokens: $maxTokens, ')
           ..write('temperature: $temperature, ')
@@ -3362,6 +3569,10 @@ typedef $$SavedBenchmarksTableCreateCompanionBuilder =
       required String prompt,
       Value<String?> model,
       Value<String?> modelAlias,
+      Value<String?> hardware,
+      Value<String?> serverVersion,
+      Value<String?> serverCommit,
+      Value<String> tagsJson,
       Value<String> notes,
       Value<int?> maxTokens,
       Value<double?> temperature,
@@ -3385,6 +3596,10 @@ typedef $$SavedBenchmarksTableUpdateCompanionBuilder =
       Value<String> prompt,
       Value<String?> model,
       Value<String?> modelAlias,
+      Value<String?> hardware,
+      Value<String?> serverVersion,
+      Value<String?> serverCommit,
+      Value<String> tagsJson,
       Value<String> notes,
       Value<int?> maxTokens,
       Value<double?> temperature,
@@ -3441,6 +3656,26 @@ class $$SavedBenchmarksTableFilterComposer
 
   ColumnFilters<String> get modelAlias => $composableBuilder(
     column: $table.modelAlias,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get hardware => $composableBuilder(
+    column: $table.hardware,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverCommit => $composableBuilder(
+    column: $table.serverCommit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tagsJson => $composableBuilder(
+    column: $table.tagsJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3549,6 +3784,26 @@ class $$SavedBenchmarksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get hardware => $composableBuilder(
+    column: $table.hardware,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverCommit => $composableBuilder(
+    column: $table.serverCommit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tagsJson => $composableBuilder(
+    column: $table.tagsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -3644,6 +3899,22 @@ class $$SavedBenchmarksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get hardware =>
+      $composableBuilder(column: $table.hardware, builder: (column) => column);
+
+  GeneratedColumn<String> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get serverCommit => $composableBuilder(
+    column: $table.serverCommit,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get tagsJson =>
+      $composableBuilder(column: $table.tagsJson, builder: (column) => column);
+
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
@@ -3735,6 +4006,10 @@ class $$SavedBenchmarksTableTableManager
                 Value<String> prompt = const Value.absent(),
                 Value<String?> model = const Value.absent(),
                 Value<String?> modelAlias = const Value.absent(),
+                Value<String?> hardware = const Value.absent(),
+                Value<String?> serverVersion = const Value.absent(),
+                Value<String?> serverCommit = const Value.absent(),
+                Value<String> tagsJson = const Value.absent(),
                 Value<String> notes = const Value.absent(),
                 Value<int?> maxTokens = const Value.absent(),
                 Value<double?> temperature = const Value.absent(),
@@ -3756,6 +4031,10 @@ class $$SavedBenchmarksTableTableManager
                 prompt: prompt,
                 model: model,
                 modelAlias: modelAlias,
+                hardware: hardware,
+                serverVersion: serverVersion,
+                serverCommit: serverCommit,
+                tagsJson: tagsJson,
                 notes: notes,
                 maxTokens: maxTokens,
                 temperature: temperature,
@@ -3779,6 +4058,10 @@ class $$SavedBenchmarksTableTableManager
                 required String prompt,
                 Value<String?> model = const Value.absent(),
                 Value<String?> modelAlias = const Value.absent(),
+                Value<String?> hardware = const Value.absent(),
+                Value<String?> serverVersion = const Value.absent(),
+                Value<String?> serverCommit = const Value.absent(),
+                Value<String> tagsJson = const Value.absent(),
                 Value<String> notes = const Value.absent(),
                 Value<int?> maxTokens = const Value.absent(),
                 Value<double?> temperature = const Value.absent(),
@@ -3800,6 +4083,10 @@ class $$SavedBenchmarksTableTableManager
                 prompt: prompt,
                 model: model,
                 modelAlias: modelAlias,
+                hardware: hardware,
+                serverVersion: serverVersion,
+                serverCommit: serverCommit,
+                tagsJson: tagsJson,
                 notes: notes,
                 maxTokens: maxTokens,
                 temperature: temperature,

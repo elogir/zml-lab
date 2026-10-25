@@ -42,4 +42,7 @@ Future<void> exportRun({
   required String out,
 }) async => throw UnsupportedError('runs are exported by the desktop app');
 
+Future<void> rewriteRunMeta(String runFile, Map<String, Object?> meta) async =>
+    throw UnsupportedError('run files are edited by the desktop app');
+
 Future<Map<String, Object?>?> readRunMeta(String runFile) async => null;

@@ -4,6 +4,8 @@
 /// the time series the app samples live for the charts.
 library;
 
+import 'run_meta.dart';
+
 /// One row of the statistics table: a metric summarized over the run.
 /// Matches a row of report.sql's output (avg/min/max + percentiles).
 class PerfStatRow {
@@ -324,6 +326,10 @@ class PerfReport {
     required this.endpoint,
     required this.benchCommand,
     this.modelAlias,
+    this.hardware,
+    this.serverVersion,
+    this.serverCommit,
+    this.tags = const [],
     this.notes = '',
     required this.createdAt,
     required this.params,
@@ -355,11 +361,15 @@ class PerfReport {
   /// The exact benchmarker command line this run used.
   final String benchCommand;
 
-  /// A name given to the model afterwards, shown instead of `params.model`
-  /// (which stays what was sent). Null = none.
+  /// Edited afterwards, mirroring the run file's meta.json (see [details]):
+  /// a name shown instead of `params.model` (which stays what was sent), the
+  /// hardware, the server's version and commit, tags and notes.
+  /// Null/empty = none.
   final String? modelAlias;
-
-  /// Free-form notes added afterwards (build, flags, what was tested).
+  final String? hardware;
+  final String? serverVersion;
+  final String? serverCommit;
+  final List<String> tags;
   final String notes;
   final DateTime createdAt;
   final PerfParams params;
@@ -413,25 +423,62 @@ class PerfReport {
       ? endpoint.substring(endpoint.lastIndexOf(':'))
       : '';
 
-  static const _unset = Object();
+  /// The details a person edits ([runMetaFields]).
+  RunDetails get details => RunDetails(
+    label: name,
+    model: displayModel,
+    hardware: hardware ?? '',
+    serverVersion: serverVersion ?? '',
+    serverCommit: serverCommit ?? '',
+    tags: tags,
+    notes: notes,
+  );
 
-  /// The details that can be edited afterwards; the measurements can't.
-  PerfReport copyWith({
-    String? name,
-    String? machineName,
-    Object? modelAlias = _unset,
-    String? notes,
+  /// This report with [d] as its details; a model equal to the one sent (or
+  /// none) drops the alias. The measurements can't be edited.
+  PerfReport withDetails(RunDetails d) => _copy(
+    name: d.label,
+    modelAlias: d.model.isEmpty || d.model == params.model ? null : d.model,
+    hardware: d.hardware.isEmpty ? null : d.hardware,
+    serverVersion: d.serverVersion.isEmpty ? null : d.serverVersion,
+    serverCommit: d.serverCommit.isEmpty ? null : d.serverCommit,
+    tags: d.tags,
+    notes: d.notes,
+  );
+
+  PerfReport copyWith({String? name}) => withDetails(
+    RunDetails(
+      label: name ?? this.name,
+      model: displayModel,
+      hardware: hardware ?? '',
+      serverVersion: serverVersion ?? '',
+      serverCommit: serverCommit ?? '',
+      tags: tags,
+      notes: notes,
+    ),
+  );
+
+  PerfReport _copy({
+    required String name,
+    required String? modelAlias,
+    required String? hardware,
+    required String? serverVersion,
+    required String? serverCommit,
+    required List<String> tags,
+    required String notes,
   }) => PerfReport(
     id: id,
-    name: name ?? this.name,
+    name: name,
     jobName: jobName,
-    machineName: machineName ?? this.machineName,
+    machineName: machineName,
     endpoint: endpoint,
     benchCommand: benchCommand,
-    modelAlias: identical(modelAlias, _unset)
-        ? this.modelAlias
-        : modelAlias as String?,
-    notes: notes ?? this.notes,
+    modelAlias: modelAlias,
+    hardware: hardware,
+    serverVersion: serverVersion,
+    serverCommit: serverCommit,
+    tags: tags,
+    notes: notes,
     createdAt: createdAt,
     params: params,
     totalSeconds: totalSeconds,
@@ -455,6 +502,10 @@ class PerfReport {
     'jobName': jobName,
     'benchCommand': benchCommand,
     'modelAlias': ?modelAlias,
+    'hardware': ?hardware,
+    'serverVersion': ?serverVersion,
+    'serverCommit': ?serverCommit,
+    if (tags.isNotEmpty) 'tags': tags,
     if (notes.isNotEmpty) 'notes': notes,
     'params': params.toMap(),
     'totalSeconds': totalSeconds,
@@ -491,6 +542,13 @@ class PerfReport {
     endpoint: endpoint,
     benchCommand: m['benchCommand'] as String? ?? '',
     modelAlias: m['modelAlias'] as String?,
+    hardware: m['hardware'] as String?,
+    serverVersion: m['serverVersion'] as String?,
+    serverCommit: m['serverCommit'] as String?,
+    tags: [
+      for (final t in (m['tags'] as List? ?? const []))
+        if (t is String) t,
+    ],
     notes: m['notes'] as String? ?? '',
     createdAt: createdAt,
     params: PerfParams.fromMap(

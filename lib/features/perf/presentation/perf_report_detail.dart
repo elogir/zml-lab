@@ -5,8 +5,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/util/format.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/perf_report.dart';
+import '../../../models/run_meta.dart';
 import '../../../repositories/perf_report_repository.dart';
 import '../../saved_benchmarks/presentation/edit_run_dialog.dart';
+import '../../saved_benchmarks/presentation/run_details_summary.dart';
 import '../domain/bench_runner.dart';
 import '../domain/report_text.dart';
 import '../domain/run_recorder.dart';
@@ -45,38 +47,57 @@ class _DetailViewState extends ConsumerState<_DetailView> {
   late PerfReport _report = widget.report;
   String? _exportedTo;
 
-  Future<void> _editDetails() async {
-    final r = _report;
-    final repo = ref.read(perfReportRepositoryProvider);
-    final d = await showEditRunDialog(
-      context,
-      current: RunDetails(
-        name: r.name,
-        machine: r.machineName,
-        modelAlias: r.modelAlias,
-        notes: r.notes,
-      ),
-      sentModel: r.params.model,
-    );
-    if (d == null || !mounted) return;
-    final updated = r.copyWith(
-      name: d.name,
-      machineName: d.machine,
-      modelAlias: d.modelAlias,
-      notes: d.notes,
-    );
-    setState(() => _report = updated);
-    await repo.save(updated);
-  }
-
   /// The run's recording, for reports recorded since runs are kept (older
   /// ones only have their CSV).
   late final String? _runFile = runFileExists(_report.id)
       ? runFilePath(_report.id)
       : null;
 
+  /// The name and model as ZML-Lab shows them, which go over the run file's
+  /// (a fresh file still has its automatic label).
+  Map<String, String> get _shown => {
+    'label': _report.name,
+    'model.name': _report.displayModel,
+  };
+
+  /// Edits the details in the run file's meta.json (the report's own, for
+  /// runs without a file), then keeps both in step.
+  Future<void> _editDetails() async {
+    final repo = ref.read(perfReportRepositoryProvider);
+    final file = _runFile;
+    final Map<String, Object?> meta;
+    try {
+      meta = file == null
+          ? _report.details.toMeta()
+          : withRunMetaFields(await readRunMeta(file) ?? {}, _shown);
+    } catch (e) {
+      if (mounted) setState(() => _exportedTo = 'could not read the run: $e');
+      return;
+    }
+    if (!mounted) return;
+    final edited = await showEditRunDialog(
+      context,
+      meta: meta,
+      sentModel: _report.params.model,
+    );
+    if (edited == null || !mounted) return;
+    final updated = _report.withDetails(RunDetails.fromMeta(edited));
+    setState(() => _report = updated);
+    await repo.save(updated);
+    if (file == null) return;
+    try {
+      await rewriteRunMeta(file, edited);
+    } catch (e) {
+      if (mounted) setState(() => _exportedTo = 'run file not updated: $e');
+    }
+  }
+
   Future<void> _exportRun() async {
-    final dest = await showExportRunDialog(context, runFile: _runFile!);
+    final dest = await showExportRunDialog(
+      context,
+      runFile: _runFile!,
+      overrides: _shown,
+    );
     if (dest == null) return;
     await revealInFinder(dest);
     if (mounted) setState(() => _exportedTo = dest);
@@ -172,17 +193,7 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                               ],
                             ],
                           ),
-                          if (_report.notes.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              _report.notes,
-                              style: context.text.small.copyWith(
-                                color: c.textSecondary,
-                              ),
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                          RunDetailsSummary(details: _report.details),
                         ],
                       ),
                     ),

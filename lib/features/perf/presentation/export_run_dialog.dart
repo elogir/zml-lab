@@ -3,79 +3,24 @@ import 'package:flutter/widgets.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../../models/run_meta.dart';
 import '../domain/run_recorder.dart';
+import 'run_meta_form.dart';
 
 /// "Export run": the run's meta.json, prefilled with what was detected (the
 /// hardware from the target machine or zml-smi), to correct and complete
-/// (label, server version and commit, notes, tags…); then where to save the
-/// `.zmlrun.parquet`. Resolves to the exported path, or null.
+/// (name, server version and commit, notes, tags…); then where to save the
+/// `.zmlrun.parquet`. [overrides] (path → text) go over the file's values: a
+/// saved run's name and model, as ZML-Lab shows them. Resolves to the
+/// exported path, or null.
 Future<String?> showExportRunDialog(
   BuildContext context, {
   required String runFile,
+  Map<String, String> overrides = const {},
 }) => showAppDialog<String>(
   context,
-  (context) => ExportRunDialog(runFile: runFile),
+  (context) => ExportRunDialog(runFile: runFile, overrides: overrides),
 );
-
-/// The meta.json fields the dialog edits, by path ('server.commit' is
-/// `meta['server']['commit']`). `tags` is a list, edited comma-separated.
-const runMetaFields = [
-  'label',
-  'model.name',
-  'server.version',
-  'server.commit',
-  'hardware.description',
-  'tags',
-  'notes',
-];
-
-/// [meta]'s value at [path] as the dialog shows it.
-@visibleForTesting
-String runMetaField(Map<String, Object?> meta, String path) {
-  Object? v = meta;
-  for (final key in path.split('.')) {
-    v = v is Map ? v[key] : null;
-  }
-  return switch (v) {
-    String s => s,
-    List l => l.join(', '),
-    _ => '',
-  };
-}
-
-/// [meta] with [fields] (path → text) in: trimmed, tags split on commas,
-/// and a blank field removes its key. Sections ('model', 'server'…) are
-/// copied, never edited in place.
-@visibleForTesting
-Map<String, Object?> withRunMetaFields(
-  Map<String, Object?> meta,
-  Map<String, String> fields,
-) {
-  final out = Map<String, Object?>.of(meta);
-  for (final MapEntry(key: path, value: text) in fields.entries) {
-    final keys = path.split('.');
-    var into = out;
-    for (final key in keys.take(keys.length - 1)) {
-      final section = Map<String, Object?>.of(
-        (into[key] as Map?)?.cast<String, Object?>() ?? const {},
-      );
-      into[key] = section;
-      into = section;
-    }
-    final Object value = path == 'tags'
-        ? [
-            for (final t in text.split(','))
-              if (t.trim().isNotEmpty) t.trim(),
-          ]
-        : text.trim();
-    if (value is String && value.isEmpty || value is List && value.isEmpty) {
-      into.remove(keys.last);
-    } else {
-      into[keys.last] = value;
-    }
-  }
-  return out;
-}
 
 /// A file name for [label]: word characters, dots and dashes.
 String _fileName(String label) {
@@ -87,9 +32,14 @@ String _fileName(String label) {
 }
 
 class ExportRunDialog extends StatefulWidget {
-  const ExportRunDialog({super.key, required this.runFile});
+  const ExportRunDialog({
+    super.key,
+    required this.runFile,
+    this.overrides = const {},
+  });
 
   final String runFile;
+  final Map<String, String> overrides;
 
   @override
   State<ExportRunDialog> createState() => _ExportRunDialogState();
@@ -97,9 +47,7 @@ class ExportRunDialog extends StatefulWidget {
 
 class _ExportRunDialogState extends State<ExportRunDialog> {
   Map<String, Object?>? _meta;
-  final _fields = {
-    for (final path in runMetaFields) path: TextEditingController(),
-  };
+  final _fields = RunMetaForm.controllers(const {});
   bool _busy = false;
   String? _error;
 
@@ -119,7 +67,10 @@ class _ExportRunDialogState extends State<ExportRunDialog> {
 
   Future<void> _load() async {
     try {
-      final meta = await readRunMeta(widget.runFile) ?? {};
+      final meta = withRunMetaFields(
+        await readRunMeta(widget.runFile) ?? {},
+        widget.overrides,
+      );
       if (!mounted) return;
       for (final MapEntry(key: path, value: field) in _fields.entries) {
         field.text = runMetaField(meta, path);
@@ -146,10 +97,10 @@ class _ExportRunDialogState extends State<ExportRunDialog> {
       _error = null;
     });
     try {
-      final meta = withRunMetaFields(_meta!, {
-        for (final MapEntry(key: path, value: field) in _fields.entries)
-          path: field.text,
-      });
+      final meta = withRunMetaFields(
+        _meta!,
+        changedRunMetaFields(_meta!, RunMetaForm.texts(_fields)),
+      );
       await exportRun(runFile: widget.runFile, meta: meta, out: out);
       if (mounted) Navigator.of(context).pop(out);
     } catch (e) {
@@ -165,36 +116,6 @@ class _ExportRunDialogState extends State<ExportRunDialog> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    Widget field(
-      String label,
-      String path, {
-      String? placeholder,
-      bool mono = false,
-      int lines = 1,
-    }) => Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          FieldLabel(label),
-          AppTextField(
-            controller: _fields[path],
-            mono: mono,
-            placeholder: placeholder,
-            minLines: lines,
-            maxLines: lines,
-          ),
-        ],
-      ),
-    );
-    Widget pair(Widget a, Widget b) => Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: a),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(child: b),
-      ],
-    );
     return AppDialogFrame(
       icon: AppIcons.download,
       title: 'Export run',
@@ -204,25 +125,7 @@ class _ExportRunDialogState extends State<ExportRunDialog> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                field('Label', 'label', placeholder: 'how it reads in charts'),
-                field('Model', 'model.name', mono: true),
-                pair(
-                  field('Server version', 'server.version', mono: true),
-                  field(
-                    'Commit',
-                    'server.commit',
-                    mono: true,
-                    placeholder: 'a1b2c3d',
-                  ),
-                ),
-                // Prefilled from the target machine, or what zml-smi saw.
-                field(
-                  'Hardware',
-                  'hardware.description',
-                  placeholder: '1× RTX 4090, 64 GB',
-                ),
-                field('Tags', 'tags', placeholder: 'comma-separated'),
-                field('Notes', 'notes', lines: 3),
+                RunMetaForm(fields: _fields),
                 if (_error != null)
                   Text(
                     _error!,

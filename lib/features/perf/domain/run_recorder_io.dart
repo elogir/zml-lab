@@ -149,6 +149,11 @@ Future<void> exportRun({
   out: out,
 );
 
+/// Puts [meta] in [runFile] as its `meta.json` — the details edited on a
+/// saved run. The data is copied again into a new file moved over it.
+Future<void> rewriteRunMeta(String runFile, Map<String, Object?> meta) =>
+    exportRun(runFile: runFile, meta: meta, out: runFile);
+
 /// The run's `meta.json`, from its footer (null if it has none).
 Future<Map<String, Object?>?> readRunMeta(String runFile) async {
   final rows = await _query(

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -41,6 +43,10 @@ class DriftSavedBenchmarkRepository implements SavedBenchmarkRepository {
           prompt: b.prompt,
           model: Value(b.model),
           modelAlias: Value(b.modelAlias),
+          hardware: Value(b.hardware),
+          serverVersion: Value(b.serverVersion),
+          serverCommit: Value(b.serverCommit),
+          tagsJson: Value(jsonEncode(b.tags)),
           notes: Value(b.notes),
           maxTokens: Value(b.maxTokens),
           temperature: Value(b.temperature),

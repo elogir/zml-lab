@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'benchmark.dart';
+import 'run_meta.dart';
 
 part 'saved_benchmark.freezed.dart';
 
@@ -26,11 +27,14 @@ abstract class SavedBenchmark with _$SavedBenchmark {
     /// was tracked.
     String? model,
 
-    /// A name given to the model afterwards, shown instead of [model] (which
-    /// stays what was sent). Null = none.
+    /// Edited afterwards, as a perf run's meta.json (see [details]): a name
+    /// shown instead of [model] (which stays what was sent), the hardware,
+    /// the server's version and commit, tags and notes. Null/empty = none.
     String? modelAlias,
-
-    /// Free-form notes added afterwards (build, flags, what was tested).
+    String? hardware,
+    String? serverVersion,
+    String? serverCommit,
+    @Default(<String>[]) List<String> tags,
     @Default('') String notes,
 
     /// Per-request output cap; null = unlimited (or not tracked).
@@ -71,6 +75,29 @@ abstract class SavedBenchmark with _$SavedBenchmark {
 
   /// The model as lists show it: [modelAlias], else what was sent.
   String? get displayModel => modelAlias ?? model;
+
+  /// The details a person edits ([runMetaFields]).
+  RunDetails get details => RunDetails(
+    label: name,
+    model: displayModel ?? '',
+    hardware: hardware ?? '',
+    serverVersion: serverVersion ?? '',
+    serverCommit: serverCommit ?? '',
+    tags: tags,
+    notes: notes,
+  );
+
+  /// This run with [d] as its details; a model equal to the one sent (or
+  /// none) drops the alias.
+  SavedBenchmark withDetails(RunDetails d) => copyWith(
+    name: d.label,
+    modelAlias: d.model.isEmpty || d.model == model ? null : d.model,
+    hardware: d.hardware.isEmpty ? null : d.hardware,
+    serverVersion: d.serverVersion.isEmpty ? null : d.serverVersion,
+    serverCommit: d.serverCommit.isEmpty ? null : d.serverCommit,
+    tags: d.tags,
+    notes: d.notes,
+  );
 
   /// Mean per-request tok/s across the saved run (see [meanRequestTps]).
   double get averageTokensPerSecond => meanRequestTps(requests);

@@ -98,6 +98,13 @@ extension SavedBenchmarkRowMapper on SavedBenchmarkRow {
     prompt: prompt,
     model: model,
     modelAlias: modelAlias,
+    hardware: hardware,
+    serverVersion: serverVersion,
+    serverCommit: serverCommit,
+    tags: [
+      for (final t in (jsonDecode(tagsJson) as List? ?? const []))
+        if (t is String) t,
+    ],
     notes: notes,
     maxTokens: maxTokens,
     temperature: temperature,

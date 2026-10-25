@@ -17,7 +17,11 @@ void main() {
         prompt: 'hi',
         model: 'Qwen/Qwen3-8B',
         modelAlias: 'Qwen3 8B',
-        notes: 'main @ 1a2b3c',
+        hardware: '1× RTX 4090',
+        serverVersion: '0.11.0',
+        serverCommit: '1a2b3c',
+        tags: const ['fp8', 'llmd'],
+        notes: 'flash-attn on',
         maxTokens: 256,
         temperature: 0.7,
         batchSize: 4,
@@ -33,7 +37,11 @@ void main() {
     expect(saved.model, 'Qwen/Qwen3-8B');
     expect(saved.modelAlias, 'Qwen3 8B');
     expect(saved.displayModel, 'Qwen3 8B');
-    expect(saved.notes, 'main @ 1a2b3c');
+    expect(saved.hardware, '1× RTX 4090');
+    expect(saved.serverVersion, '0.11.0');
+    expect(saved.serverCommit, '1a2b3c');
+    expect(saved.tags, ['fp8', 'llmd']);
+    expect(saved.notes, 'flash-attn on');
     expect(saved.maxTokens, 256);
     expect(saved.temperature, 0.7);
   }

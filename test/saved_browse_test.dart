@@ -10,6 +10,7 @@ import 'package:zml_lab/features/perf/domain/run_recorder.dart';
 import 'package:zml_lab/features/saved_benchmarks/application/saved_benchmarks_providers.dart';
 import 'package:zml_lab/features/saved_benchmarks/domain/saved_entry.dart';
 import 'package:zml_lab/features/saved_benchmarks/presentation/compare_view.dart';
+import 'package:zml_lab/models/run_meta.dart';
 import 'package:zml_lab/repositories/perf_report_repository.dart';
 import 'package:zml_lab/repositories/saved_benchmark_repository.dart';
 
@@ -212,28 +213,35 @@ void main() {
     final reports = DriftPerfReportRepository(db);
     const sent = '/Users/me/models/Llama-3.1-8B';
     final original = perfReport('p1', model: sent, tps: 1234);
-    await reports.save(
-      original.copyWith(
-        name: 'llama c16',
-        machineName: 'GB300-2',
-        modelAlias: 'Llama 3.1 8B',
-        notes: 'main @ 1a2b3c',
-      ),
+    const details = RunDetails(
+      label: 'llama c16',
+      model: 'Llama 3.1 8B',
+      hardware: '4× GB300',
+      serverVersion: '0.11.0',
+      serverCommit: '1a2b3c',
+      tags: ['fp8'],
+      notes: 'flash-attn on',
     );
+    await reports.save(original.withDetails(details));
 
     final back = (await reports.watchReports().first).single;
     expect(back.params.model, sent);
     expect(back.tokensPerSecond, 1234);
-    expect(back.notes, 'main @ 1a2b3c');
+    expect(back.details.toMeta(), details.toMeta());
     final entry = PerfEntry(back);
     expect(
       [entry.name, entry.machine, entry.model],
-      ['llama c16', 'GB300-2', 'Llama 3.1 8B'],
+      ['llama c16', 'GB300-1', 'Llama 3.1 8B'],
     );
-    // Search still finds what was sent, and the notes.
-    expect(entry.matches('Llama-3.1-8B'), isTrue);
-    expect(entry.matches('1a2b3c'), isTrue);
-    // Without the alias, the sent model shows again.
-    expect(PerfEntry(back.copyWith(modelAlias: null)).model, sent);
+    // Search still finds what was sent, and every detail.
+    for (final q in ['Llama-3.1-8B', '4× GB300', '1a2b3c', 'fp8', 'flash']) {
+      expect(entry.matches(q), isTrue, reason: q);
+    }
+    // Back to the sent model: no alias.
+    final reverted = back.withDetails(
+      RunDetails(label: back.name, model: sent),
+    );
+    expect(reverted.modelAlias, isNull);
+    expect(PerfEntry(reverted).model, sent);
   });
 }

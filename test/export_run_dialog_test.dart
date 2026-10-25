@@ -9,6 +9,7 @@ import 'package:zml_lab/core/theme/app_theme.dart';
 import 'package:zml_lab/core/widgets/widgets.dart';
 import 'package:zml_lab/features/perf/domain/run_recorder.dart';
 import 'package:zml_lab/features/perf/presentation/export_run_dialog.dart';
+import 'package:zml_lab/models/run_meta.dart';
 
 /// The DuckDB library the plugin downloads (flutter test runs without the
 /// app, so the plugin's linked copy isn't there).
@@ -75,6 +76,41 @@ void main() {
     });
   });
 
+  test('only the fields whose trimmed text changed are written', () {
+    expect(
+      changedRunMetaFields(meta, {
+        'label': ' vLLM · Qwen3-8B · c=16 ',
+        'tags': 'a, b',
+        'server.version': '0.11.1',
+        'notes': '',
+      }),
+      {'server.version': '0.11.1'},
+    );
+  });
+
+  test('a run file takes edited details, and still exports', () async {
+    open.overrideFor(OperatingSystem.macOS, _libduckdb);
+    final tmp = Directory.systemTemp.createTempSync('rewrite_meta_test');
+    debugRunsDir = tmp.path;
+    addTearDown(() {
+      debugRunsDir = null;
+      tmp.deleteSync(recursive: true);
+    });
+    final spool = await RunSpool.create('p-1');
+    spool.addEvents(
+      'timestamp,request_id,seq,token,request_timestamp,inputs_tokens,'
+      'outputs_tokens,concurrency,server,session_id,error\n'
+      '1000000300,c0-0,0,hi,1000000000,0,1,16,zml,s,\n',
+    );
+    final runFile = (await spool.finish(meta))!;
+    final edited = withRunMetaFields(meta, {'notes': 'fp8 build'});
+    await rewriteRunMeta(runFile, edited);
+    expect(await readRunMeta(runFile), edited);
+    final copy = '${tmp.path}/copy.zmlrun.parquet';
+    await exportRun(runFile: runFile, meta: edited, out: copy);
+    expect(File(copy).existsSync(), isTrue);
+  }, skip: !File(_libduckdb).existsSync());
+
   testWidgets('the dialog opens prefilled from the run file', (tester) async {
     open.overrideFor(OperatingSystem.macOS, _libduckdb);
     final tmp = Directory.systemTemp.createTempSync('export_dialog_test');
@@ -105,12 +141,20 @@ void main() {
         ],
         builder: (context, _) => AppTheme(
           colors: AppColors.dark,
-          child: ExportRunDialog(runFile: runFile),
+          // A saved run's name, as ZML-Lab shows it, goes over the file's.
+          child: ExportRunDialog(
+            runFile: runFile,
+            overrides: const {'label': 'llmd fp8'},
+          ),
         ),
       ),
     );
     // readRunMeta runs DuckDB on its own thread.
-    for (var i = 0; i < 50 && find.text('Commit').evaluate().isEmpty; i++) {
+    for (
+      var i = 0;
+      i < 50 && find.text('Server commit').evaluate().isEmpty;
+      i++
+    ) {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );
@@ -129,10 +173,10 @@ void main() {
         )
         .controller!
         .text;
-    expect(text('Label'), 'vLLM · Qwen3-8B · c=16');
+    expect(text('Name'), 'llmd fp8');
     expect(text('Model'), 'Qwen/Qwen3-8B');
     expect(text('Server version'), '0.11.0');
-    expect(text('Commit'), '');
+    expect(text('Server commit'), '');
     expect(text('Tags'), 'a, b');
     // Prefilled with what was recorded, still editable.
     expect(text('Hardware'), '1× RTX 4090');

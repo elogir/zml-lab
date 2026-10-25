@@ -273,7 +273,15 @@ GROUP BY p.i ORDER BY p.i;
   the run's Parquet file (text dropped, its length kept) with the
   automatic `meta.json`, kept under `~/Library/Application Support/ZML-Lab/runs/`.
   Saving the report keeps it; discarding the run deletes it.
-- **Export run** opens a dialog with `meta.json` prefilled — label, model,
-  server version and commit, hardware (from the target machine or zml-smi),
-  notes, tags, all editable — and writes the final `.zmlrun.parquet` where
+- **Edit details** on a saved run edits the fields a person types — `label`
+  (shown as Name), `model.name`, `hardware.description`, `server.version`,
+  `server.commit`, `tags`, `notes` — and rewrites the kept run file with
+  them. The website's run page edits exactly the same fields under the same
+  rules: values trimmed, only changed fields written, a cleared field drops
+  its key (never null or `""`), every other key kept as is. ZML-Lab keeps the
+  model the requests actually sent in its own database; a cleared Model puts
+  that name back.
+- **Export run** opens a dialog with `meta.json` prefilled — the same fields
+  (hardware from the target machine or zml-smi, name and model as ZML-Lab
+  shows them), all editable — and writes the final `.zmlrun.parquet` where
   you choose. Uploading to the website comes later.

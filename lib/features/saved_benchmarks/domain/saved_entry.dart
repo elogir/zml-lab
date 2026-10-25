@@ -91,7 +91,7 @@ class PerfEntry extends SavedEntry {
     report.endpoint,
     hardware,
     report.params.model,
-    report.notes,
+    ...report.details.searchFields,
     report.benchCommand,
   ];
 }
@@ -126,7 +126,7 @@ class ChatEntry extends SavedEntry {
   Iterable<String?> get searchFields => [
     benchmark.endpoint,
     benchmark.model,
-    benchmark.notes,
+    ...benchmark.details.searchFields,
     benchmark.prompt,
   ];
 }

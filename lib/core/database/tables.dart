@@ -33,8 +33,14 @@ class SavedBenchmarks extends Table {
   /// tracked (and, for the last two, runs that left them to the server).
   TextColumn get model => text().nullable()();
 
-  /// Edited afterwards: a name shown instead of [model], and notes.
+  /// Edited afterwards, as a perf run's meta.json: a name shown instead of
+  /// [model], the hardware, the server's version and commit, tags (a JSON
+  /// list) and notes.
   TextColumn get modelAlias => text().nullable()();
+  TextColumn get hardware => text().nullable()();
+  TextColumn get serverVersion => text().nullable()();
+  TextColumn get serverCommit => text().nullable()();
+  TextColumn get tagsJson => text().withDefault(const Constant('[]'))();
   TextColumn get notes => text().withDefault(const Constant(''))();
   IntColumn get maxTokens => integer().nullable()();
   RealColumn get temperature => real().nullable()();

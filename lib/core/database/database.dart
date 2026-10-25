@@ -32,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -141,12 +141,20 @@ class AppDatabase extends _$AppDatabase {
           );
         }
       }
-      if (from < 17) {
-        // Saved runs take a model alias and notes, edited after the fact.
-        // Their `command` column goes unused but stays: builds before this
-        // one still write it.
+      if (from < 18) {
+        // Saved runs take the details edited after the fact (a perf run's
+        // meta.json fields). Their `command` column goes unused but stays:
+        // builds before this one still write it. (17 added the first two,
+        // in a build that never shipped.)
         final have = await _columns('saved_benchmarks');
-        for (final col in [savedBenchmarks.modelAlias, savedBenchmarks.notes]) {
+        for (final col in [
+          savedBenchmarks.modelAlias,
+          savedBenchmarks.hardware,
+          savedBenchmarks.serverVersion,
+          savedBenchmarks.serverCommit,
+          savedBenchmarks.tagsJson,
+          savedBenchmarks.notes,
+        ]) {
           if (!have.contains(col.name)) {
             await m.addColumn(savedBenchmarks, col);
           }

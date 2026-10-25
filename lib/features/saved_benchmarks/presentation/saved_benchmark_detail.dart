@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/util/format.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/benchmark.dart';
+import '../../../models/run_meta.dart';
 import '../../../models/saved_benchmark.dart';
 import '../../../repositories/saved_benchmark_repository.dart';
 import '../../benchmark/domain/result_template.dart';
@@ -13,6 +14,7 @@ import '../../benchmark/presentation/benchmark_request_card.dart';
 import '../../benchmark/presentation/reasoning_view.dart';
 import '../../settings/application/settings_controller.dart';
 import 'edit_run_dialog.dart';
+import 'run_details_summary.dart';
 
 /// Opens a saved benchmark: its headline stats, the prompt, and every saved
 /// response.
@@ -54,23 +56,13 @@ class _DetailViewState extends ConsumerState<_DetailView> {
   Future<void> _editDetails() async {
     final b = _b;
     final repo = ref.read(savedBenchmarkRepositoryProvider);
-    final d = await showEditRunDialog(
+    final edited = await showEditRunDialog(
       context,
-      current: RunDetails(
-        name: b.name,
-        machine: b.machineLabel,
-        modelAlias: b.modelAlias,
-        notes: b.notes,
-      ),
+      meta: b.details.toMeta(),
       sentModel: b.model ?? '',
     );
-    if (d == null || !mounted) return;
-    final updated = b.copyWith(
-      name: d.name,
-      machineName: d.machine,
-      modelAlias: d.modelAlias,
-      notes: d.notes,
-    );
+    if (edited == null || !mounted) return;
+    final updated = b.withDetails(RunDetails.fromMeta(edited));
     setState(() => _b = updated);
     await repo.save(updated);
   }
@@ -141,17 +133,7 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                               ),
                             ],
                           ),
-                          if (b.notes.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              b.notes,
-                              style: context.text.small.copyWith(
-                                color: c.textSecondary,
-                              ),
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                          RunDetailsSummary(details: b.details),
                         ],
                       ),
                     ),
