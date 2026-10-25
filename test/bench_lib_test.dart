@@ -27,7 +27,9 @@ Future<HttpServer> _fakeServer({
   List<Map<String, dynamic>>? bodies,
   List<String> models = const [],
 }) async {
-  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  // Says it's llmd, as llmd does: the benchmarker detects the kind from it.
+  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0)
+    ..serverHeader = 'zml/httpd';
   server.listen((req) async {
     final body = await utf8.decoder.bind(req).join();
     if (req.uri.path == '/v1/models') {
@@ -409,6 +411,8 @@ void main() {
       expect((meta['params'] as Map)['concurrency'], 4);
       expect((meta['params'] as Map)['ignore_eos'], isTrue);
       expect(meta['model'], {'name': 'Qwen/Qwen3-8B'});
+      // The benchmarker's detection, recorded as data.
+      expect((meta['server'] as Map)['kind'], 'zml');
       expect((meta['summary'] as Map)['requests'], 24);
       expect(
         (meta['summary'] as Map)['joules_per_token'],

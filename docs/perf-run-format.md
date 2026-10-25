@@ -82,6 +82,10 @@ detect; the rest is entered (or corrected) in the export dialog.
     "machine": "4090-box"                    // auto — ZML-Lab machine name, if one was picked
   },
   "server": {
+    "kind": "zml",                           // auto — the benchmarker's detection, from the
+                                             //   Server header: zml | vllm | openai | unknown
+                                             //   (the list grows as it learns more servers).
+                                             //   Data only, not a label: runs are named by `label`
     "version": "0.11.0",                     // auto for vLLM (/version), else manual
     "commit": "a1b2c3d"                      // manual
   },

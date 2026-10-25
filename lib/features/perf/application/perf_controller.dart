@@ -171,6 +171,10 @@ class PerfController extends _$PerfController {
   ChipAccumulator _chipStats = ChipAccumulator();
   String? _serverVersion;
 
+  /// The benchmarker's detected server kind, for meta.json only: data, never
+  /// shown or used as a label.
+  String? _serverKind;
+
   /// The running run's params, with the model it actually sends.
   PerfParams? _runParams;
 
@@ -276,6 +280,7 @@ class PerfController extends _$PerfController {
     _chipStats = ChipAccumulator();
     _chipUrl = null;
     _serverVersion = null;
+    _serverKind = null;
 
     final settings = ref.read(settingsControllerProvider);
     state = state.copyWith(
@@ -486,7 +491,7 @@ class PerfController extends _$PerfController {
       'app': {'benchmarker_api': 2},
       if (client.isNotEmpty) 'client': client,
       'target': {'url': 'http://$_host:$_port/v1/', 'machine': ?_machine},
-      'server': {'version': ?_serverVersion},
+      'server': {'kind': ?_serverKind, 'version': ?_serverVersion},
       'model': {if (p.model.isNotEmpty) 'name': p.model},
       'hardware': {
         // The target machine's, else what zml-smi saw (a custom host).
@@ -588,6 +593,9 @@ class PerfController extends _$PerfController {
     _stopTicker();
     final acc = _acc;
     _run = null;
+    if (summary.server case final kind? when kind.isNotEmpty) {
+      _serverKind = kind;
+    }
     if (summary.error != null) {
       AppLog.write('perf benchmarker: ${summary.error}');
     }
