@@ -64,9 +64,6 @@ class PerfReports extends Table {
   TextColumn get name => text()();
   TextColumn get machineName => text()();
   TextColumn get endpoint => text()();
-
-  /// Server type the tool detected ('zml', 'vllm', 'openai', 'unknown').
-  TextColumn get server => text()();
   DateTimeColumn get createdAt => dateTime()();
   IntColumn get totalRequests => integer()();
   RealColumn get tokensPerSecond => real()();

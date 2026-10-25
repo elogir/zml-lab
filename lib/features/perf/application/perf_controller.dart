@@ -477,7 +477,6 @@ class PerfController extends _$PerfController {
       'schema_version': 1,
       'run_id': report.id,
       'label': [
-        report.server,
         if (p.model.isNotEmpty) p.model.split('/').last,
         'c=${p.concurrency}',
       ].join(' · '),
@@ -487,7 +486,7 @@ class PerfController extends _$PerfController {
       'app': {'benchmarker_api': 2},
       if (client.isNotEmpty) 'client': client,
       'target': {'url': 'http://$_host:$_port/v1/', 'machine': ?_machine},
-      'server': {'kind': report.server, 'version': ?_serverVersion},
+      'server': {'version': ?_serverVersion},
       'model': {if (p.model.isNotEmpty) 'name': p.model},
       'hardware': {
         // The target machine's, else what zml-smi saw (a custom host).
@@ -614,7 +613,6 @@ class PerfController extends _$PerfController {
       jobCommand: _jobCommand,
       // The parameters are on the report; there's no CLI to quote anymore.
       benchCommand: '',
-      server: acc.server.isEmpty ? 'unknown' : acc.server,
       createdAt: DateTime.now(),
       params: params,
       totalSeconds: acc.totalSeconds,

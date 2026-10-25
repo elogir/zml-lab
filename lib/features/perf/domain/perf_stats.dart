@@ -90,7 +90,6 @@ class PerfAccumulator {
   int _maxSeq = 0;
   int? _minRequestTsNs;
   int _maxTsNs = 0;
-  String server = '';
 
   /// Some request's end was seen (see [_RequestState.done]). A server that
   /// never reports usage gives none: then requests end at their last chunk.
@@ -145,7 +144,6 @@ class PerfAccumulator {
       _firstError ??= e.error;
     }
     if (e.seq > _maxSeq) _maxSeq = e.seq;
-    if (e.server.isNotEmpty) server = e.server;
     _minRequestTsNs = math.min(
       _minRequestTsNs ?? e.requestTimestampNs,
       e.requestTimestampNs,

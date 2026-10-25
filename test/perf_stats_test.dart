@@ -155,7 +155,6 @@ void main() {
               inputTokens: 0,
               outputTokens: t ~/ 50,
               concurrency: 2,
-              server: '',
               error: '',
             ),
         const PerfEvent(
@@ -167,7 +166,6 @@ void main() {
           inputTokens: 0,
           outputTokens: 99,
           concurrency: 2,
-          server: '',
           error: '',
         ),
       ]);
@@ -211,7 +209,6 @@ void main() {
           inputTokens: end ? 10 : 0,
           outputTokens: 0,
           concurrency: 3,
-          server: '',
           error: '',
         );
     final events = [
@@ -279,7 +276,6 @@ void main() {
       endpoint: 'local:8901',
       jobCommand: '',
       benchCommand: '',
-      server: acc.server,
       createdAt: DateTime(2026),
       params: const PerfParams(),
       totalSeconds: acc.totalSeconds,

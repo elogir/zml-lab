@@ -324,7 +324,6 @@ class PerfReport {
     required this.endpoint,
     required this.jobCommand,
     required this.benchCommand,
-    required this.server,
     required this.createdAt,
     required this.params,
     required this.totalSeconds,
@@ -358,9 +357,6 @@ class PerfReport {
 
   /// The exact benchmarker command line this run used.
   final String benchCommand;
-
-  /// Server type as detected by the tool ('zml', 'vllm', 'openai', 'unknown').
-  final String server;
   final DateTime createdAt;
   final PerfParams params;
 
@@ -404,7 +400,6 @@ class PerfReport {
     endpoint: endpoint,
     jobCommand: jobCommand,
     benchCommand: benchCommand,
-    server: server,
     createdAt: createdAt,
     params: params,
     totalSeconds: totalSeconds,
@@ -423,13 +418,6 @@ class PerfReport {
     chips: chips,
     joulesPerToken: joulesPerToken,
   );
-
-  /// Server label for badges — 'zml' reads better as 'llmd' in this app.
-  String get serverLabel => switch (server) {
-    'zml' => 'llmd',
-    '' || 'unknown' => 'unknown',
-    _ => server,
-  };
 
   Map<String, dynamic> toMap() => {
     'jobName': jobName,
@@ -457,7 +445,6 @@ class PerfReport {
     required String name,
     required String machineName,
     required String endpoint,
-    required String server,
     required DateTime createdAt,
     required int totalRequests,
     required double tokensPerSecond,
@@ -471,7 +458,6 @@ class PerfReport {
     endpoint: endpoint,
     jobCommand: m['jobCommand'] as String? ?? '',
     benchCommand: m['benchCommand'] as String? ?? '',
-    server: server,
     createdAt: createdAt,
     params: PerfParams.fromMap(
       (m['params'] as Map?)?.cast<String, dynamic>() ?? const {},

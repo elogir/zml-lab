@@ -22,7 +22,6 @@ class PerfEvent {
     required this.inputTokens,
     required this.outputTokens,
     required this.concurrency,
-    required this.server,
     required this.error,
   });
 
@@ -38,7 +37,6 @@ class PerfEvent {
   final int inputTokens;
   final int outputTokens;
   final int concurrency;
-  final String server;
   final String error;
 
   bool get isError => error.isNotEmpty;
@@ -126,7 +124,7 @@ class PerfCsvParser {
       inputTokens: int.tryParse(f[5]) ?? 0,
       outputTokens: int.tryParse(f[6]) ?? 0,
       concurrency: int.tryParse(f[7]) ?? 0,
-      server: f[8],
+      // f[8], the server's kind, isn't used.
       error: f[10],
     );
   }

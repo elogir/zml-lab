@@ -57,7 +57,6 @@ class BenchLibConfig {
 class BenchLibSummary {
   const BenchLibSummary({
     this.error,
-    this.server,
     this.events = 0,
     this.errors = 0,
     this.elapsed = Duration.zero,
@@ -66,7 +65,6 @@ class BenchLibSummary {
   factory BenchLibSummary.fromJson(Map<String, dynamic> json) =>
       BenchLibSummary(
         error: json['error'] as String?,
-        server: json['server'] as String?,
         events: (json['events'] as num?)?.toInt() ?? 0,
         errors: (json['errors'] as num?)?.toInt() ?? 0,
         elapsed: Duration(
@@ -76,7 +74,6 @@ class BenchLibSummary {
 
   /// Why the run failed to start or aborted; null when it ran.
   final String? error;
-  final String? server;
 
   /// Events (CSV rows) written.
   final int events;

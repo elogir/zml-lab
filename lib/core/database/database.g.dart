@@ -1757,15 +1757,6 @@ class $PerfReportsTable extends PerfReports
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _serverMeta = const VerificationMeta('server');
-  @override
-  late final GeneratedColumn<String> server = GeneratedColumn<String>(
-    'server',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1829,7 +1820,6 @@ class $PerfReportsTable extends PerfReports
     name,
     machineName,
     endpoint,
-    server,
     createdAt,
     totalRequests,
     tokensPerSecond,
@@ -1879,14 +1869,6 @@ class $PerfReportsTable extends PerfReports
       );
     } else if (isInserting) {
       context.missing(_endpointMeta);
-    }
-    if (data.containsKey('server')) {
-      context.handle(
-        _serverMeta,
-        server.isAcceptableOrUnknown(data['server']!, _serverMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_serverMeta);
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -1960,10 +1942,6 @@ class $PerfReportsTable extends PerfReports
         DriftSqlType.string,
         data['${effectivePrefix}endpoint'],
       )!,
-      server: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}server'],
-      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -1998,9 +1976,6 @@ class PerfReportRow extends DataClass implements Insertable<PerfReportRow> {
   final String name;
   final String machineName;
   final String endpoint;
-
-  /// Server type the tool detected ('zml', 'vllm', 'openai', 'unknown').
-  final String server;
   final DateTime createdAt;
   final int totalRequests;
   final double tokensPerSecond;
@@ -2013,7 +1988,6 @@ class PerfReportRow extends DataClass implements Insertable<PerfReportRow> {
     required this.name,
     required this.machineName,
     required this.endpoint,
-    required this.server,
     required this.createdAt,
     required this.totalRequests,
     required this.tokensPerSecond,
@@ -2027,7 +2001,6 @@ class PerfReportRow extends DataClass implements Insertable<PerfReportRow> {
     map['name'] = Variable<String>(name);
     map['machine_name'] = Variable<String>(machineName);
     map['endpoint'] = Variable<String>(endpoint);
-    map['server'] = Variable<String>(server);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['total_requests'] = Variable<int>(totalRequests);
     map['tokens_per_second'] = Variable<double>(tokensPerSecond);
@@ -2042,7 +2015,6 @@ class PerfReportRow extends DataClass implements Insertable<PerfReportRow> {
       name: Value(name),
       machineName: Value(machineName),
       endpoint: Value(endpoint),
-      server: Value(server),
       createdAt: Value(createdAt),
       totalRequests: Value(totalRequests),
       tokensPerSecond: Value(tokensPerSecond),
@@ -2061,7 +2033,6 @@ class PerfReportRow extends DataClass implements Insertable<PerfReportRow> {
       name: serializer.fromJson<String>(json['name']),
       machineName: serializer.fromJson<String>(json['machineName']),
       endpoint: serializer.fromJson<String>(json['endpoint']),
-      server: serializer.fromJson<String>(json['server']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       totalRequests: serializer.fromJson<int>(json['totalRequests']),
       tokensPerSecond: serializer.fromJson<double>(json['tokensPerSecond']),
@@ -2077,7 +2048,6 @@ class PerfReportRow extends DataClass implements Insertable<PerfReportRow> {
       'name': serializer.toJson<String>(name),
       'machineName': serializer.toJson<String>(machineName),
       'endpoint': serializer.toJson<String>(endpoint),
-      'server': serializer.toJson<String>(server),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'totalRequests': serializer.toJson<int>(totalRequests),
       'tokensPerSecond': serializer.toJson<double>(tokensPerSecond),
@@ -2091,7 +2061,6 @@ class PerfReportRow extends DataClass implements Insertable<PerfReportRow> {
     String? name,
     String? machineName,
     String? endpoint,
-    String? server,
     DateTime? createdAt,
     int? totalRequests,
     double? tokensPerSecond,
@@ -2102,7 +2071,6 @@ class PerfReportRow extends DataClass implements Insertable<PerfReportRow> {
     name: name ?? this.name,
     machineName: machineName ?? this.machineName,
     endpoint: endpoint ?? this.endpoint,
-    server: server ?? this.server,
     createdAt: createdAt ?? this.createdAt,
     totalRequests: totalRequests ?? this.totalRequests,
     tokensPerSecond: tokensPerSecond ?? this.tokensPerSecond,
@@ -2117,7 +2085,6 @@ class PerfReportRow extends DataClass implements Insertable<PerfReportRow> {
           ? data.machineName.value
           : this.machineName,
       endpoint: data.endpoint.present ? data.endpoint.value : this.endpoint,
-      server: data.server.present ? data.server.value : this.server,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       totalRequests: data.totalRequests.present
           ? data.totalRequests.value
@@ -2141,7 +2108,6 @@ class PerfReportRow extends DataClass implements Insertable<PerfReportRow> {
           ..write('name: $name, ')
           ..write('machineName: $machineName, ')
           ..write('endpoint: $endpoint, ')
-          ..write('server: $server, ')
           ..write('createdAt: $createdAt, ')
           ..write('totalRequests: $totalRequests, ')
           ..write('tokensPerSecond: $tokensPerSecond, ')
@@ -2157,7 +2123,6 @@ class PerfReportRow extends DataClass implements Insertable<PerfReportRow> {
     name,
     machineName,
     endpoint,
-    server,
     createdAt,
     totalRequests,
     tokensPerSecond,
@@ -2172,7 +2137,6 @@ class PerfReportRow extends DataClass implements Insertable<PerfReportRow> {
           other.name == this.name &&
           other.machineName == this.machineName &&
           other.endpoint == this.endpoint &&
-          other.server == this.server &&
           other.createdAt == this.createdAt &&
           other.totalRequests == this.totalRequests &&
           other.tokensPerSecond == this.tokensPerSecond &&
@@ -2185,7 +2149,6 @@ class PerfReportsCompanion extends UpdateCompanion<PerfReportRow> {
   final Value<String> name;
   final Value<String> machineName;
   final Value<String> endpoint;
-  final Value<String> server;
   final Value<DateTime> createdAt;
   final Value<int> totalRequests;
   final Value<double> tokensPerSecond;
@@ -2197,7 +2160,6 @@ class PerfReportsCompanion extends UpdateCompanion<PerfReportRow> {
     this.name = const Value.absent(),
     this.machineName = const Value.absent(),
     this.endpoint = const Value.absent(),
-    this.server = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.totalRequests = const Value.absent(),
     this.tokensPerSecond = const Value.absent(),
@@ -2210,7 +2172,6 @@ class PerfReportsCompanion extends UpdateCompanion<PerfReportRow> {
     required String name,
     required String machineName,
     required String endpoint,
-    required String server,
     required DateTime createdAt,
     required int totalRequests,
     required double tokensPerSecond,
@@ -2221,7 +2182,6 @@ class PerfReportsCompanion extends UpdateCompanion<PerfReportRow> {
        name = Value(name),
        machineName = Value(machineName),
        endpoint = Value(endpoint),
-       server = Value(server),
        createdAt = Value(createdAt),
        totalRequests = Value(totalRequests),
        tokensPerSecond = Value(tokensPerSecond),
@@ -2231,7 +2191,6 @@ class PerfReportsCompanion extends UpdateCompanion<PerfReportRow> {
     Expression<String>? name,
     Expression<String>? machineName,
     Expression<String>? endpoint,
-    Expression<String>? server,
     Expression<DateTime>? createdAt,
     Expression<int>? totalRequests,
     Expression<double>? tokensPerSecond,
@@ -2244,7 +2203,6 @@ class PerfReportsCompanion extends UpdateCompanion<PerfReportRow> {
       if (name != null) 'name': name,
       if (machineName != null) 'machine_name': machineName,
       if (endpoint != null) 'endpoint': endpoint,
-      if (server != null) 'server': server,
       if (createdAt != null) 'created_at': createdAt,
       if (totalRequests != null) 'total_requests': totalRequests,
       if (tokensPerSecond != null) 'tokens_per_second': tokensPerSecond,
@@ -2259,7 +2217,6 @@ class PerfReportsCompanion extends UpdateCompanion<PerfReportRow> {
     Value<String>? name,
     Value<String>? machineName,
     Value<String>? endpoint,
-    Value<String>? server,
     Value<DateTime>? createdAt,
     Value<int>? totalRequests,
     Value<double>? tokensPerSecond,
@@ -2272,7 +2229,6 @@ class PerfReportsCompanion extends UpdateCompanion<PerfReportRow> {
       name: name ?? this.name,
       machineName: machineName ?? this.machineName,
       endpoint: endpoint ?? this.endpoint,
-      server: server ?? this.server,
       createdAt: createdAt ?? this.createdAt,
       totalRequests: totalRequests ?? this.totalRequests,
       tokensPerSecond: tokensPerSecond ?? this.tokensPerSecond,
@@ -2296,9 +2252,6 @@ class PerfReportsCompanion extends UpdateCompanion<PerfReportRow> {
     }
     if (endpoint.present) {
       map['endpoint'] = Variable<String>(endpoint.value);
-    }
-    if (server.present) {
-      map['server'] = Variable<String>(server.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -2328,7 +2281,6 @@ class PerfReportsCompanion extends UpdateCompanion<PerfReportRow> {
           ..write('name: $name, ')
           ..write('machineName: $machineName, ')
           ..write('endpoint: $endpoint, ')
-          ..write('server: $server, ')
           ..write('createdAt: $createdAt, ')
           ..write('totalRequests: $totalRequests, ')
           ..write('tokensPerSecond: $tokensPerSecond, ')
@@ -3832,7 +3784,6 @@ typedef $$PerfReportsTableCreateCompanionBuilder =
       required String name,
       required String machineName,
       required String endpoint,
-      required String server,
       required DateTime createdAt,
       required int totalRequests,
       required double tokensPerSecond,
@@ -3846,7 +3797,6 @@ typedef $$PerfReportsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> machineName,
       Value<String> endpoint,
-      Value<String> server,
       Value<DateTime> createdAt,
       Value<int> totalRequests,
       Value<double> tokensPerSecond,
@@ -3881,11 +3831,6 @@ class $$PerfReportsTableFilterComposer
 
   ColumnFilters<String> get endpoint => $composableBuilder(
     column: $table.endpoint,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get server => $composableBuilder(
-    column: $table.server,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3944,11 +3889,6 @@ class $$PerfReportsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get server => $composableBuilder(
-    column: $table.server,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -3997,9 +3937,6 @@ class $$PerfReportsTableAnnotationComposer
 
   GeneratedColumn<String> get endpoint =>
       $composableBuilder(column: $table.endpoint, builder: (column) => column);
-
-  GeneratedColumn<String> get server =>
-      $composableBuilder(column: $table.server, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -4060,7 +3997,6 @@ class $$PerfReportsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> machineName = const Value.absent(),
                 Value<String> endpoint = const Value.absent(),
-                Value<String> server = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> totalRequests = const Value.absent(),
                 Value<double> tokensPerSecond = const Value.absent(),
@@ -4072,7 +4008,6 @@ class $$PerfReportsTableTableManager
                 name: name,
                 machineName: machineName,
                 endpoint: endpoint,
-                server: server,
                 createdAt: createdAt,
                 totalRequests: totalRequests,
                 tokensPerSecond: tokensPerSecond,
@@ -4086,7 +4021,6 @@ class $$PerfReportsTableTableManager
                 required String name,
                 required String machineName,
                 required String endpoint,
-                required String server,
                 required DateTime createdAt,
                 required int totalRequests,
                 required double tokensPerSecond,
@@ -4098,7 +4032,6 @@ class $$PerfReportsTableTableManager
                 name: name,
                 machineName: machineName,
                 endpoint: endpoint,
-                server: server,
                 createdAt: createdAt,
                 totalRequests: totalRequests,
                 tokensPerSecond: tokensPerSecond,

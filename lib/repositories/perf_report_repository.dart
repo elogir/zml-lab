@@ -38,7 +38,6 @@ class DriftPerfReportRepository implements PerfReportRepository {
           name: r.name,
           machineName: r.machineName,
           endpoint: r.endpoint,
-          server: r.server,
           createdAt: r.createdAt,
           totalRequests: r.totalRequests,
           tokensPerSecond: r.tokensPerSecond,

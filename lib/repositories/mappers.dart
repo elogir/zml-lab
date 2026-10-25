@@ -120,7 +120,6 @@ extension PerfReportRowMapper on PerfReportRow {
       name: name,
       machineName: machineName,
       endpoint: endpoint,
-      server: server,
       createdAt: createdAt,
       totalRequests: totalRequests,
       tokensPerSecond: tokensPerSecond,

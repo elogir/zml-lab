@@ -20,7 +20,6 @@ void main() {
     endpoint: '127.0.0.1:8000',
     jobCommand: '',
     benchCommand: '',
-    server: acc.server,
     createdAt: DateTime(2026),
     params: const PerfParams(),
     totalSeconds: acc.totalSeconds,

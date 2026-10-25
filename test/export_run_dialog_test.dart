@@ -22,7 +22,7 @@ void main() {
     'run_id': 'p-1',
     'label': 'vLLM · Qwen3-8B · c=16',
     'tags': ['a', 'b'],
-    'server': {'kind': 'vllm', 'version': '0.11.0'},
+    'server': {'version': '0.11.0'},
     'model': {'name': 'Qwen/Qwen3-8B'},
     'hardware': {
       'description': '1× RTX 4090',
@@ -56,7 +56,7 @@ void main() {
       'run_id': 'p-1',
       'label': 'llmd fp8',
       'tags': ['llmd', 'fp8'],
-      'server': {'kind': 'vllm', 'commit': 'a1b2c3d'},
+      'server': {'commit': 'a1b2c3d'},
       'model': {'name': 'Qwen/Qwen3-8B-FP8'},
       // What the dialog doesn't edit (the detected chips) is kept.
       'hardware': {

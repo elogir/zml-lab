@@ -82,7 +82,6 @@ detect; the rest is entered (or corrected) in the export dialog.
     "machine": "4090-box"                    // auto — ZML-Lab machine name, if one was picked
   },
   "server": {
-    "kind": "zml",                           // auto — zml | vllm | openai | unknown (Server header)
     "version": "0.11.0",                     // auto for vLLM (/version), else manual
     "commit": "a1b2c3d"                      // manual
   },

@@ -138,7 +138,6 @@ class _Headline extends StatelessWidget {
     final c = context.colors;
     final r = report;
     final meta = [
-      r.serverLabel,
       if (r.params.model.isNotEmpty) r.params.model,
       '${r.params.sequenceType} prompts',
       'mode ${r.params.mode}',

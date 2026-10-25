@@ -32,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -130,6 +130,15 @@ class AppDatabase extends _$AppDatabase {
           'saved_benchmarks',
         )).contains(savedBenchmarks.ignoreEos.name)) {
           await m.addColumn(savedBenchmarks, savedBenchmarks.ignoreEos);
+        }
+      }
+      if (from < 16) {
+        // Perf reports no longer keep the server's kind (from its Server
+        // header): nothing is keyed on server names.
+        if ((await _columns('perf_reports')).contains('server')) {
+          await m.database.customStatement(
+            'ALTER TABLE perf_reports DROP COLUMN server',
+          );
         }
       }
     },
