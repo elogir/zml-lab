@@ -491,7 +491,7 @@ class _Controls extends StatelessWidget {
     );
   }
 
-  // The breakpoints keep the model field ~250 px wide or more: room for a
+  // The breakpoints keep the model field ~200 px wide or more: room for a
   // model name, not just its first letters.
 
   /// From this width the prompt joins the settings' row.
@@ -499,11 +499,11 @@ class _Controls extends StatelessWidget {
 
   /// Below this the model and Send get a line of their own, under the
   /// numbers.
-  static const _oneLineWidth = 960.0;
+  static const _oneLineWidth = 880.0;
 
   /// Below this the model gets a line to itself, Ignore EOS and Send one
   /// under it.
-  static const _modelLineWidth = 540.0;
+  static const _modelLineWidth = 480.0;
 }
 
 /// After a run in which replies were cut off by a token limit — either the

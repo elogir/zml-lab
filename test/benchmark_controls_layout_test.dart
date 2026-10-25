@@ -81,7 +81,7 @@ void main() {
       // Send is exactly a field's height, on the model's line — narrowest,
       // on the line under it, the model then a whole line wide.
       expect(send.height, closeTo(model.height, 0.01));
-      if (width >= 540) {
+      if (width >= 480) {
         expect(send.top, closeTo(model.top, 0.01));
       } else {
         expect(send.top, greaterThan(model.bottom));
@@ -102,18 +102,19 @@ void main() {
       final beforeSend = width >= 1150 ? prompt : model;
       final toggle = rect(find.widgetWithText(CheckToggle, 'Ignore EOS').last);
       expect(toggle.center.dy, closeTo(send.center.dy, 1));
-      if (width >= 540) {
+      if (width >= 480) {
         expect(toggle.left - beforeSend.right, lessThan(20));
         expect(send.left - toggle.right, lessThan(20));
       } else {
         expect(toggle.left, closeTo(0, 1));
       }
       expect(batch.left, closeTo(0, 1));
-      // Room for a 4-digit batch size beside the dropdown segment (128 px
+      // Room for a 4-digit batch size beside the dropdown segment (120 px
       // on one line; an equal share of the row when stacked).
-      expect(batch.width, greaterThanOrEqualTo(width >= 960 ? 128 : 100));
-      // Room for a model name, however the row wraps.
-      expect(model.width, greaterThanOrEqualTo(150));
+      expect(batch.width, greaterThanOrEqualTo(width >= 880 ? 120 : 100));
+      // Room for a model name, however the row wraps (~200 px in the app;
+      // less here, the test font being much wider).
+      expect(model.width, greaterThanOrEqualTo(100));
 
       // Stats form a grid: every label starts at one of the first row's
       // column edges, whether they fit on one line or wrap.
