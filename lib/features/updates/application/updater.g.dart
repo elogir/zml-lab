@@ -9,22 +9,25 @@ part of 'updater.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// Checks GitHub for new releases (shortly after launch, then every few
-/// hours), downloads and stages them beside the app, and offers "Restart to
-/// update". With auto update on it also arms the swap, so a staged build goes
-/// in when the app quits.
+/// hours). With auto update on, a new release downloads and stages beside the
+/// app right away, the swap is armed so it goes in when the app quits, and
+/// "Restart to update" installs it sooner. With it off, the sidebar offers
+/// "Update to …", which downloads it and then restarts into it.
 
 @ProviderFor(Updater)
 final updaterProvider = UpdaterProvider._();
 
 /// Checks GitHub for new releases (shortly after launch, then every few
-/// hours), downloads and stages them beside the app, and offers "Restart to
-/// update". With auto update on it also arms the swap, so a staged build goes
-/// in when the app quits.
+/// hours). With auto update on, a new release downloads and stages beside the
+/// app right away, the swap is armed so it goes in when the app quits, and
+/// "Restart to update" installs it sooner. With it off, the sidebar offers
+/// "Update to …", which downloads it and then restarts into it.
 final class UpdaterProvider extends $NotifierProvider<Updater, UpdateStatus> {
   /// Checks GitHub for new releases (shortly after launch, then every few
-  /// hours), downloads and stages them beside the app, and offers "Restart to
-  /// update". With auto update on it also arms the swap, so a staged build goes
-  /// in when the app quits.
+  /// hours). With auto update on, a new release downloads and stages beside the
+  /// app right away, the swap is armed so it goes in when the app quits, and
+  /// "Restart to update" installs it sooner. With it off, the sidebar offers
+  /// "Update to …", which downloads it and then restarts into it.
   UpdaterProvider._()
     : super(
         from: null,
@@ -52,12 +55,13 @@ final class UpdaterProvider extends $NotifierProvider<Updater, UpdateStatus> {
   }
 }
 
-String _$updaterHash() => r'39798d7f74ea8ec70efb67e8dc07f6a69ea6f2a2';
+String _$updaterHash() => r'ece52253ef6653004c29ace563f6a04cb97e344b';
 
 /// Checks GitHub for new releases (shortly after launch, then every few
-/// hours), downloads and stages them beside the app, and offers "Restart to
-/// update". With auto update on it also arms the swap, so a staged build goes
-/// in when the app quits.
+/// hours). With auto update on, a new release downloads and stages beside the
+/// app right away, the swap is armed so it goes in when the app quits, and
+/// "Restart to update" installs it sooner. With it off, the sidebar offers
+/// "Update to …", which downloads it and then restarts into it.
 
 abstract class _$Updater extends $Notifier<UpdateStatus> {
   UpdateStatus build();

@@ -13,6 +13,7 @@ export 'app_text_field.dart';
 export 'copy_button.dart';
 export 'form_field_group.dart';
 export 'hover_region.dart';
+export 'progress_ring.dart';
 export 'section_header.dart';
 export 'selection_area.dart';
 export 'segmented_control.dart';

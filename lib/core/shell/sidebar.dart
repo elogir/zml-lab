@@ -173,15 +173,17 @@ class _ToggleBar extends StatelessWidget {
   }
 }
 
-/// "Restart to update", above Settings, once a newer release is downloaded
-/// and staged. Asks first when something is running in the terminals, since
-/// restarting stops it.
+/// The update button above Settings: "Update to …" while a newer release is
+/// out but not downloaded (auto update off, or a failed download), its
+/// download once clicked, then "Restart to update" once a build is staged.
+/// Asks first when something is running in the terminals, since restarting
+/// stops it.
 class _UpdateItem extends ConsumerWidget {
   const _UpdateItem({required this.t});
 
   final double t;
 
-  Future<void> _restart(BuildContext context, WidgetRef ref) async {
+  Future<void> _install(BuildContext context, WidgetRef ref) async {
     final updater = ref.read(updaterProvider.notifier);
     final jobs = await updater.busyTerminals();
     if (!context.mounted) return;
@@ -190,29 +192,56 @@ class _UpdateItem extends ConsumerWidget {
           context,
           title: 'Restart to update?',
           message:
-              'Restarting stops what is running in the terminal: '
-              '${jobs.toSet().join(', ')}.',
+              'Updating restarts the app, which stops what is running in the '
+              'terminal: ${jobs.toSet().join(', ')}.',
           confirmLabel: 'Restart',
         )) {
       return;
     }
-    await updater.restartNow();
+    await updater.install(confirmed: jobs);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(updaterProvider);
-    if (status.phase != UpdatePhase.ready) return const SizedBox.shrink();
-    return _NavItem(
-      t: t,
-      icon: AppIcons.restart,
-      label: 'Restart to update',
-      note: '${status.version}',
-      color: context.colors.accent,
-      badge: 0,
-      active: false,
-      onTap: () => _restart(context, ref),
-    );
+    final c = context.colors;
+    return switch (status.phase) {
+      UpdatePhase.available => _NavItem(
+        t: t,
+        icon: AppIcons.download,
+        label: 'Update to ${status.version}',
+        color: c.accent,
+        badge: 0,
+        active: false,
+        onTap: () => _install(context, ref),
+      ),
+      UpdatePhase.downloading when status.installing => _NavItem(
+        t: t,
+        icon: AppIcons.download,
+        leading: ProgressRing(
+          progress: status.progress,
+          color: c.accent,
+          track: c.border,
+        ),
+        label: 'Downloading ${status.version}',
+        note: '${(status.progress * 100).floor()}%',
+        color: c.accent,
+        badge: 0,
+        active: false,
+        onTap: () {},
+      ),
+      UpdatePhase.ready => _NavItem(
+        t: t,
+        icon: AppIcons.restart,
+        label: 'Restart to update',
+        note: '${status.version}',
+        color: c.accent,
+        badge: 0,
+        active: false,
+        onTap: () => _install(context, ref),
+      ),
+      _ => const SizedBox.shrink(),
+    };
   }
 }
 
@@ -226,6 +255,7 @@ class _NavItem extends StatelessWidget {
     required this.onTap,
     this.note,
     this.color,
+    this.leading,
   });
 
   final double t;
@@ -240,6 +270,9 @@ class _NavItem extends StatelessWidget {
 
   /// Overrides the icon and label color.
   final Color? color;
+
+  /// Drawn in place of [icon], at its size.
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -293,7 +326,8 @@ class _NavItem extends StatelessWidget {
                       top: 0,
                       height: _itemHeight,
                       child: Center(
-                        child: Icon(icon, size: _iconSize, color: fg),
+                        child:
+                            leading ?? Icon(icon, size: _iconSize, color: fg),
                       ),
                     ),
                     Positioned(

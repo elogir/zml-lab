@@ -528,9 +528,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _SettingRow(
                     title: 'Auto update',
                     description:
-                        'New releases from GitHub download in the background '
-                        'and show Restart to update in the sidebar. On also '
-                        'installs them when you quit.',
+                        'On: new releases from GitHub download in the '
+                        'background and install when you quit (or sooner, '
+                        'from Restart to update in the sidebar). Off: the '
+                        'sidebar shows Update to …, and nothing downloads '
+                        'until you click it.',
                     control: SegmentedControl<bool>(
                       value: s.autoUpdate,
                       onChanged: _controller.setAutoUpdate,
@@ -586,6 +588,13 @@ class _UpdateStatusRow extends ConsumerWidget {
         'A local build: only release builds update themselves.',
       UpdatePhase.idle => 'Up to date. $checked',
       UpdatePhase.checking => 'Checking GitHub…',
+      UpdatePhase.available => switch (status.error) {
+        null =>
+          '${status.version} is out: Update to ${status.version} in the '
+              'sidebar downloads and installs it.',
+        final error =>
+          '$error Update to ${status.version} in the sidebar tries again.',
+      },
       UpdatePhase.downloading =>
         'Downloading ${status.version}… ${(status.progress * 100).floor()}%',
       UpdatePhase.ready =>
