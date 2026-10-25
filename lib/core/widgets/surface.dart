@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../theme/app_theme.dart';
+import 'app_checkbox.dart';
 import 'app_icon_button.dart';
 import 'app_icons.dart';
 import 'hover_region.dart';
@@ -46,6 +47,7 @@ class AppCard extends StatelessWidget {
     super.key,
     required this.child,
     this.onTap,
+    this.onSelect,
     this.onDuplicate,
     this.onDelete,
     this.topRight,
@@ -56,6 +58,11 @@ class AppCard extends StatelessWidget {
 
   final Widget child;
   final VoidCallback? onTap;
+
+  /// If set, a check box appears in the top-right corner on hover (left of
+  /// the other buttons) to toggle [selected]; a selected card keeps it
+  /// showing, ticked, in place of [topRight].
+  final VoidCallback? onSelect;
 
   /// If set, a duplicate button appears in the top-right corner on hover
   /// (left of the delete button).
@@ -86,14 +93,26 @@ class AppCard extends StatelessWidget {
             borderRadius: radius,
             border: Border.all(
               color: selected
-                  ? c.borderStrong
+                  ? c.accent.withValues(alpha: 0.6)
                   : (hovered ? c.borderStrong : c.border),
             ),
           ),
           child: child,
         );
-        final showActions = (onDelete != null || onDuplicate != null) && hovered;
-        final showTopRight = topRight != null && !showActions;
+        final select = onSelect == null
+            ? null
+            : HoverRegion(
+                onTap: onSelect,
+                builder: (context, hovered) => Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: AppCheckbox(value: selected, hovered: hovered),
+                ),
+              );
+        final showActions =
+            (onDelete != null || onDuplicate != null || onSelect != null) &&
+            hovered;
+        final idle = selected && select != null ? select : topRight;
+        final showTopRight = idle != null && !showActions;
         if (showActions || showTopRight) {
           content = Stack(
             children: [
@@ -109,6 +128,7 @@ class AppCard extends StatelessWidget {
                     child: showActions
                         ? Row(
                             children: [
+                              ?select,
                               if (onDuplicate != null)
                                 AppIconButton(
                                   icon: AppIcons.copy,
@@ -126,9 +146,11 @@ class AppCard extends StatelessWidget {
                                 ),
                             ],
                           )
+                        : identical(idle, select)
+                        ? idle
                         : Padding(
                             padding: const EdgeInsets.only(right: 6),
-                            child: topRight,
+                            child: idle,
                           ),
                   ),
                 ),

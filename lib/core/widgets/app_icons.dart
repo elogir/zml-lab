@@ -60,6 +60,16 @@ abstract final class AppIcons {
   static const IconData themeLight = LucideIcons.sun;
   static const IconData themeDark = LucideIcons.moon;
 
+  // Saved runs: browsing and comparing
+  static const IconData cards = LucideIcons.layoutGrid;
+  static const IconData table = LucideIcons.rows3;
+  static const IconData sort = LucideIcons.arrowUpDown;
+  static const IconData sortAscending = LucideIcons.arrowUp;
+  static const IconData sortDescending = LucideIcons.arrowDown;
+  static const IconData compare = LucideIcons.gitCompareArrows;
+  static const IconData model = LucideIcons.box;
+  static const IconData clearFilters = LucideIcons.funnelX;
+
   // Machine details
   static const IconData gpu = LucideIcons.cpu;
   static const IconData memory = LucideIcons.memoryStick;

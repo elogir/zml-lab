@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 
 import '../theme/app_theme.dart';
 import 'app_button.dart';
+import 'app_checkbox.dart';
 import 'app_icon_button.dart';
 import 'app_icons.dart';
 import 'app_text_field.dart';
@@ -433,7 +434,6 @@ class CheckToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
     return HoverRegion(
       onTap: () => onChanged(!value),
       builder: (context, hovered) => Align(
@@ -443,27 +443,7 @@ class CheckToggle extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedContainer(
-              duration: AppDurations.fast,
-              width: 15,
-              height: 15,
-              decoration: BoxDecoration(
-                color: value ? c.accent : const Color(0x00000000),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: value
-                      ? c.accent
-                      : (hovered ? c.borderStrong : c.border),
-                ),
-              ),
-              child: value
-                  ? const Icon(
-                      AppIcons.check,
-                      size: 11,
-                      color: Color(0xFFFFFFFF),
-                    )
-                  : null,
-            ),
+            AppCheckbox(value: value, hovered: hovered),
             const SizedBox(width: AppSpacing.sm),
             Text(label, style: context.text.small, maxLines: 1),
           ],

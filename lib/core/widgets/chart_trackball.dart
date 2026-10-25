@@ -20,10 +20,18 @@ import '../theme/app_theme.dart';
 ///  - axis maxima from [stableAxisMax], so the axes don't rescale on every
 ///    update.
 class ChartTrackball extends StatefulWidget {
-  const ChartTrackball({super.key, required this.builder});
+  const ChartTrackball({
+    super.key,
+    required this.builder,
+    this.grouped = false,
+  });
 
   final Widget Function(BuildContext context, TrackballBehavior trackball)
   builder;
+
+  /// One readout listing every series, instead of one beside each point —
+  /// for charts with more than a couple of series.
+  final bool grouped;
 
   @override
   State<ChartTrackball> createState() => _ChartTrackballState();
@@ -56,6 +64,9 @@ class _ChartTrackballState extends State<ChartTrackball> {
         pointerResting: () => _pointer != null,
         enable: true,
         activationMode: ActivationMode.singleTap,
+        tooltipDisplayMode: widget.grouped
+            ? TrackballDisplayMode.groupAllPoints
+            : TrackballDisplayMode.floatAllPoints,
         lineColor: c.borderStrong,
         tooltipSettings: InteractiveTooltip(
           color: c.surface,
@@ -92,6 +103,7 @@ class _LiveTrackball extends TrackballBehavior {
     required this.pointerResting,
     super.enable,
     super.activationMode,
+    super.tooltipDisplayMode,
     super.lineColor,
     super.tooltipSettings,
   });

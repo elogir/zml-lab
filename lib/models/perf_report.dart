@@ -392,6 +392,15 @@ class PerfReport {
   /// Energy per token, every chip together (null without power readings).
   final double? joulesPerToken;
 
+  /// The [stats] row labelled [label] (`Time to first token`, …), if the
+  /// run has one.
+  PerfStatRow? stat(String label) {
+    for (final s in stats) {
+      if (s.label == label) return s;
+    }
+    return null;
+  }
+
   PerfReport copyWith({String? name}) => PerfReport(
     id: id,
     name: name ?? this.name,

@@ -89,3 +89,116 @@ final class PerfReportsStreamProvider
 }
 
 String _$perfReportsStreamHash() => r'1333aae8bd43c4eb8b106936065c9857685ba744';
+
+/// Every saved run, perf reports first, each kind newest first.
+
+@ProviderFor(savedEntries)
+final savedEntriesProvider = SavedEntriesProvider._();
+
+/// Every saved run, perf reports first, each kind newest first.
+
+final class SavedEntriesProvider
+    extends
+        $FunctionalProvider<
+          List<SavedEntry>,
+          List<SavedEntry>,
+          List<SavedEntry>
+        >
+    with $Provider<List<SavedEntry>> {
+  /// Every saved run, perf reports first, each kind newest first.
+  SavedEntriesProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'savedEntriesProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$savedEntriesHash();
+
+  @$internal
+  @override
+  $ProviderElement<List<SavedEntry>> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  List<SavedEntry> create(Ref ref) {
+    return savedEntries(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(List<SavedEntry> value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<List<SavedEntry>>(value),
+    );
+  }
+}
+
+String _$savedEntriesHash() => r'a240a6180ff71fd27cc72333f3da7d5bcdf03aff';
+
+/// The Saved benchmarks tab's filters, sort, view and selection — kept
+/// while you're on other tabs.
+
+@ProviderFor(SavedBrowser)
+final savedBrowserProvider = SavedBrowserProvider._();
+
+/// The Saved benchmarks tab's filters, sort, view and selection — kept
+/// while you're on other tabs.
+final class SavedBrowserProvider
+    extends $NotifierProvider<SavedBrowser, SavedBrowse> {
+  /// The Saved benchmarks tab's filters, sort, view and selection — kept
+  /// while you're on other tabs.
+  SavedBrowserProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'savedBrowserProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$savedBrowserHash();
+
+  @$internal
+  @override
+  SavedBrowser create() => SavedBrowser();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(SavedBrowse value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<SavedBrowse>(value),
+    );
+  }
+}
+
+String _$savedBrowserHash() => r'a2e2711bead9e3e4883cdd8d49365c3ee5816b1d';
+
+/// The Saved benchmarks tab's filters, sort, view and selection — kept
+/// while you're on other tabs.
+
+abstract class _$SavedBrowser extends $Notifier<SavedBrowse> {
+  SavedBrowse build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<SavedBrowse, SavedBrowse>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<SavedBrowse, SavedBrowse>,
+              SavedBrowse,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

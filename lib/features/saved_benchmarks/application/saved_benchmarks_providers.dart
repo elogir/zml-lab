@@ -4,6 +4,8 @@ import '../../../models/perf_report.dart';
 import '../../../models/saved_benchmark.dart';
 import '../../../repositories/perf_report_repository.dart';
 import '../../../repositories/saved_benchmark_repository.dart';
+import '../../perf/domain/run_recorder.dart';
+import '../domain/saved_entry.dart';
 
 part 'saved_benchmarks_providers.g.dart';
 
@@ -14,3 +16,81 @@ Stream<List<SavedBenchmark>> savedBenchmarksStream(Ref ref) =>
 @riverpod
 Stream<List<PerfReport>> perfReportsStream(Ref ref) =>
     ref.watch(perfReportRepositoryProvider).watchReports();
+
+/// Every saved run, perf reports first, each kind newest first.
+@riverpod
+List<SavedEntry> savedEntries(Ref ref) => [
+  for (final r in ref.watch(perfReportsStreamProvider).value ?? const [])
+    PerfEntry(r),
+  for (final b in ref.watch(savedBenchmarksStreamProvider).value ?? const [])
+    ChatEntry(b),
+];
+
+/// The Saved benchmarks tab's filters, sort, view and selection — kept
+/// while you're on other tabs.
+@Riverpod(keepAlive: true)
+class SavedBrowser extends _$SavedBrowser {
+  @override
+  SavedBrowse build() => const SavedBrowse();
+
+  void setQuery(String query) => state = state.copyWith(query: query);
+
+  void setKind(SavedKind? kind) => state = state.copyWith(kind: kind);
+
+  void setMachine(String? machine) => state = state.copyWith(machine: machine);
+
+  void setModel(String? model) => state = state.copyWith(model: model);
+
+  /// Back to every kind, machine and model (the search box has its own ×).
+  void clearFilters() =>
+      state = state.copyWith(kind: null, machine: null, model: null);
+
+  void sort(SavedSortKey key, {required bool descending}) =>
+      state = state.copyWith(sortKey: key, descending: descending);
+
+  /// A column header's click: the same column flips direction, another
+  /// starts in its own (see [SavedSortKey.descendingFirst]).
+  void sortBy(SavedSortKey key) => sort(
+    key,
+    descending: key == state.sortKey ? !state.descending : key.descendingFirst,
+  );
+
+  void setView(SavedView view) => state = state.copyWith(view: view);
+
+  void toggle(String id) => state = state.copyWith(
+    selected: state.selected.contains(id)
+        ? ({...state.selected}..remove(id))
+        : {...state.selected, id},
+  );
+
+  /// Selects all of [ids], or — when they're all selected already — none
+  /// of them.
+  void toggleAll(Iterable<String> ids) {
+    final all = ids.every(state.selected.contains);
+    state = state.copyWith(
+      selected: all
+          ? state.selected.difference(ids.toSet())
+          : {...state.selected, ...ids},
+    );
+  }
+
+  void clearSelection() => state = state.copyWith(selected: const {});
+
+  /// Deletes [entries] (a perf report's recording with it) and drops them
+  /// from the selection.
+  Future<void> delete(Iterable<SavedEntry> entries) async {
+    final list = entries.toList();
+    state = state.copyWith(
+      selected: state.selected.difference({for (final e in list) e.id}),
+    );
+    for (final e in list) {
+      switch (e) {
+        case PerfEntry(:final report):
+          await ref.read(perfReportRepositoryProvider).delete(report.id);
+          await deleteRun(report.id);
+        case ChatEntry(:final benchmark):
+          await ref.read(savedBenchmarkRepositoryProvider).delete(benchmark.id);
+      }
+    }
+  }
+}
