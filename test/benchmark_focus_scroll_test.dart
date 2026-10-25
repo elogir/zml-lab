@@ -137,6 +137,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(atBottom(), isTrue);
 
+    // A light drag with tokens arriving between its moves — touch, and a
+    // trackpad's two-finger scroll: the jump that follows a token mustn't
+    // cancel it.
+    for (final kind in [PointerDeviceKind.touch, PointerDeviceKind.trackpad]) {
+      final drag = await tester.startGesture(list, kind: kind);
+      for (var k = 0; k < 8; k++) {
+        await drag.moveBy(const Offset(0, 5));
+        chat.grow(1);
+        await tester.pump();
+      }
+      await drag.up();
+      await tester.pumpAndSettle();
+      expect(atBottom(), isFalse, reason: '$kind');
+      expect(find.text('Scroll to bottom'), findsOneWidget, reason: '$kind');
+      await tester.tap(find.text('Scroll to bottom'));
+      await tester.pumpAndSettle();
+      expect(atBottom(), isTrue, reason: '$kind');
+    }
+
     // The user scrolls up mid-stream: it stays put as text keeps arriving.
     await tester.drag(find.byType(Scrollable).first, const Offset(0, 300));
     await tester.pumpAndSettle();

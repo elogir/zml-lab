@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -116,19 +117,32 @@ class _ChatViewState extends ConsumerState<_ChatView> {
   /// user's scrolling.
   bool _jumping = false;
 
-  /// The user's scrolling decides whether to follow: the slightest scroll up
-  /// stops it (the next token would yank them back otherwise), scrolling
-  /// back down to the bottom resumes it. Text arriving doesn't scroll, so it
-  /// can't change it.
-  bool _onScroll(ScrollUpdateNotification n) {
+  /// The user's scrolling decides whether to follow. Taking hold of the list
+  /// (a trackpad or touch drag starting) stops it at once: the jump after
+  /// the next token would otherwise cancel the drag before it moved, so only
+  /// a hard scroll got through. Any scroll up stops it too (a mouse wheel
+  /// has no drag); scrolling back down to the bottom resumes it. Text
+  /// arriving doesn't scroll, so it can't change it.
+  bool _onScroll(ScrollNotification n) {
     if (n.depth != 0 || _jumping) return false; // a code block's own scroll
     final m = n.metrics;
-    final delta = n.scrollDelta ?? 0;
-    // Up, and not the bounce back from overscrolling past the bottom.
-    if (delta < 0 && m.pixels < m.maxScrollExtent) {
-      if (_follow) setState(() => _follow = false);
-    } else if (delta > 0 && m.pixels >= m.maxScrollExtent - _bottomSlack) {
-      if (!_follow) setState(() => _follow = true);
+    switch (n) {
+      case ScrollStartNotification(dragDetails: _?):
+        if (_follow) setState(() => _follow = false);
+      case ScrollUpdateNotification(:final scrollDelta?):
+        // Up, and not the bounce back from overscrolling past the bottom.
+        if (scrollDelta < 0 && m.pixels < m.maxScrollExtent) {
+          if (_follow) setState(() => _follow = false);
+        } else if (scrollDelta > 0 &&
+            m.pixels >= m.maxScrollExtent - _bottomSlack) {
+          if (!_follow) setState(() => _follow = true);
+        }
+      case ScrollEndNotification():
+        // Let go without having moved off the bottom: keep following.
+        if (!_follow && m.pixels >= m.maxScrollExtent - 1) {
+          setState(() => _follow = true);
+        }
+      default:
     }
     return false;
   }
@@ -193,10 +207,13 @@ class _ChatViewState extends ConsumerState<_ChatView> {
                 Expanded(
                   child: Stack(
                     children: [
-                      NotificationListener<ScrollUpdateNotification>(
+                      NotificationListener<ScrollNotification>(
                         onNotification: _onScroll,
                         child: ListView.separated(
                           controller: _scroll,
+                          // A drag counts from where the fingers landed, so
+                          // a light scroll moves by all of it.
+                          dragStartBehavior: DragStartBehavior.down,
                           padding: EdgeInsets.zero,
                           itemCount: chat.turns.length,
                           separatorBuilder: (_, _) =>
