@@ -11,6 +11,7 @@ class BenchLibConfig {
     this.ignoreEos = false,
     this.mode = 'all',
     this.sequenceType = 'long',
+    this.warmup = false,
   });
 
   /// The API root. Keep the trailing slash on `/v1/`: openai-go resolves
@@ -33,6 +34,10 @@ class BenchLibConfig {
   final String mode;
   final String sequenceType;
 
+  /// Warm the server up first: prefill, decode and mixed batches at
+  /// [concurrency], handing over to the measured run with no idle gap.
+  final bool warmup;
+
   Map<String, Object> toJson() => {
     'url': url,
     'input_file': inputFile,
@@ -44,6 +49,7 @@ class BenchLibConfig {
     if (ignoreEos) 'ignore_eos': true,
     'mode': mode,
     'sequence_type': sequenceType,
+    if (warmup) 'warmup': true,
   };
 }
 

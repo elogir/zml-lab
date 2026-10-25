@@ -466,6 +466,71 @@ void main() {
     });
   }, skip: skip);
 
+  testWidgets('the warm-up runs in the library, and none of it is measured', (
+    tester,
+  ) async {
+    await real(tester, () async {
+      final bodies = <Map<String, dynamic>>[];
+      final server = await _fakeServer(
+        words: 40,
+        bodies: bodies,
+        models: ['m'],
+      );
+      addTearDown(() => server.close(force: true));
+      final db = AppDatabase(NativeDatabase.memory());
+      final container = ProviderContainer(
+        overrides: [appDatabaseProvider.overrideWithValue(db)],
+      );
+      addTearDown(() async {
+        container.dispose();
+        await db.close();
+      });
+      container.read(settingsControllerProvider);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      container
+          .read(settingsControllerProvider.notifier)
+          .setPerfDatasetPath(_dataset(tmp, 12).path);
+      final provider = perfControllerProvider('w');
+      final messages = <String?>[];
+      container.listen(provider, (_, next) {
+        if (messages.lastOrNull != next.message) messages.add(next.message);
+      });
+      final perf = container.read(provider.notifier)
+        ..setParams(
+          const PerfParams(durationSeconds: 2, concurrency: 2, mode: 'first'),
+        );
+      await perf
+          .start(
+            host: '127.0.0.1',
+            port: server.port,
+            jobName: 'test',
+            jobCommand: '',
+            machineName: 'local',
+          )
+          .timeout(const Duration(seconds: 30));
+
+      final run = container.read(provider);
+      expect(run.phase, PerfPhase.done, reason: run.message);
+      // The steps showed in the status line, in order.
+      expect(
+        messages.whereType<String>().where((m) => m.startsWith('warming up')),
+        [
+          'warming up · prefill, 2 requests at once',
+          'warming up · decode',
+          'warming up · mixed, 1 new prompts beside 1 replies',
+        ],
+      );
+      // Warm-up requests ask for no usage stream; the run's do. 2 to start,
+      // 1 more for the mixed step, at least (replies that end are replaced).
+      final warmups = bodies.where((b) => b['stream_options'] == null);
+      final measured = bodies.where((b) => b['stream_options'] != null);
+      expect(warmups.length, greaterThanOrEqualTo(3));
+      expect(warmups.every((b) => b['max_completion_tokens'] == 64), isTrue);
+      // Only the run's requests made it into the report.
+      expect(run.report!.totalRequests, measured.length);
+    });
+  }, skip: skip);
+
   testWidgets('a missing dataset fails the run', (tester) async {
     await real(tester, () async {
       final run = startBenchLib(

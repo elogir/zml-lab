@@ -74,39 +74,6 @@ Future<List<String>> fetchModelIds({
   Duration timeout = const Duration(seconds: 4),
 }) => listModels(ChatEndpoint.hostPort(host, port), timeout: timeout);
 
-/// One small non-streaming chat completion, awaited fully — warms the server
-/// up (first request often compiles/allocates) so the measured run starts
-/// hot. Generous timeout for that reason. Throws on failure.
-Future<void> warmupRequest({
-  required String host,
-  required int port,
-  required String model,
-  Duration timeout = const Duration(seconds: 300),
-}) async {
-  final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
-  try {
-    final request = await client.post(host, port, '/v1/chat/completions');
-    request.headers.contentType = ContentType.json;
-    request.write(
-      jsonEncode({
-        'model': model.isEmpty ? 'zml_model' : model,
-        'messages': [
-          {'role': 'user', 'content': 'Warm-up. Reply with one word.'},
-        ],
-        'max_tokens': 16,
-        'stream': false,
-      }),
-    );
-    final response = await request.close().timeout(timeout);
-    await response.drain<void>().timeout(timeout);
-    if (response.statusCode >= 400) {
-      throw Exception('warm-up request failed: HTTP ${response.statusCode}');
-    }
-  } finally {
-    client.close(force: true);
-  }
-}
-
 /// Writes [content] to ~/Downloads under [name].csv (deduplicating the file
 /// name). Returns the destination path.
 Future<String> exportTextFile({

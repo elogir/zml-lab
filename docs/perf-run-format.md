@@ -74,7 +74,7 @@ detect; the rest is entered (or corrected) in the export dialog.
   "ended_at": "2026-10-24T12:00:31Z",        // auto
   "cancelled": false,                        // auto — stopped before its duration
 
-  "app": { "benchmarker_api": 1 },           // auto
+  "app": { "benchmarker_api": 2 },           // auto
   "client": { "os": "macOS 27.0", "host": "bench-mac" }, // auto
 
   "target": {
@@ -104,7 +104,9 @@ detect; the rest is entered (or corrected) in the export dialog.
     "ignore_eos": false,                     // true: every reply runs to max_completion_tokens
     "prompts": "long",                       // long | short (capped at 512 chars)
     "turns": "all",                          // all | first
-    "warmup": true
+    "warmup": true                           // warmed up first (prefill, decode,
+                                             // mixed at `concurrency`); none of
+                                             // it is in `events` or `chips`
   },
   "dataset": {                               // auto
     "name": "ShareGPT_V3_unfiltered_cleaned_split.json",

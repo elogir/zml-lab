@@ -12,7 +12,7 @@ export 'bench_lib_types.dart';
 // The C API of the prebuilt native/libzmlbench.dylib (zmlbench_start / _stop
 // / _free / _version). Bundled as a code asset by hook/build.dart.
 const _asset = 'package:zml_lab/zmlbench.dart';
-const _apiVersion = 1;
+const _apiVersion = 2;
 
 const _kindCsv = 0;
 const _kindLog = 1;

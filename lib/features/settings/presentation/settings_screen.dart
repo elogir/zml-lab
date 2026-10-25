@@ -469,10 +469,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                   _SettingRow(
-                    title: 'Warm-up request',
+                    title: 'Warm-up',
                     description:
-                        'Send one request and wait for it before measuring, so '
-                        'the run starts on a hot server.',
+                        'Before measuring, run prefill, decode and mixed '
+                        'batches at the run\'s concurrency (kernels compiled '
+                        'just in time get compiled), then start the run '
+                        'with no idle gap, so the GPU clocks stay up.',
                     control: SegmentedControl<bool>(
                       value: s.perfParams.warmup,
                       onChanged: (v) =>

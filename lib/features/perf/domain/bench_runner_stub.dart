@@ -26,13 +26,6 @@ Future<List<String>> fetchModelIds({
   Duration timeout = const Duration(seconds: 4),
 }) async => const [];
 
-Future<void> warmupRequest({
-  required String host,
-  required int port,
-  required String model,
-  Duration timeout = const Duration(seconds: 300),
-}) async {}
-
 Future<String> exportTextFile({
   required String content,
   required String name,

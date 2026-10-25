@@ -310,12 +310,9 @@ class PerfController extends _$PerfController {
       params = params.copyWith(model: model);
       _runParams = params;
 
-      if (params.warmup) {
-        state = state.copyWith(message: 'warming up the server…');
-        await warmupRequest(host: host, port: port, model: params.model);
-        if (seq != _runSeq) return;
-      }
-
+      // The warm-up is the library's, right before the run (no idle gap
+      // between them), so recording starts first; chips only count once
+      // the run does (see _addChipSample).
       await _startRecording(
         seq,
         zmlSmiUrl(
@@ -369,6 +366,7 @@ class PerfController extends _$PerfController {
     ignoreEos: p.ignoreEos,
     mode: p.mode,
     sequenceType: p.sequenceType,
+    warmup: p.warmup,
   );
 
   /// Opens the run's spool, and — when zml-smi answers at [chipUrl] — starts
@@ -398,27 +396,36 @@ class PerfController extends _$PerfController {
     _chipsSeen = first;
     _addChipSample(first);
     state = state.copyWith(chips: true);
-    _chipTimer = Timer.periodic(const Duration(milliseconds: chipIntervalMs), (
-      _,
-    ) async {
-      if (_chipBusy) return; // a slow answer: skip a beat, don't pile up
-      _chipBusy = true;
-      try {
-        final readings = await fetchChips(url);
-        if (seq != _runSeq || readings.isEmpty || _chipTimer == null) return;
-        _addChipSample(readings);
-      } finally {
-        _chipBusy = false;
-      }
-    });
+    _chipTimer = Timer.periodic(
+      const Duration(milliseconds: chipIntervalMs),
+      (_) => _sampleChips(seq),
+    );
   }
 
-  /// A zml-smi sample, stamped on arrival (the events' clock): into the
-  /// recording, the report's chip stats and the live readout.
+  /// One zml-smi sample (skipped while the last is still being answered:
+  /// a slow answer skips a beat, it doesn't pile up).
+  Future<void> _sampleChips(int seq) async {
+    final url = _chipUrl;
+    if (url == null || _chipBusy) return;
+    _chipBusy = true;
+    try {
+      final readings = await fetchChips(url);
+      if (seq != _runSeq || readings.isEmpty || _chipTimer == null) return;
+      _addChipSample(readings);
+    } finally {
+      _chipBusy = false;
+    }
+  }
+
+  /// A zml-smi sample, stamped on arrival (the events' clock): the live
+  /// readout, and — once the measured run is on, not during the warm-up —
+  /// the recording and the report's chip stats.
   void _addChipSample(List<ChipReading> readings) {
-    final ts = DateTime.now().microsecondsSinceEpoch * 1000;
-    _spool?.addChipSample(ts, readings);
-    _chipStats.add(ts, readings);
+    if (state.phase == PerfPhase.running) {
+      final ts = DateTime.now().microsecondsSinceEpoch * 1000;
+      _spool?.addChipSample(ts, readings);
+      _chipStats.add(ts, readings);
+    }
     state = state.copyWith(liveChips: readings);
   }
 
@@ -477,7 +484,7 @@ class PerfController extends _$PerfController {
       'started_at': _startedAt?.toIso8601String(),
       'ended_at': DateTime.now().toUtc().toIso8601String(),
       'cancelled': report.cancelled,
-      'app': {'benchmarker_api': 1},
+      'app': {'benchmarker_api': 2},
       if (client.isNotEmpty) 'client': client,
       'target': {'url': 'http://$_host:$_port/v1/', 'machine': ?_machine},
       'server': {'kind': report.server, 'version': ?_serverVersion},
@@ -528,7 +535,7 @@ class PerfController extends _$PerfController {
     _seriesDirty = true;
     if (state.phase == PerfPhase.preparing) {
       // First events beat the "Starting workers" log line sometimes.
-      _markRunning();
+      _markRunning(seq);
     }
   }
 
@@ -538,15 +545,23 @@ class PerfController extends _$PerfController {
     if (line.contains('Number of conversations:')) {
       final n = line.split(':').last.trim();
       state = state.copyWith(message: '$n conversations loaded');
+    } else if (line.startsWith('Warm-up: ')) {
+      // The library's warm-up steps: prefill, decode, mixed.
+      state = state.copyWith(
+        message: 'warming up · ${line.substring('Warm-up: '.length)}',
+      );
     } else if (line.contains('Starting') && line.contains('workers')) {
-      _markRunning();
+      _markRunning(seq);
     }
   }
 
-  void _markRunning() {
+  void _markRunning(int seq) {
     if (state.phase != PerfPhase.preparing) return;
     _runningSince = DateTime.now();
     state = state.copyWith(phase: PerfPhase.running, message: null);
+    // The run's first chip sample, right at its start: energy is
+    // integrated from here.
+    unawaited(_sampleChips(seq));
   }
 
   void _tick() {
