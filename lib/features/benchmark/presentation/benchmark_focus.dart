@@ -53,6 +53,32 @@ class _ChatViewState extends ConsumerState<_ChatView> {
   final TextEditingController _prompt = TextEditingController();
   final ScrollController _scroll = ScrollController();
 
+  /// The transcript follows the newest text while this is on: off as soon as
+  /// the user scrolls up, back on at the bottom (or with the button).
+  bool _follow = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // A reply still streaming: open on its tail. A finished chat opens at
+    // its start, the button offering the end.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      final chat = ref.read(
+        benchmarkChatControllerProvider(
+          widget.jobId,
+          widget.index,
+          widget.endpoint,
+        ),
+      );
+      if (chat.isStreaming) {
+        _followToBottom();
+      } else if (_scroll.position.maxScrollExtent > 0) {
+        setState(() => _follow = false);
+      }
+    });
+  }
+
   @override
   void dispose() {
     _prompt.dispose();
@@ -76,13 +102,33 @@ class _ChatViewState extends ConsumerState<_ChatView> {
     _scrollToBottom();
   }
 
+  /// To the bottom, and following from there (sending, or the button).
   void _scrollToBottom() {
+    if (!_follow) setState(() => _follow = true);
+    _followToBottom();
+  }
+
+  /// Once the new text is laid out: to the bottom, if following.
+  void _followToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) {
+      if (_follow && _scroll.hasClients) {
         _scroll.jumpTo(_scroll.position.maxScrollExtent);
       }
     });
   }
+
+  /// The user's scrolling (and our own jumps) decide whether to follow: at
+  /// the bottom, yes. Text arriving doesn't scroll, so it can't turn it off.
+  bool _onScroll(ScrollUpdateNotification n) {
+    if (n.depth != 0) return false; // a code block's own scrolling
+    final m = n.metrics;
+    final atBottom = m.pixels >= m.maxScrollExtent - _bottomSlack;
+    if (atBottom != _follow) setState(() => _follow = atBottom);
+    return false;
+  }
+
+  /// How near the bottom still counts as at it.
+  static const _bottomSlack = 24.0;
 
   @override
   Widget build(BuildContext context) {
@@ -94,14 +140,14 @@ class _ChatViewState extends ConsumerState<_ChatView> {
         widget.endpoint,
       ),
     );
-    // Follow the tail as tokens stream in.
+    // Follow the tail as tokens stream in — unless the user scrolled away.
     ref.listen(
       benchmarkChatControllerProvider(
         widget.jobId,
         widget.index,
         widget.endpoint,
       ),
-      (_, _) => _scrollToBottom(),
+      (_, _) => _followToBottom(),
     );
 
     final size = MediaQuery.sizeOf(context);
@@ -139,26 +185,49 @@ class _ChatViewState extends ConsumerState<_ChatView> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Expanded(
-                  child: ListView.separated(
-                    controller: _scroll,
-                    padding: EdgeInsets.zero,
-                    itemCount: chat.turns.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppSpacing.xs),
-                    itemBuilder: (context, i) {
-                      final turn = chat.turns[i];
-                      // Selectable per turn (not across the whole list): one
-                      // area spanning a lazy list whose items mount/unmount
-                      // trips a selection-geometry race in the framework.
-                      return AppSelectionArea(
-                        child: _Turn(
-                          turn: turn,
-                          onReplay: turn.fromUser
-                              ? () => _controller.replay(i)
-                              : null,
+                  child: Stack(
+                    children: [
+                      NotificationListener<ScrollUpdateNotification>(
+                        onNotification: _onScroll,
+                        child: ListView.separated(
+                          controller: _scroll,
+                          padding: EdgeInsets.zero,
+                          itemCount: chat.turns.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: AppSpacing.xs),
+                          itemBuilder: (context, i) {
+                            final turn = chat.turns[i];
+                            // Selectable per turn (not across the whole
+                            // list): one area spanning a lazy list whose
+                            // items mount/unmount trips a selection-geometry
+                            // race in the framework.
+                            return AppSelectionArea(
+                              child: _Turn(
+                                turn: turn,
+                                onReplay: turn.fromUser
+                                    ? () => _controller.replay(i)
+                                    : null,
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                      ),
+                      // Scrolled away from the end: back to it, and follow.
+                      if (!_follow)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: AppSpacing.sm,
+                          child: Center(
+                            child: AppButton(
+                              label: 'Scroll to bottom',
+                              icon: AppIcons.toBottom,
+                              dense: true,
+                              onPressed: _scrollToBottom,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 // Live stats of the in-flight reply, pinned so they stay put
