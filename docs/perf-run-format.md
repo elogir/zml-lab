@@ -258,6 +258,10 @@ FROM points p, r
 GROUP BY p.i ORDER BY p.i;
 ```
 
+## Analyzing runs with an agent
+
+`.agents/skills/analyze-zmlrun/` is an agent skill, in the open Agent Skills format: Codex reads it from `.agents/skills`, and Claude Code through the `.claude/skills/analyze-zmlrun` symlink. Hand an agent a run (or two) and the server's launch command: it reports what the run shows and proposes server-side changes to try. Its `scripts/zmlrun.py` (`report`, `compare`, `sql`) works on its own too, through `uv`.
+
 ## In ZML-Lab
 
 - During a run the benchmarker's event stream is spooled to disk, and — when
