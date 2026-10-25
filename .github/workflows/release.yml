@@ -58,7 +58,7 @@ jobs:
           ZML_LAB_UPDATE_KEY: ${{ secrets.ZML_LAB_UPDATE_KEY }}
         run: |
           # COPYFILE_DISABLE: no ._ AppleDouble files in the archive.
-          COPYFILE_DISABLE=1 tar -czf zml-lab-macos.tar.gz -C build/macos/Build/Products/Release zml_lab.app
+          COPYFILE_DISABLE=1 tar -czf zml-lab-macos.tar.gz -C build/macos/Build/Products/Release ZML-Lab.app
           dart run tool/update_signing.dart sign "$VERSION" zml-lab-macos.tar.gz > zml-lab-macos.tar.gz.sig
 
       - name: Publish

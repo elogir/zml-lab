@@ -26,7 +26,7 @@ flutter test                                                # all tests
 flutter test test/perf_stats_test.dart                      # a single test file
 flutter test --name "substring"                             # a single test by name
 
-flutter build macos --release   # → build/macos/Build/Products/Release/zml_lab.app
+flutter build macos --release   # → build/macos/Build/Products/Release/ZML-Lab.app
 flutter build macos --debug     # use this to surface a compile error the analyzer missed
 ```
 

@@ -29,7 +29,7 @@ flutter run -d macos
 ```
 
 Release build: `flutter build macos --release` →
-`build/macos/Build/Products/Release/zml_lab.app`.
+`build/macos/Build/Products/Release/ZML-Lab.app`.
 
 Built with Flutter (no Material — custom widgets over `WidgetsApp`), riverpod,
 drift, and [flterm](https://pub.dev/packages/flterm).
