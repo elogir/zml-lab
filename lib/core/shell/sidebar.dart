@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/machines/application/machines_providers.dart';
 import '../../features/saved_benchmarks/application/saved_benchmarks_providers.dart';
+import '../../features/updates/application/updater.dart';
 import '../theme/app_theme.dart';
 import '../widgets/widgets.dart';
 
@@ -45,8 +46,7 @@ class Sidebar extends ConsumerWidget {
     final benchmarkCount =
         (ref.watch(savedBenchmarksStreamProvider).value?.length ?? 0) +
         (ref.watch(perfReportsStreamProvider).value?.length ?? 0);
-    final machineCount =
-        ref.watch(machinesStreamProvider).value?.length ?? 0;
+    final machineCount = ref.watch(machinesStreamProvider).value?.length ?? 0;
 
     return TweenAnimationBuilder<double>(
       tween: Tween(end: collapsed ? 0.0 : 1.0),
@@ -91,6 +91,7 @@ class Sidebar extends ConsumerWidget {
                 onTap: () => context.go('/machines'),
               ),
               const Spacer(),
+              _UpdateItem(t: t),
               _NavItem(
                 t: t,
                 icon: AppIcons.settings,
@@ -172,6 +173,49 @@ class _ToggleBar extends StatelessWidget {
   }
 }
 
+/// "Restart to update", above Settings, once a newer release is downloaded
+/// and staged. Asks first when something is running in the terminals, since
+/// restarting stops it.
+class _UpdateItem extends ConsumerWidget {
+  const _UpdateItem({required this.t});
+
+  final double t;
+
+  Future<void> _restart(BuildContext context, WidgetRef ref) async {
+    final updater = ref.read(updaterProvider.notifier);
+    final jobs = await updater.busyTerminals();
+    if (!context.mounted) return;
+    if (jobs.isNotEmpty &&
+        !await showConfirmDialog(
+          context,
+          title: 'Restart to update?',
+          message:
+              'Restarting stops what is running in the terminal: '
+              '${jobs.toSet().join(', ')}.',
+          confirmLabel: 'Restart',
+        )) {
+      return;
+    }
+    await updater.restartNow();
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(updaterProvider);
+    if (status.phase != UpdatePhase.ready) return const SizedBox.shrink();
+    return _NavItem(
+      t: t,
+      icon: AppIcons.restart,
+      label: 'Restart to update',
+      note: '${status.version}',
+      color: context.colors.accent,
+      badge: 0,
+      active: false,
+      onTap: () => _restart(context, ref),
+    );
+  }
+}
+
 class _NavItem extends StatelessWidget {
   const _NavItem({
     required this.t,
@@ -180,6 +224,8 @@ class _NavItem extends StatelessWidget {
     required this.badge,
     required this.active,
     required this.onTap,
+    this.note,
+    this.color,
   });
 
   final double t;
@@ -189,10 +235,16 @@ class _NavItem extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
 
+  /// Shown on the right instead of [badge].
+  final String? note;
+
+  /// Overrides the icon and label color.
+  final Color? color;
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final fg = active ? c.textPrimary : c.textSecondary;
+    final fg = color ?? (active ? c.textPrimary : c.textSecondary);
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -204,10 +256,16 @@ class _NavItem extends StatelessWidget {
           final iw = cons.maxWidth;
           final highlightW = _lerp(_iconBox, iw, t);
           final highlightLeft = _lerp((_collapsedInner - _iconBox) / 2, 0, t);
-          final iconLeft = _lerp((_collapsedInner - _iconSize) / 2, _iconLeftPad, t);
+          final iconLeft = _lerp(
+            (_collapsedInner - _iconSize) / 2,
+            _iconLeftPad,
+            t,
+          );
           const labelLeft = _iconLeftPad + _iconSize + _labelGap;
-          final labelW = (iw - labelLeft - AppSpacing.md)
-              .clamp(0.0, double.infinity);
+          final labelW = (iw - labelLeft - AppSpacing.md).clamp(
+            0.0,
+            double.infinity,
+          );
 
           return HoverRegion(
             onTap: onTap,
@@ -256,7 +314,9 @@ class _NavItem extends StatelessWidget {
                                 overflow: TextOverflow.clip,
                               ),
                             ),
-                            if (badge > 0)
+                            if (note != null)
+                              Text(note!, style: context.text.smallMuted)
+                            else if (badge > 0)
                               Text('$badge', style: context.text.smallMuted),
                           ],
                         ),

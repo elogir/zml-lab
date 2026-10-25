@@ -15,7 +15,10 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AppSettings {
 
- AppThemeMode get themeMode;/// Terminal text size (flterm renders from font data, not app text styles).
+ AppThemeMode get themeMode;/// Install a downloaded release when the app quits. Either way, release
+/// builds download new releases and offer "Restart to update" (local
+/// builds never update themselves).
+ bool get autoUpdate;/// Terminal text size (flterm renders from font data, not app text styles).
  double get terminalFontSize;/// Treat Option as Meta in terminals: Option+letter sends `ESC`+letter (so
 /// Option+F/B jump words in zsh) instead of macOS composing a glyph (ƒ, ∫).
  bool get terminalOptionAsMeta;/// Mask the address in the Benchmark tab's target bar — for screenshots
@@ -47,20 +50,20 @@ $AppSettingsCopyWith<AppSettings> get copyWith => _$AppSettingsCopyWithImpl<AppS
 @override
 bool operator ==(Object other) {
   final _this = this as AppSettings;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSettings&&(identical(other.themeMode, _this.themeMode) || other.themeMode == _this.themeMode)&&(identical(other.terminalFontSize, _this.terminalFontSize) || other.terminalFontSize == _this.terminalFontSize)&&(identical(other.terminalOptionAsMeta, _this.terminalOptionAsMeta) || other.terminalOptionAsMeta == _this.terminalOptionAsMeta)&&(identical(other.blurHost, _this.blurHost) || other.blurHost == _this.blurHost)&&(identical(other.benchPrompt, _this.benchPrompt) || other.benchPrompt == _this.benchPrompt)&&(identical(other.benchBatchSize, _this.benchBatchSize) || other.benchBatchSize == _this.benchBatchSize)&&(identical(other.benchMaxTokens, _this.benchMaxTokens) || other.benchMaxTokens == _this.benchMaxTokens)&&(identical(other.benchTemperature, _this.benchTemperature) || other.benchTemperature == _this.benchTemperature)&&(identical(other.benchModel, _this.benchModel) || other.benchModel == _this.benchModel)&&(identical(other.benchIgnoreEos, _this.benchIgnoreEos) || other.benchIgnoreEos == _this.benchIgnoreEos)&&(identical(other.benchCopyTemplate, _this.benchCopyTemplate) || other.benchCopyTemplate == _this.benchCopyTemplate)&&(identical(other.perfDatasetPath, _this.perfDatasetPath) || other.perfDatasetPath == _this.perfDatasetPath)&&(identical(other.perfChipMetricsUrl, _this.perfChipMetricsUrl) || other.perfChipMetricsUrl == _this.perfChipMetricsUrl)&&(identical(other.perfZmlSmiPort, _this.perfZmlSmiPort) || other.perfZmlSmiPort == _this.perfZmlSmiPort)&&(identical(other.perfParams, _this.perfParams) || other.perfParams == _this.perfParams));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSettings&&(identical(other.themeMode, _this.themeMode) || other.themeMode == _this.themeMode)&&(identical(other.autoUpdate, _this.autoUpdate) || other.autoUpdate == _this.autoUpdate)&&(identical(other.terminalFontSize, _this.terminalFontSize) || other.terminalFontSize == _this.terminalFontSize)&&(identical(other.terminalOptionAsMeta, _this.terminalOptionAsMeta) || other.terminalOptionAsMeta == _this.terminalOptionAsMeta)&&(identical(other.blurHost, _this.blurHost) || other.blurHost == _this.blurHost)&&(identical(other.benchPrompt, _this.benchPrompt) || other.benchPrompt == _this.benchPrompt)&&(identical(other.benchBatchSize, _this.benchBatchSize) || other.benchBatchSize == _this.benchBatchSize)&&(identical(other.benchMaxTokens, _this.benchMaxTokens) || other.benchMaxTokens == _this.benchMaxTokens)&&(identical(other.benchTemperature, _this.benchTemperature) || other.benchTemperature == _this.benchTemperature)&&(identical(other.benchModel, _this.benchModel) || other.benchModel == _this.benchModel)&&(identical(other.benchIgnoreEos, _this.benchIgnoreEos) || other.benchIgnoreEos == _this.benchIgnoreEos)&&(identical(other.benchCopyTemplate, _this.benchCopyTemplate) || other.benchCopyTemplate == _this.benchCopyTemplate)&&(identical(other.perfDatasetPath, _this.perfDatasetPath) || other.perfDatasetPath == _this.perfDatasetPath)&&(identical(other.perfChipMetricsUrl, _this.perfChipMetricsUrl) || other.perfChipMetricsUrl == _this.perfChipMetricsUrl)&&(identical(other.perfZmlSmiPort, _this.perfZmlSmiPort) || other.perfZmlSmiPort == _this.perfZmlSmiPort)&&(identical(other.perfParams, _this.perfParams) || other.perfParams == _this.perfParams));
 }
 
 
 @override
 int get hashCode {
   final _this = this as AppSettings;
-  return Object.hash(runtimeType,_this.themeMode,_this.terminalFontSize,_this.terminalOptionAsMeta,_this.blurHost,_this.benchPrompt,_this.benchBatchSize,_this.benchMaxTokens,_this.benchTemperature,_this.benchModel,_this.benchIgnoreEos,_this.benchCopyTemplate,_this.perfDatasetPath,_this.perfChipMetricsUrl,_this.perfZmlSmiPort,_this.perfParams);
+  return Object.hash(runtimeType,_this.themeMode,_this.autoUpdate,_this.terminalFontSize,_this.terminalOptionAsMeta,_this.blurHost,_this.benchPrompt,_this.benchBatchSize,_this.benchMaxTokens,_this.benchTemperature,_this.benchModel,_this.benchIgnoreEos,_this.benchCopyTemplate,_this.perfDatasetPath,_this.perfChipMetricsUrl,_this.perfZmlSmiPort,_this.perfParams);
 }
 
 @override
 String toString() {
   final _this = this as AppSettings;
-  return 'AppSettings(themeMode: ${_this.themeMode}, terminalFontSize: ${_this.terminalFontSize}, terminalOptionAsMeta: ${_this.terminalOptionAsMeta}, blurHost: ${_this.blurHost}, benchPrompt: ${_this.benchPrompt}, benchBatchSize: ${_this.benchBatchSize}, benchMaxTokens: ${_this.benchMaxTokens}, benchTemperature: ${_this.benchTemperature}, benchModel: ${_this.benchModel}, benchIgnoreEos: ${_this.benchIgnoreEos}, benchCopyTemplate: ${_this.benchCopyTemplate}, perfDatasetPath: ${_this.perfDatasetPath}, perfChipMetricsUrl: ${_this.perfChipMetricsUrl}, perfZmlSmiPort: ${_this.perfZmlSmiPort}, perfParams: ${_this.perfParams})';
+  return 'AppSettings(themeMode: ${_this.themeMode}, autoUpdate: ${_this.autoUpdate}, terminalFontSize: ${_this.terminalFontSize}, terminalOptionAsMeta: ${_this.terminalOptionAsMeta}, blurHost: ${_this.blurHost}, benchPrompt: ${_this.benchPrompt}, benchBatchSize: ${_this.benchBatchSize}, benchMaxTokens: ${_this.benchMaxTokens}, benchTemperature: ${_this.benchTemperature}, benchModel: ${_this.benchModel}, benchIgnoreEos: ${_this.benchIgnoreEos}, benchCopyTemplate: ${_this.benchCopyTemplate}, perfDatasetPath: ${_this.perfDatasetPath}, perfChipMetricsUrl: ${_this.perfChipMetricsUrl}, perfZmlSmiPort: ${_this.perfZmlSmiPort}, perfParams: ${_this.perfParams})';
 }
 
 
@@ -71,7 +74,7 @@ abstract mixin class $AppSettingsCopyWith<$Res>  {
   factory $AppSettingsCopyWith(AppSettings value, $Res Function(AppSettings) _then) = _$AppSettingsCopyWithImpl;
 @useResult
 $Res call({
- AppThemeMode themeMode, double terminalFontSize, bool terminalOptionAsMeta, bool blurHost, String benchPrompt, int benchBatchSize, int? benchMaxTokens, double? benchTemperature, String benchModel, bool benchIgnoreEos, String benchCopyTemplate, String perfDatasetPath, String perfChipMetricsUrl, int perfZmlSmiPort, PerfParams perfParams
+ AppThemeMode themeMode, bool autoUpdate, double terminalFontSize, bool terminalOptionAsMeta, bool blurHost, String benchPrompt, int benchBatchSize, int? benchMaxTokens, double? benchTemperature, String benchModel, bool benchIgnoreEos, String benchCopyTemplate, String perfDatasetPath, String perfChipMetricsUrl, int perfZmlSmiPort, PerfParams perfParams
 });
 
 
@@ -88,10 +91,11 @@ class _$AppSettingsCopyWithImpl<$Res>
 
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? themeMode = null,Object? terminalFontSize = null,Object? terminalOptionAsMeta = null,Object? blurHost = null,Object? benchPrompt = null,Object? benchBatchSize = null,Object? benchMaxTokens = freezed,Object? benchTemperature = freezed,Object? benchModel = null,Object? benchIgnoreEos = null,Object? benchCopyTemplate = null,Object? perfDatasetPath = null,Object? perfChipMetricsUrl = null,Object? perfZmlSmiPort = null,Object? perfParams = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? themeMode = null,Object? autoUpdate = null,Object? terminalFontSize = null,Object? terminalOptionAsMeta = null,Object? blurHost = null,Object? benchPrompt = null,Object? benchBatchSize = null,Object? benchMaxTokens = freezed,Object? benchTemperature = freezed,Object? benchModel = null,Object? benchIgnoreEos = null,Object? benchCopyTemplate = null,Object? perfDatasetPath = null,Object? perfChipMetricsUrl = null,Object? perfZmlSmiPort = null,Object? perfParams = null,}) {
   return _then(AppSettings(
 themeMode: null == themeMode ? _self.themeMode : themeMode // ignore: cast_nullable_to_non_nullable
-as AppThemeMode,terminalFontSize: null == terminalFontSize ? _self.terminalFontSize : terminalFontSize // ignore: cast_nullable_to_non_nullable
+as AppThemeMode,autoUpdate: null == autoUpdate ? _self.autoUpdate : autoUpdate // ignore: cast_nullable_to_non_nullable
+as bool,terminalFontSize: null == terminalFontSize ? _self.terminalFontSize : terminalFontSize // ignore: cast_nullable_to_non_nullable
 as double,terminalOptionAsMeta: null == terminalOptionAsMeta ? _self.terminalOptionAsMeta : terminalOptionAsMeta // ignore: cast_nullable_to_non_nullable
 as bool,blurHost: null == blurHost ? _self.blurHost : blurHost // ignore: cast_nullable_to_non_nullable
 as bool,benchPrompt: null == benchPrompt ? _self.benchPrompt : benchPrompt // ignore: cast_nullable_to_non_nullable
@@ -190,10 +194,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( AppThemeMode themeMode,  double terminalFontSize,  bool terminalOptionAsMeta,  bool blurHost,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  String benchModel,  bool benchIgnoreEos,  String benchCopyTemplate,  String perfDatasetPath,  String perfChipMetricsUrl,  int perfZmlSmiPort,  PerfParams perfParams)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( AppThemeMode themeMode,  bool autoUpdate,  double terminalFontSize,  bool terminalOptionAsMeta,  bool blurHost,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  String benchModel,  bool benchIgnoreEos,  String benchCopyTemplate,  String perfDatasetPath,  String perfChipMetricsUrl,  int perfZmlSmiPort,  PerfParams perfParams)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppSettings() when $default != null:
-return $default(_that.themeMode,_that.terminalFontSize,_that.terminalOptionAsMeta,_that.blurHost,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.benchModel,_that.benchIgnoreEos,_that.benchCopyTemplate,_that.perfDatasetPath,_that.perfChipMetricsUrl,_that.perfZmlSmiPort,_that.perfParams);case _:
+return $default(_that.themeMode,_that.autoUpdate,_that.terminalFontSize,_that.terminalOptionAsMeta,_that.blurHost,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.benchModel,_that.benchIgnoreEos,_that.benchCopyTemplate,_that.perfDatasetPath,_that.perfChipMetricsUrl,_that.perfZmlSmiPort,_that.perfParams);case _:
   return orElse();
 
 }
@@ -211,10 +215,10 @@ return $default(_that.themeMode,_that.terminalFontSize,_that.terminalOptionAsMet
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( AppThemeMode themeMode,  double terminalFontSize,  bool terminalOptionAsMeta,  bool blurHost,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  String benchModel,  bool benchIgnoreEos,  String benchCopyTemplate,  String perfDatasetPath,  String perfChipMetricsUrl,  int perfZmlSmiPort,  PerfParams perfParams)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( AppThemeMode themeMode,  bool autoUpdate,  double terminalFontSize,  bool terminalOptionAsMeta,  bool blurHost,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  String benchModel,  bool benchIgnoreEos,  String benchCopyTemplate,  String perfDatasetPath,  String perfChipMetricsUrl,  int perfZmlSmiPort,  PerfParams perfParams)  $default,) {final _that = this;
 switch (_that) {
 case _AppSettings():
-return $default(_that.themeMode,_that.terminalFontSize,_that.terminalOptionAsMeta,_that.blurHost,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.benchModel,_that.benchIgnoreEos,_that.benchCopyTemplate,_that.perfDatasetPath,_that.perfChipMetricsUrl,_that.perfZmlSmiPort,_that.perfParams);case _:
+return $default(_that.themeMode,_that.autoUpdate,_that.terminalFontSize,_that.terminalOptionAsMeta,_that.blurHost,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.benchModel,_that.benchIgnoreEos,_that.benchCopyTemplate,_that.perfDatasetPath,_that.perfChipMetricsUrl,_that.perfZmlSmiPort,_that.perfParams);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -231,10 +235,10 @@ return $default(_that.themeMode,_that.terminalFontSize,_that.terminalOptionAsMet
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( AppThemeMode themeMode,  double terminalFontSize,  bool terminalOptionAsMeta,  bool blurHost,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  String benchModel,  bool benchIgnoreEos,  String benchCopyTemplate,  String perfDatasetPath,  String perfChipMetricsUrl,  int perfZmlSmiPort,  PerfParams perfParams)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( AppThemeMode themeMode,  bool autoUpdate,  double terminalFontSize,  bool terminalOptionAsMeta,  bool blurHost,  String benchPrompt,  int benchBatchSize,  int? benchMaxTokens,  double? benchTemperature,  String benchModel,  bool benchIgnoreEos,  String benchCopyTemplate,  String perfDatasetPath,  String perfChipMetricsUrl,  int perfZmlSmiPort,  PerfParams perfParams)?  $default,) {final _that = this;
 switch (_that) {
 case _AppSettings() when $default != null:
-return $default(_that.themeMode,_that.terminalFontSize,_that.terminalOptionAsMeta,_that.blurHost,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.benchModel,_that.benchIgnoreEos,_that.benchCopyTemplate,_that.perfDatasetPath,_that.perfChipMetricsUrl,_that.perfZmlSmiPort,_that.perfParams);case _:
+return $default(_that.themeMode,_that.autoUpdate,_that.terminalFontSize,_that.terminalOptionAsMeta,_that.blurHost,_that.benchPrompt,_that.benchBatchSize,_that.benchMaxTokens,_that.benchTemperature,_that.benchModel,_that.benchIgnoreEos,_that.benchCopyTemplate,_that.perfDatasetPath,_that.perfChipMetricsUrl,_that.perfZmlSmiPort,_that.perfParams);case _:
   return null;
 
 }
@@ -246,10 +250,14 @@ return $default(_that.themeMode,_that.terminalFontSize,_that.terminalOptionAsMet
 
 
 class _AppSettings implements AppSettings {
-  const _AppSettings({this.themeMode = AppThemeMode.system, this.terminalFontSize = 14.0, this.terminalOptionAsMeta = true, this.blurHost = false, this.benchPrompt = defaultBenchmarkPrompt, this.benchBatchSize = 16, this.benchMaxTokens, this.benchTemperature, this.benchModel = '', this.benchIgnoreEos = false, this.benchCopyTemplate = defaultResultTemplate, this.perfDatasetPath = defaultPerfDatasetPath, this.perfChipMetricsUrl = defaultChipMetricsUrl, this.perfZmlSmiPort = defaultZmlSmiPort, this.perfParams = const PerfParams()});
+  const _AppSettings({this.themeMode = AppThemeMode.system, this.autoUpdate = true, this.terminalFontSize = 14.0, this.terminalOptionAsMeta = true, this.blurHost = false, this.benchPrompt = defaultBenchmarkPrompt, this.benchBatchSize = 16, this.benchMaxTokens, this.benchTemperature, this.benchModel = '', this.benchIgnoreEos = false, this.benchCopyTemplate = defaultResultTemplate, this.perfDatasetPath = defaultPerfDatasetPath, this.perfChipMetricsUrl = defaultChipMetricsUrl, this.perfZmlSmiPort = defaultZmlSmiPort, this.perfParams = const PerfParams()});
   
 
 @override@JsonKey() final  AppThemeMode themeMode;
+/// Install a downloaded release when the app quits. Either way, release
+/// builds download new releases and offer "Restart to update" (local
+/// builds never update themselves).
+@override@JsonKey() final  bool autoUpdate;
 /// Terminal text size (flterm renders from font data, not app text styles).
 @override@JsonKey() final  double terminalFontSize;
 /// Treat Option as Meta in terminals: Option+letter sends `ESC`+letter (so
@@ -295,18 +303,18 @@ _$AppSettingsCopyWith<_AppSettings> get copyWith => __$AppSettingsCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSettings&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.terminalFontSize, terminalFontSize) || other.terminalFontSize == terminalFontSize)&&(identical(other.terminalOptionAsMeta, terminalOptionAsMeta) || other.terminalOptionAsMeta == terminalOptionAsMeta)&&(identical(other.blurHost, blurHost) || other.blurHost == blurHost)&&(identical(other.benchPrompt, benchPrompt) || other.benchPrompt == benchPrompt)&&(identical(other.benchBatchSize, benchBatchSize) || other.benchBatchSize == benchBatchSize)&&(identical(other.benchMaxTokens, benchMaxTokens) || other.benchMaxTokens == benchMaxTokens)&&(identical(other.benchTemperature, benchTemperature) || other.benchTemperature == benchTemperature)&&(identical(other.benchModel, benchModel) || other.benchModel == benchModel)&&(identical(other.benchIgnoreEos, benchIgnoreEos) || other.benchIgnoreEos == benchIgnoreEos)&&(identical(other.benchCopyTemplate, benchCopyTemplate) || other.benchCopyTemplate == benchCopyTemplate)&&(identical(other.perfDatasetPath, perfDatasetPath) || other.perfDatasetPath == perfDatasetPath)&&(identical(other.perfChipMetricsUrl, perfChipMetricsUrl) || other.perfChipMetricsUrl == perfChipMetricsUrl)&&(identical(other.perfZmlSmiPort, perfZmlSmiPort) || other.perfZmlSmiPort == perfZmlSmiPort)&&(identical(other.perfParams, perfParams) || other.perfParams == perfParams));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSettings&&(identical(other.themeMode, themeMode) || other.themeMode == themeMode)&&(identical(other.autoUpdate, autoUpdate) || other.autoUpdate == autoUpdate)&&(identical(other.terminalFontSize, terminalFontSize) || other.terminalFontSize == terminalFontSize)&&(identical(other.terminalOptionAsMeta, terminalOptionAsMeta) || other.terminalOptionAsMeta == terminalOptionAsMeta)&&(identical(other.blurHost, blurHost) || other.blurHost == blurHost)&&(identical(other.benchPrompt, benchPrompt) || other.benchPrompt == benchPrompt)&&(identical(other.benchBatchSize, benchBatchSize) || other.benchBatchSize == benchBatchSize)&&(identical(other.benchMaxTokens, benchMaxTokens) || other.benchMaxTokens == benchMaxTokens)&&(identical(other.benchTemperature, benchTemperature) || other.benchTemperature == benchTemperature)&&(identical(other.benchModel, benchModel) || other.benchModel == benchModel)&&(identical(other.benchIgnoreEos, benchIgnoreEos) || other.benchIgnoreEos == benchIgnoreEos)&&(identical(other.benchCopyTemplate, benchCopyTemplate) || other.benchCopyTemplate == benchCopyTemplate)&&(identical(other.perfDatasetPath, perfDatasetPath) || other.perfDatasetPath == perfDatasetPath)&&(identical(other.perfChipMetricsUrl, perfChipMetricsUrl) || other.perfChipMetricsUrl == perfChipMetricsUrl)&&(identical(other.perfZmlSmiPort, perfZmlSmiPort) || other.perfZmlSmiPort == perfZmlSmiPort)&&(identical(other.perfParams, perfParams) || other.perfParams == perfParams));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,themeMode,terminalFontSize,terminalOptionAsMeta,blurHost,benchPrompt,benchBatchSize,benchMaxTokens,benchTemperature,benchModel,benchIgnoreEos,benchCopyTemplate,perfDatasetPath,perfChipMetricsUrl,perfZmlSmiPort,perfParams);
+    return Object.hash(runtimeType,themeMode,autoUpdate,terminalFontSize,terminalOptionAsMeta,blurHost,benchPrompt,benchBatchSize,benchMaxTokens,benchTemperature,benchModel,benchIgnoreEos,benchCopyTemplate,perfDatasetPath,perfChipMetricsUrl,perfZmlSmiPort,perfParams);
 }
 
 @override
 String toString() {
-    return 'AppSettings(themeMode: $themeMode, terminalFontSize: $terminalFontSize, terminalOptionAsMeta: $terminalOptionAsMeta, blurHost: $blurHost, benchPrompt: $benchPrompt, benchBatchSize: $benchBatchSize, benchMaxTokens: $benchMaxTokens, benchTemperature: $benchTemperature, benchModel: $benchModel, benchIgnoreEos: $benchIgnoreEos, benchCopyTemplate: $benchCopyTemplate, perfDatasetPath: $perfDatasetPath, perfChipMetricsUrl: $perfChipMetricsUrl, perfZmlSmiPort: $perfZmlSmiPort, perfParams: $perfParams)';
+    return 'AppSettings(themeMode: $themeMode, autoUpdate: $autoUpdate, terminalFontSize: $terminalFontSize, terminalOptionAsMeta: $terminalOptionAsMeta, blurHost: $blurHost, benchPrompt: $benchPrompt, benchBatchSize: $benchBatchSize, benchMaxTokens: $benchMaxTokens, benchTemperature: $benchTemperature, benchModel: $benchModel, benchIgnoreEos: $benchIgnoreEos, benchCopyTemplate: $benchCopyTemplate, perfDatasetPath: $perfDatasetPath, perfChipMetricsUrl: $perfChipMetricsUrl, perfZmlSmiPort: $perfZmlSmiPort, perfParams: $perfParams)';
 }
 
 
@@ -317,7 +325,7 @@ abstract mixin class _$AppSettingsCopyWith<$Res> implements $AppSettingsCopyWith
   factory _$AppSettingsCopyWith(_AppSettings value, $Res Function(_AppSettings) _then) = __$AppSettingsCopyWithImpl;
 @override @useResult
 $Res call({
- AppThemeMode themeMode, double terminalFontSize, bool terminalOptionAsMeta, bool blurHost, String benchPrompt, int benchBatchSize, int? benchMaxTokens, double? benchTemperature, String benchModel, bool benchIgnoreEos, String benchCopyTemplate, String perfDatasetPath, String perfChipMetricsUrl, int perfZmlSmiPort, PerfParams perfParams
+ AppThemeMode themeMode, bool autoUpdate, double terminalFontSize, bool terminalOptionAsMeta, bool blurHost, String benchPrompt, int benchBatchSize, int? benchMaxTokens, double? benchTemperature, String benchModel, bool benchIgnoreEos, String benchCopyTemplate, String perfDatasetPath, String perfChipMetricsUrl, int perfZmlSmiPort, PerfParams perfParams
 });
 
 
@@ -334,10 +342,11 @@ class __$AppSettingsCopyWithImpl<$Res>
 
 /// Create a copy of AppSettings
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? themeMode = null,Object? terminalFontSize = null,Object? terminalOptionAsMeta = null,Object? blurHost = null,Object? benchPrompt = null,Object? benchBatchSize = null,Object? benchMaxTokens = freezed,Object? benchTemperature = freezed,Object? benchModel = null,Object? benchIgnoreEos = null,Object? benchCopyTemplate = null,Object? perfDatasetPath = null,Object? perfChipMetricsUrl = null,Object? perfZmlSmiPort = null,Object? perfParams = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? themeMode = null,Object? autoUpdate = null,Object? terminalFontSize = null,Object? terminalOptionAsMeta = null,Object? blurHost = null,Object? benchPrompt = null,Object? benchBatchSize = null,Object? benchMaxTokens = freezed,Object? benchTemperature = freezed,Object? benchModel = null,Object? benchIgnoreEos = null,Object? benchCopyTemplate = null,Object? perfDatasetPath = null,Object? perfChipMetricsUrl = null,Object? perfZmlSmiPort = null,Object? perfParams = null,}) {
   return _then(_AppSettings(
 themeMode: null == themeMode ? _self.themeMode : themeMode // ignore: cast_nullable_to_non_nullable
-as AppThemeMode,terminalFontSize: null == terminalFontSize ? _self.terminalFontSize : terminalFontSize // ignore: cast_nullable_to_non_nullable
+as AppThemeMode,autoUpdate: null == autoUpdate ? _self.autoUpdate : autoUpdate // ignore: cast_nullable_to_non_nullable
+as bool,terminalFontSize: null == terminalFontSize ? _self.terminalFontSize : terminalFontSize // ignore: cast_nullable_to_non_nullable
 as double,terminalOptionAsMeta: null == terminalOptionAsMeta ? _self.terminalOptionAsMeta : terminalOptionAsMeta // ignore: cast_nullable_to_non_nullable
 as bool,blurHost: null == blurHost ? _self.blurHost : blurHost // ignore: cast_nullable_to_non_nullable
 as bool,benchPrompt: null == benchPrompt ? _self.benchPrompt : benchPrompt // ignore: cast_nullable_to_non_nullable

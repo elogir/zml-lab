@@ -30,6 +30,11 @@ class SettingsController extends _$SettingsController {
     state = AppSettings(
       themeMode:
           AppThemeMode.values.asNameMap()[raw['themeMode']] ?? def.themeMode,
+      autoUpdate: switch (raw['autoUpdate']) {
+        'true' => true,
+        'false' => false,
+        _ => def.autoUpdate,
+      },
       terminalFontSize:
           d('terminalFontSize')?.clamp(
             SettingsLimits.minTerminalFont,
@@ -87,6 +92,11 @@ class SettingsController extends _$SettingsController {
   void setThemeMode(AppThemeMode mode) {
     state = state.copyWith(themeMode: mode);
     _repo.put('themeMode', mode.name);
+  }
+
+  void setAutoUpdate(bool on) {
+    state = state.copyWith(autoUpdate: on);
+    _repo.put('autoUpdate', '$on');
   }
 
   void setTerminalFontSize(double size) {

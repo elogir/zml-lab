@@ -1,0 +1,72 @@
+# Builds and publishes a release when a version tag is pushed:
+#
+#   git tag v1.2.0 && git push origin v1.2.0
+#
+# The release gets zml-lab-macos.tar.gz and its signature, which installed
+# apps pick up (lib/features/updates). Needs the ZML_LAB_UPDATE_KEY secret and
+# the pinned perf benchmarker library (native/libzmlbench.dylib.sha256, see
+# native/README.md).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the version from the tag
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          if ! echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Tags are v<major>.<minor>.<patch>, not $GITHUB_REF_NAME"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+
+      - name: Fetch the perf benchmarker library
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(cat native/libzmlbench.dylib.sha256)
+          gh release download zmlbench --pattern "libzmlbench-$(echo "$sha" | cut -c1-12).dylib" --output native/libzmlbench.dylib
+          echo "$sha  native/libzmlbench.dylib" | shasum -a 256 -c
+
+      - run: flutter pub get
+
+      - name: Build
+        run: >-
+          flutter build macos --release
+          --build-name="$VERSION"
+          --build-number="$GITHUB_RUN_NUMBER"
+          --dart-define=ZML_LAB_VERSION="$VERSION"
+
+      - name: Package and sign
+        env:
+          ZML_LAB_UPDATE_KEY: ${{ secrets.ZML_LAB_UPDATE_KEY }}
+        run: |
+          # COPYFILE_DISABLE: no ._ AppleDouble files in the archive.
+          COPYFILE_DISABLE=1 tar -czf zml-lab-macos.tar.gz -C build/macos/Build/Products/Release zml_lab.app
+          dart run tool/update_signing.dart sign "$VERSION" zml-lab-macos.tar.gz > zml-lab-macos.tar.gz.sig
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          zml-lab-macos.tar.gz zml-lab-macos.tar.gz.sig
+          --title "ZML-Lab $VERSION"
+          --generate-notes
+          --verify-tag

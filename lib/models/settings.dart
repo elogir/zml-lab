@@ -51,6 +51,11 @@ abstract class AppSettings with _$AppSettings {
   const factory AppSettings({
     @Default(AppThemeMode.system) AppThemeMode themeMode,
 
+    /// Install a downloaded release when the app quits. Either way, release
+    /// builds download new releases and offer "Restart to update" (local
+    /// builds never update themselves).
+    @Default(true) bool autoUpdate,
+
     /// Terminal text size (flterm renders from font data, not app text styles).
     @Default(14.0) double terminalFontSize,
 

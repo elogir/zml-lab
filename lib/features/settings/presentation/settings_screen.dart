@@ -6,6 +6,8 @@ import '../../../core/widgets/widgets.dart';
 import '../../../models/perf_report.dart';
 import '../../../models/settings.dart';
 import '../../perf/domain/bench_runner.dart';
+import '../../updates/application/updater.dart';
+import '../../updates/domain/update_release.dart';
 import '../application/settings_controller.dart';
 import 'copy_template_editor.dart';
 
@@ -520,6 +522,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const SizedBox(height: AppSpacing.xl),
 
+              _Group(
+                label: 'Updates',
+                children: [
+                  _SettingRow(
+                    title: 'Auto update',
+                    description:
+                        'New releases from GitHub download in the background '
+                        'and show Restart to update in the sidebar. On also '
+                        'installs them when you quit.',
+                    control: SegmentedControl<bool>(
+                      value: s.autoUpdate,
+                      onChanged: _controller.setAutoUpdate,
+                      options: const [
+                        SegmentOption(value: true, label: 'On'),
+                        SegmentOption(value: false, label: 'Off'),
+                      ],
+                    ),
+                  ),
+                  const _UpdateStatusRow(),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xl),
+
               Row(
                 children: [
                   Expanded(
@@ -541,6 +566,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+}
+
+/// This build's version and where updating stands, with "Check now".
+class _UpdateStatusRow extends ConsumerWidget {
+  const _UpdateStatusRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(updaterProvider);
+    final autoUpdate = ref.watch(
+      settingsControllerProvider.select((s) => s.autoUpdate),
+    );
+    final checked = status.checkedAt == null
+        ? 'Not checked yet.'
+        : 'Last checked at ${_clock(status.checkedAt!)}.';
+    final description = switch (status.phase) {
+      UpdatePhase.unavailable =>
+        'A local build: only release builds update themselves.',
+      UpdatePhase.idle => 'Up to date. $checked',
+      UpdatePhase.checking => 'Checking GitHub…',
+      UpdatePhase.downloading =>
+        'Downloading ${status.version}… ${(status.progress * 100).floor()}%',
+      UpdatePhase.ready =>
+        autoUpdate
+            ? '${status.version} is ready and installs when you quit, or '
+                  'restart now from the sidebar.'
+            : '${status.version} is ready: restart from the sidebar to '
+                  'install it.',
+      UpdatePhase.failed => '${status.error} $checked',
+    };
+    final busy =
+        status.phase == UpdatePhase.checking ||
+        status.phase == UpdatePhase.downloading;
+
+    return _SettingRow(
+      title: appVersion.isEmpty
+          ? 'Version: local build'
+          : 'Version $appVersion',
+      description: description,
+      control: AppButton(
+        label: 'Check now',
+        icon: AppIcons.refresh,
+        onPressed: status.phase == UpdatePhase.unavailable || busy
+            ? null
+            : ref.read(updaterProvider.notifier).check,
+      ),
+    );
+  }
+
+  static String _clock(DateTime t) =>
+      '${t.hour.toString().padLeft(2, '0')}:'
+      '${t.minute.toString().padLeft(2, '0')}';
 }
 
 /// A labeled settings panel: section label above a bordered surface whose

@@ -54,8 +54,30 @@ class TerminalSession {
 
   bool get isLive => _pty != null;
 
+  /// Every session whose process is still running, in any mux.
+  static Iterable<TerminalSession> get running => _running;
+  static final Set<TerminalSession> _running = {};
+
   /// The OS pid of the running process, or null if it never started.
   int? get pid => _pty?.pid;
+
+  /// The name of the program in the terminal's foreground (`llmd`, `ssh`, …),
+  /// or null at the shell prompt: the terminal's foreground process group is
+  /// the shell's own until it runs a job.
+  Future<String?> foregroundJob() async {
+    final pid = this.pid;
+    if (pid == null || _exited) return null;
+    try {
+      final group = await Process.run('ps', ['-o', 'tpgid=', '-p', '$pid']);
+      final fg = int.tryParse('${group.stdout}'.trim());
+      if (fg == null || fg <= 0 || fg == pid) return null;
+      final name = await Process.run('ps', ['-o', 'comm=', '-p', '$fg']);
+      final comm = '${name.stdout}'.trim();
+      return comm.isEmpty ? null : comm.split('/').last;
+    } on ProcessException {
+      return null;
+    }
+  }
 
   /// The window title the running program set via an OSC escape (empty until
   /// one is set). Used as the tab label. [onTitleChanged] fires when it moves.
@@ -120,7 +142,8 @@ class TerminalSession {
               arguments: ['-l'],
               columns: 80,
               rows: 24,
-              workingDirectory: workingDirectory ?? Platform.environment['HOME'],
+              workingDirectory:
+                  workingDirectory ?? Platform.environment['HOME'],
             )
           : Pty.start(
               shell,
@@ -131,6 +154,7 @@ class TerminalSession {
               environment: environment,
             );
       _pty = pty;
+      _running.add(this);
       controller
         ..onOutput = pty.write
         ..onResize = (cols, rows) => pty.resize(rows, cols);
@@ -141,6 +165,7 @@ class TerminalSession {
         pty.write(Uint8List.fromList(utf8.encode('$initialCommand\n')));
       }
       pty.exitCode.then((code) {
+        _running.remove(this);
         _exited = true;
         _exitCode = code;
         if (!_exitCompleter.isCompleted) _exitCompleter.complete(code);
@@ -155,6 +180,7 @@ class TerminalSession {
   }
 
   void dispose() {
+    _running.remove(this);
     onExit = null;
     onTitleChanged = null;
     _sub?.cancel();

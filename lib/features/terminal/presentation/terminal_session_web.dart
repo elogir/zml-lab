@@ -27,7 +27,9 @@ class TerminalSession {
   late final FocusNode focusNode;
 
   bool get isLive => false;
+  static Iterable<TerminalSession> get running => const [];
   int? get pid => null;
+  Future<String?> foregroundJob() async => null;
 
   // No PTY on web, so the process never runs, exits or sets a title. These
   // mirror the native API so the multiplexer's wiring compiles.
