@@ -27,14 +27,15 @@ class SavedBenchmarks extends Table {
   /// The machine it ran on, for display. Nullable: rows saved before this
   /// column existed fall back to the endpoint's host part.
   TextColumn get machineName => text().nullable()();
-
-  /// The launch command at save time (empty for runs saved without one).
-  TextColumn get command => text().withDefault(const Constant(''))();
   TextColumn get prompt => text()();
 
   /// The run's request settings. Nullable: rows saved before they were
   /// tracked (and, for the last two, runs that left them to the server).
   TextColumn get model => text().nullable()();
+
+  /// Edited afterwards: a name shown instead of [model], and notes.
+  TextColumn get modelAlias => text().nullable()();
+  TextColumn get notes => text().withDefault(const Constant(''))();
   IntColumn get maxTokens => integer().nullable()();
   RealColumn get temperature => real().nullable()();
   BoolColumn get ignoreEos => boolean().withDefault(const Constant(false))();

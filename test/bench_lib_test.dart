@@ -336,7 +336,6 @@ void main() {
             host: '127.0.0.1',
             port: server.port,
             jobName: 'test',
-            jobCommand: '',
             machineName: 'local',
             machine: '4090-box',
             hardware: '1× RTX 4090, 64 GB',
@@ -458,7 +457,6 @@ void main() {
             host: '127.0.0.1',
             port: server.port,
             jobName: 'test',
-            jobCommand: '',
             machineName: 'local',
           )
           .timeout(const Duration(seconds: 10));
@@ -508,7 +506,6 @@ void main() {
             host: '127.0.0.1',
             port: server.port,
             jobName: 'test',
-            jobCommand: '',
             machineName: 'local',
           )
           .timeout(const Duration(seconds: 30));

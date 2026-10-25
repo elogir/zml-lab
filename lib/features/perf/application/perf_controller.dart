@@ -151,7 +151,6 @@ class PerfController extends _$PerfController {
 
   // Job context captured at start, for the report.
   String _jobName = '';
-  String _jobCommand = '';
   String _machineName = '';
   String _endpoint = '';
   String _host = '';
@@ -249,7 +248,6 @@ class PerfController extends _$PerfController {
     required String host,
     required int port,
     required String jobName,
-    required String jobCommand,
     required String machineName,
     String? machine,
     String? hardware,
@@ -263,7 +261,6 @@ class PerfController extends _$PerfController {
     final seq = ++_runSeq;
     var params = state.params;
     _jobName = jobName;
-    _jobCommand = jobCommand;
     _machineName = machineName;
     _endpoint = '$machineName:$port';
     _host = host;
@@ -618,7 +615,6 @@ class PerfController extends _$PerfController {
       jobName: _jobName,
       machineName: _machineName,
       endpoint: _endpoint,
-      jobCommand: _jobCommand,
       // The parameters are on the report; there's no CLI to quote anymore.
       benchCommand: '',
       createdAt: DateTime.now(),

@@ -25,7 +25,8 @@ sealed class SavedEntry {
   String get name;
   String get machine;
 
-  /// The model the requests named; empty when none was recorded.
+  /// The model as shown: the alias given afterwards, else the one the
+  /// requests named; empty when neither.
   String get model;
   DateTime get createdAt;
 
@@ -64,7 +65,7 @@ class PerfEntry extends SavedEntry {
   @override
   String get machine => report.machineName;
   @override
-  String get model => report.params.model;
+  String get model => report.displayModel;
   @override
   DateTime get createdAt => report.createdAt;
   @override
@@ -89,7 +90,8 @@ class PerfEntry extends SavedEntry {
   Iterable<String?> get searchFields => [
     report.endpoint,
     hardware,
-    report.jobCommand,
+    report.params.model,
+    report.notes,
     report.benchCommand,
   ];
 }
@@ -108,7 +110,7 @@ class ChatEntry extends SavedEntry {
   @override
   String get machine => benchmark.machineLabel;
   @override
-  String get model => benchmark.model ?? '';
+  String get model => benchmark.displayModel ?? '';
   @override
   DateTime get createdAt => benchmark.createdAt;
   @override
@@ -123,7 +125,8 @@ class ChatEntry extends SavedEntry {
   @override
   Iterable<String?> get searchFields => [
     benchmark.endpoint,
-    benchmark.command,
+    benchmark.model,
+    benchmark.notes,
     benchmark.prompt,
   ];
 }

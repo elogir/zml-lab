@@ -17,7 +17,6 @@ PerfReport perfReport(
   jobName: id,
   machineName: machine,
   endpoint: '$machine:8000',
-  jobCommand: '',
   benchCommand: '',
   createdAt: createdAt ?? DateTime(2026, 10, 1),
   params: PerfParams(concurrency: concurrency, model: model),

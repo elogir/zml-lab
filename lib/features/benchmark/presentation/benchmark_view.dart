@@ -24,7 +24,6 @@ class BenchmarkView extends ConsumerStatefulWidget {
     required this.jobId,
     required this.jobName,
     required this.jobDescription,
-    required this.jobCommand,
     required this.machineName,
     required this.endpoint,
     required this.target,
@@ -38,9 +37,6 @@ class BenchmarkView extends ConsumerStatefulWidget {
   /// The job's description — appended to the default save name after a
   /// separator, when present.
   final String jobDescription;
-
-  /// The job's launch command — stored with a saved run for reference.
-  final String jobCommand;
 
   /// The machine the job runs on — stored with a saved run so its origin
   /// shows in the Saved benchmarks view.
@@ -143,7 +139,6 @@ class _BenchmarkViewState extends ConsumerState<BenchmarkView> {
       run: run,
       endpoint: widget.endpoint,
       machineName: widget.machineName,
-      command: widget.jobCommand,
       defaultName: defaultName,
     );
   }

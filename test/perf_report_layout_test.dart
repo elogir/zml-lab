@@ -18,7 +18,6 @@ void main() {
     jobName: 'layout',
     machineName: 'local',
     endpoint: '127.0.0.1:8000',
-    jobCommand: '',
     benchCommand: '',
     createdAt: DateTime(2026),
     params: const PerfParams(),

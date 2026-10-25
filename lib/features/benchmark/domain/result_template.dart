@@ -45,8 +45,8 @@ class BenchmarkResult {
     name: b.name,
     machine: b.machineLabel,
     endpoint: b.endpoint,
-    // Runs saved before the model was tracked.
-    model: switch (b.model) {
+    // Its alias if it was given one; null: saved before the model was tracked.
+    model: switch (b.displayModel) {
       null => '?',
       '' => 'zml_model',
       final m => m,

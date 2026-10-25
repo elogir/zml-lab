@@ -32,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -139,6 +139,17 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'ALTER TABLE perf_reports DROP COLUMN server',
           );
+        }
+      }
+      if (from < 17) {
+        // Saved runs take a model alias and notes, edited after the fact.
+        // Their `command` column goes unused but stays: builds before this
+        // one still write it.
+        final have = await _columns('saved_benchmarks');
+        for (final col in [savedBenchmarks.modelAlias, savedBenchmarks.notes]) {
+          if (!have.contains(col.name)) {
+            await m.addColumn(savedBenchmarks, col);
+          }
         }
       }
     },

@@ -117,10 +117,6 @@ class PerfReportView extends StatelessWidget {
             const SizedBox(height: AppSpacing.lg),
             _CommandBlock(label: 'Benchmarker', command: r.benchCommand),
           ],
-          if (r.jobCommand.trim().isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.md),
-            _CommandBlock(label: 'Server', command: r.jobCommand),
-          ],
         ],
       ),
     );
@@ -138,7 +134,7 @@ class _Headline extends StatelessWidget {
     final c = context.colors;
     final r = report;
     final meta = [
-      if (r.params.model.isNotEmpty) r.params.model,
+      if (r.displayModel.isNotEmpty) r.displayModel,
       '${r.params.sequenceType} prompts',
       'mode ${r.params.mode}',
       if (r.params.maxCompletionTokens != null)

@@ -12,6 +12,7 @@ import '../../benchmark/presentation/benchmark_charts.dart';
 import '../../benchmark/presentation/benchmark_request_card.dart';
 import '../../benchmark/presentation/reasoning_view.dart';
 import '../../settings/application/settings_controller.dart';
+import 'edit_run_dialog.dart';
 
 /// Opens a saved benchmark: its headline stats, the prompt, and every saved
 /// response.
@@ -48,28 +49,30 @@ enum _DetailTab { responses, charts }
 
 class _DetailViewState extends ConsumerState<_DetailView> {
   late SavedBenchmark _b = widget.benchmark;
-  bool _editingName = false;
   _DetailTab _tab = _DetailTab.responses;
-  late final TextEditingController _name = TextEditingController(
-    text: widget.benchmark.name,
-  );
 
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  void _commitName() {
-    final name = _name.text.trim();
-    setState(() => _editingName = false);
-    if (name.isEmpty || name == _b.name) {
-      _name.text = _b.name; // revert an empty/unchanged edit
-      return;
-    }
-    final updated = _b.copyWith(name: name);
+  Future<void> _editDetails() async {
+    final b = _b;
+    final repo = ref.read(savedBenchmarkRepositoryProvider);
+    final d = await showEditRunDialog(
+      context,
+      current: RunDetails(
+        name: b.name,
+        machine: b.machineLabel,
+        modelAlias: b.modelAlias,
+        notes: b.notes,
+      ),
+      sentModel: b.model ?? '',
+    );
+    if (d == null || !mounted) return;
+    final updated = b.copyWith(
+      name: d.name,
+      machineName: d.machine,
+      modelAlias: d.modelAlias,
+      notes: d.notes,
+    );
     setState(() => _b = updated);
-    ref.read(savedBenchmarkRepositoryProvider).save(updated);
+    await repo.save(updated);
   }
 
   @override
@@ -97,52 +100,26 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Fixed-height slot sized to the dense field, so
-                          // toggling edit mode doesn't shift the layout below;
-                          // the check button sits where the pencil was.
                           SizedBox(
                             height: 28,
-                            child: _editingName
-                                ? Row(
-                                    children: [
-                                      ConstrainedBox(
-                                        constraints: const BoxConstraints(
-                                          maxWidth: 320,
-                                        ),
-                                        child: AppTextField(
-                                          controller: _name,
-                                          dense: true,
-                                          autofocus: true,
-                                          onSubmitted: (_) => _commitName(),
-                                        ),
-                                      ),
-                                      const SizedBox(width: AppSpacing.xs),
-                                      AppIconButton(
-                                        icon: AppIcons.check,
-                                        size: 13,
-                                        onPressed: _commitName,
-                                      ),
-                                    ],
-                                  )
-                                : Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          b.name,
-                                          style: context.text.bodyStrong,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      const SizedBox(width: AppSpacing.xs),
-                                      AppIconButton(
-                                        icon: AppIcons.edit,
-                                        size: 13,
-                                        onPressed: () =>
-                                            setState(() => _editingName = true),
-                                      ),
-                                    ],
+                            child: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    b.name,
+                                    style: context.text.bodyStrong,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
+                                ),
+                                const SizedBox(width: AppSpacing.xs),
+                                AppIconButton(
+                                  icon: AppIcons.edit,
+                                  size: 13,
+                                  onPressed: _editDetails,
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Row(
@@ -164,6 +141,17 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                               ),
                             ],
                           ),
+                          if (b.notes.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              b.notes,
+                              style: context.text.small.copyWith(
+                                color: c.textSecondary,
+                              ),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -213,38 +201,6 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                     ),
                   ),
                 ),
-                if (b.command.trim().isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  AppPanel(
-                    color: c.surfaceMuted,
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: AppSelectionArea(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            r'$',
-                            style: context.text.monoSmall.copyWith(
-                              color: c.textFaint,
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: Text(
-                              b.command,
-                              style: context.text.monoSmall.copyWith(
-                                color: c.textSecondary,
-                                height: 1.5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          CopyButton(text: b.command),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
                 const SizedBox(height: AppSpacing.lg),
                 Row(
                   children: [

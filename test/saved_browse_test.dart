@@ -205,4 +205,35 @@ void main() {
     expect(await chats.watchBenchmarks().first, isEmpty);
     expect(recording.existsSync(), isFalse);
   });
+
+  test('edited details show and filter; what was measured stays', () async {
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final reports = DriftPerfReportRepository(db);
+    const sent = '/Users/me/models/Llama-3.1-8B';
+    final original = perfReport('p1', model: sent, tps: 1234);
+    await reports.save(
+      original.copyWith(
+        name: 'llama c16',
+        machineName: 'GB300-2',
+        modelAlias: 'Llama 3.1 8B',
+        notes: 'main @ 1a2b3c',
+      ),
+    );
+
+    final back = (await reports.watchReports().first).single;
+    expect(back.params.model, sent);
+    expect(back.tokensPerSecond, 1234);
+    expect(back.notes, 'main @ 1a2b3c');
+    final entry = PerfEntry(back);
+    expect(
+      [entry.name, entry.machine, entry.model],
+      ['llama c16', 'GB300-2', 'Llama 3.1 8B'],
+    );
+    // Search still finds what was sent, and the notes.
+    expect(entry.matches('Llama-3.1-8B'), isTrue);
+    expect(entry.matches('1a2b3c'), isTrue);
+    // Without the alias, the sent model shows again.
+    expect(PerfEntry(back.copyWith(modelAlias: null)).model, sent);
+  });
 }

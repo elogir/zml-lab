@@ -16,6 +16,8 @@ void main() {
         endpoint: 'orion:8000',
         prompt: 'hi',
         model: 'Qwen/Qwen3-8B',
+        modelAlias: 'Qwen3 8B',
+        notes: 'main @ 1a2b3c',
         maxTokens: 256,
         temperature: 0.7,
         batchSize: 4,
@@ -29,6 +31,9 @@ void main() {
 
     final saved = (await repo.watchBenchmarks().first).single;
     expect(saved.model, 'Qwen/Qwen3-8B');
+    expect(saved.modelAlias, 'Qwen3 8B');
+    expect(saved.displayModel, 'Qwen3 8B');
+    expect(saved.notes, 'main @ 1a2b3c');
     expect(saved.maxTokens, 256);
     expect(saved.temperature, 0.7);
   }
@@ -68,7 +73,9 @@ void main() {
     ),
   );
 
-  test('the v12 upgrade adds the columns to an existing v11 table', () {
+  // The v11 table still has the `command` column, which the app no longer
+  // writes: inserts leave it to its default.
+  test('the upgrades add the columns to an existing v11 table', () {
     return roundTrip(v11());
   });
 

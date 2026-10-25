@@ -274,7 +274,6 @@ void main() {
       jobName: 'test',
       machineName: 'local',
       endpoint: 'local:8901',
-      jobCommand: '',
       benchCommand: '',
       createdAt: DateTime(2026),
       params: const PerfParams(),

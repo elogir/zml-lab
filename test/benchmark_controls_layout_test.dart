@@ -44,7 +44,6 @@ void main() {
                       jobId: 'layout',
                       jobName: 'x',
                       jobDescription: '',
-                      jobCommand: '',
                       machineName: 'local',
                       endpoint: '127.0.0.1:8000',
                       target: ChatEndpoint.hostPort('127.0.0.1', 8000),

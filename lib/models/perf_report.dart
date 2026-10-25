@@ -322,8 +322,9 @@ class PerfReport {
     required this.jobName,
     required this.machineName,
     required this.endpoint,
-    required this.jobCommand,
     required this.benchCommand,
+    this.modelAlias,
+    this.notes = '',
     required this.createdAt,
     required this.params,
     required this.totalSeconds,
@@ -348,15 +349,18 @@ class PerfReport {
   final String jobName;
   final String machineName;
 
-  /// `machine:port`, for display.
+  /// `machine:port`, as recorded.
   final String endpoint;
-
-  /// The job's launch command (llmd / vLLM command line) — the guide asks for
-  /// it whenever numbers are reported.
-  final String jobCommand;
 
   /// The exact benchmarker command line this run used.
   final String benchCommand;
+
+  /// A name given to the model afterwards, shown instead of `params.model`
+  /// (which stays what was sent). Null = none.
+  final String? modelAlias;
+
+  /// Free-form notes added afterwards (build, flags, what was tested).
+  final String notes;
   final DateTime createdAt;
   final PerfParams params;
 
@@ -401,14 +405,33 @@ class PerfReport {
     return null;
   }
 
-  PerfReport copyWith({String? name}) => PerfReport(
+  /// The model as lists show it: [modelAlias], else what was sent.
+  String get displayModel => modelAlias ?? params.model;
+
+  /// The port part of [endpoint] (`:8001`), shown after [machineName].
+  String get portLabel => endpoint.contains(':')
+      ? endpoint.substring(endpoint.lastIndexOf(':'))
+      : '';
+
+  static const _unset = Object();
+
+  /// The details that can be edited afterwards; the measurements can't.
+  PerfReport copyWith({
+    String? name,
+    String? machineName,
+    Object? modelAlias = _unset,
+    String? notes,
+  }) => PerfReport(
     id: id,
     name: name ?? this.name,
     jobName: jobName,
-    machineName: machineName,
+    machineName: machineName ?? this.machineName,
     endpoint: endpoint,
-    jobCommand: jobCommand,
     benchCommand: benchCommand,
+    modelAlias: identical(modelAlias, _unset)
+        ? this.modelAlias
+        : modelAlias as String?,
+    notes: notes ?? this.notes,
     createdAt: createdAt,
     params: params,
     totalSeconds: totalSeconds,
@@ -430,8 +453,9 @@ class PerfReport {
 
   Map<String, dynamic> toMap() => {
     'jobName': jobName,
-    'jobCommand': jobCommand,
     'benchCommand': benchCommand,
+    'modelAlias': ?modelAlias,
+    if (notes.isNotEmpty) 'notes': notes,
     'params': params.toMap(),
     'totalSeconds': totalSeconds,
     'totalEvents': totalEvents,
@@ -465,8 +489,9 @@ class PerfReport {
     jobName: m['jobName'] as String? ?? '',
     machineName: machineName,
     endpoint: endpoint,
-    jobCommand: m['jobCommand'] as String? ?? '',
     benchCommand: m['benchCommand'] as String? ?? '',
+    modelAlias: m['modelAlias'] as String?,
+    notes: m['notes'] as String? ?? '',
     createdAt: createdAt,
     params: PerfParams.fromMap(
       (m['params'] as Map?)?.cast<String, dynamic>() ?? const {},

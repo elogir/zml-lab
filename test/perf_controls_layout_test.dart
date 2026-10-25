@@ -38,7 +38,6 @@ void main() {
                       jobId: 'layout',
                       jobName: 'x',
                       jobDescription: '',
-                      jobCommand: '',
                       machineName: 'local',
                       host: '127.0.0.1',
                       port: 8000,

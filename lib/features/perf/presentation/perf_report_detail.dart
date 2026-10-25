@@ -6,6 +6,7 @@ import '../../../core/util/format.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../models/perf_report.dart';
 import '../../../repositories/perf_report_repository.dart';
+import '../../saved_benchmarks/presentation/edit_run_dialog.dart';
 import '../domain/bench_runner.dart';
 import '../domain/report_text.dart';
 import '../domain/run_recorder.dart';
@@ -42,31 +43,30 @@ class _DetailView extends ConsumerStatefulWidget {
 
 class _DetailViewState extends ConsumerState<_DetailView> {
   late PerfReport _report = widget.report;
-  bool _editingName = false;
   String? _exportedTo;
-  late final TextEditingController _name = TextEditingController(
-    text: _report.name,
-  );
 
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  void _commitName() {
-    final name = _name.text.trim();
-    if (name.isEmpty || name == _report.name) {
-      _name.text = _report.name;
-      setState(() => _editingName = false);
-      return;
-    }
-    final updated = _report.copyWith(name: name);
-    setState(() {
-      _report = updated;
-      _editingName = false;
-    });
-    ref.read(perfReportRepositoryProvider).save(updated);
+  Future<void> _editDetails() async {
+    final r = _report;
+    final repo = ref.read(perfReportRepositoryProvider);
+    final d = await showEditRunDialog(
+      context,
+      current: RunDetails(
+        name: r.name,
+        machine: r.machineName,
+        modelAlias: r.modelAlias,
+        notes: r.notes,
+      ),
+      sentModel: r.params.model,
+    );
+    if (d == null || !mounted) return;
+    final updated = r.copyWith(
+      name: d.name,
+      machineName: d.machine,
+      modelAlias: d.modelAlias,
+      notes: d.notes,
+    );
+    setState(() => _report = updated);
+    await repo.save(updated);
   }
 
   /// The run's recording, for reports recorded since runs are kept (older
@@ -122,44 +122,24 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                         children: [
                           SizedBox(
                             height: 28,
-                            child: _editingName
-                                ? Row(
-                                    children: [
-                                      Expanded(
-                                        child: AppTextField(
-                                          controller: _name,
-                                          dense: true,
-                                          autofocus: true,
-                                          onSubmitted: (_) => _commitName(),
-                                        ),
-                                      ),
-                                      const SizedBox(width: AppSpacing.sm),
-                                      AppIconButton(
-                                        icon: AppIcons.check,
-                                        size: 13,
-                                        onPressed: _commitName,
-                                      ),
-                                    ],
-                                  )
-                                : Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          _report.name,
-                                          style: context.text.bodyStrong,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      const SizedBox(width: AppSpacing.sm),
-                                      AppIconButton(
-                                        icon: AppIcons.edit,
-                                        size: 13,
-                                        onPressed: () =>
-                                            setState(() => _editingName = true),
-                                      ),
-                                    ],
+                            child: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    _report.name,
+                                    style: context.text.bodyStrong,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                AppIconButton(
+                                  icon: AppIcons.edit,
+                                  size: 13,
+                                  onPressed: _editDetails,
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Row(
@@ -171,7 +151,7 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                _report.endpoint,
+                                '${_report.machineName} ${_report.portLabel}',
                                 style: context.text.monoSmall,
                               ),
                               const SizedBox(width: AppSpacing.md),
@@ -192,6 +172,17 @@ class _DetailViewState extends ConsumerState<_DetailView> {
                               ],
                             ],
                           ),
+                          if (_report.notes.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              _report.notes,
+                              style: context.text.small.copyWith(
+                                color: c.textSecondary,
+                              ),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ],
                       ),
                     ),

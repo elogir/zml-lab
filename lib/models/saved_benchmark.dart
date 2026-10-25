@@ -20,14 +20,18 @@ abstract class SavedBenchmark with _$SavedBenchmark {
     /// The machine it ran on (its friendly name). Null for runs saved before
     /// this was tracked — callers fall back to the endpoint's host.
     String? machineName,
-
-    /// The job's launch command at save time, for reference.
-    @Default('') String command,
     required String prompt,
 
     /// The model name sent with the requests. Null for runs saved before this
     /// was tracked.
     String? model,
+
+    /// A name given to the model afterwards, shown instead of [model] (which
+    /// stays what was sent). Null = none.
+    String? modelAlias,
+
+    /// Free-form notes added afterwards (build, flags, what was tested).
+    @Default('') String notes,
 
     /// Per-request output cap; null = unlimited (or not tracked).
     int? maxTokens,
@@ -64,6 +68,9 @@ abstract class SavedBenchmark with _$SavedBenchmark {
   String get portLabel => endpoint.contains(':')
       ? endpoint.substring(endpoint.lastIndexOf(':'))
       : endpoint;
+
+  /// The model as lists show it: [modelAlias], else what was sent.
+  String? get displayModel => modelAlias ?? model;
 
   /// Mean per-request tok/s across the saved run (see [meanRequestTps]).
   double get averageTokensPerSecond => meanRequestTps(requests);

@@ -718,18 +718,6 @@ class $SavedBenchmarksTable extends SavedBenchmarks
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _commandMeta = const VerificationMeta(
-    'command',
-  );
-  @override
-  late final GeneratedColumn<String> command = GeneratedColumn<String>(
-    'command',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(''),
-  );
   static const VerificationMeta _promptMeta = const VerificationMeta('prompt');
   @override
   late final GeneratedColumn<String> prompt = GeneratedColumn<String>(
@@ -747,6 +735,27 @@ class $SavedBenchmarksTable extends SavedBenchmarks
     true,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
+  );
+  static const VerificationMeta _modelAliasMeta = const VerificationMeta(
+    'modelAlias',
+  );
+  @override
+  late final GeneratedColumn<String> modelAlias = GeneratedColumn<String>(
+    'model_alias',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
   );
   static const VerificationMeta _maxTokensMeta = const VerificationMeta(
     'maxTokens',
@@ -881,9 +890,10 @@ class $SavedBenchmarksTable extends SavedBenchmarks
     name,
     endpoint,
     machineName,
-    command,
     prompt,
     model,
+    modelAlias,
+    notes,
     maxTokens,
     temperature,
     ignoreEos,
@@ -938,12 +948,6 @@ class $SavedBenchmarksTable extends SavedBenchmarks
         ),
       );
     }
-    if (data.containsKey('command')) {
-      context.handle(
-        _commandMeta,
-        command.isAcceptableOrUnknown(data['command']!, _commandMeta),
-      );
-    }
     if (data.containsKey('prompt')) {
       context.handle(
         _promptMeta,
@@ -956,6 +960,18 @@ class $SavedBenchmarksTable extends SavedBenchmarks
       context.handle(
         _modelMeta,
         model.isAcceptableOrUnknown(data['model']!, _modelMeta),
+      );
+    }
+    if (data.containsKey('model_alias')) {
+      context.handle(
+        _modelAliasMeta,
+        modelAlias.isAcceptableOrUnknown(data['model_alias']!, _modelAliasMeta),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
       );
     }
     if (data.containsKey('max_tokens')) {
@@ -1076,10 +1092,6 @@ class $SavedBenchmarksTable extends SavedBenchmarks
         DriftSqlType.string,
         data['${effectivePrefix}machine_name'],
       ),
-      command: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}command'],
-      )!,
       prompt: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}prompt'],
@@ -1088,6 +1100,14 @@ class $SavedBenchmarksTable extends SavedBenchmarks
         DriftSqlType.string,
         data['${effectivePrefix}model'],
       ),
+      modelAlias: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model_alias'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      )!,
       maxTokens: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}max_tokens'],
@@ -1150,14 +1170,15 @@ class SavedBenchmarkRow extends DataClass
   /// The machine it ran on, for display. Nullable: rows saved before this
   /// column existed fall back to the endpoint's host part.
   final String? machineName;
-
-  /// The launch command at save time (empty for runs saved without one).
-  final String command;
   final String prompt;
 
   /// The run's request settings. Nullable: rows saved before they were
   /// tracked (and, for the last two, runs that left them to the server).
   final String? model;
+
+  /// Edited afterwards: a name shown instead of [model], and notes.
+  final String? modelAlias;
+  final String notes;
   final int? maxTokens;
   final double? temperature;
   final bool ignoreEos;
@@ -1178,9 +1199,10 @@ class SavedBenchmarkRow extends DataClass
     required this.name,
     required this.endpoint,
     this.machineName,
-    required this.command,
     required this.prompt,
     this.model,
+    this.modelAlias,
+    required this.notes,
     this.maxTokens,
     this.temperature,
     required this.ignoreEos,
@@ -1202,11 +1224,14 @@ class SavedBenchmarkRow extends DataClass
     if (!nullToAbsent || machineName != null) {
       map['machine_name'] = Variable<String>(machineName);
     }
-    map['command'] = Variable<String>(command);
     map['prompt'] = Variable<String>(prompt);
     if (!nullToAbsent || model != null) {
       map['model'] = Variable<String>(model);
     }
+    if (!nullToAbsent || modelAlias != null) {
+      map['model_alias'] = Variable<String>(modelAlias);
+    }
+    map['notes'] = Variable<String>(notes);
     if (!nullToAbsent || maxTokens != null) {
       map['max_tokens'] = Variable<int>(maxTokens);
     }
@@ -1235,11 +1260,14 @@ class SavedBenchmarkRow extends DataClass
       machineName: machineName == null && nullToAbsent
           ? const Value.absent()
           : Value(machineName),
-      command: Value(command),
       prompt: Value(prompt),
       model: model == null && nullToAbsent
           ? const Value.absent()
           : Value(model),
+      modelAlias: modelAlias == null && nullToAbsent
+          ? const Value.absent()
+          : Value(modelAlias),
+      notes: Value(notes),
       maxTokens: maxTokens == null && nullToAbsent
           ? const Value.absent()
           : Value(maxTokens),
@@ -1268,9 +1296,10 @@ class SavedBenchmarkRow extends DataClass
       name: serializer.fromJson<String>(json['name']),
       endpoint: serializer.fromJson<String>(json['endpoint']),
       machineName: serializer.fromJson<String?>(json['machineName']),
-      command: serializer.fromJson<String>(json['command']),
       prompt: serializer.fromJson<String>(json['prompt']),
       model: serializer.fromJson<String?>(json['model']),
+      modelAlias: serializer.fromJson<String?>(json['modelAlias']),
+      notes: serializer.fromJson<String>(json['notes']),
       maxTokens: serializer.fromJson<int?>(json['maxTokens']),
       temperature: serializer.fromJson<double?>(json['temperature']),
       ignoreEos: serializer.fromJson<bool>(json['ignoreEos']),
@@ -1294,9 +1323,10 @@ class SavedBenchmarkRow extends DataClass
       'name': serializer.toJson<String>(name),
       'endpoint': serializer.toJson<String>(endpoint),
       'machineName': serializer.toJson<String?>(machineName),
-      'command': serializer.toJson<String>(command),
       'prompt': serializer.toJson<String>(prompt),
       'model': serializer.toJson<String?>(model),
+      'modelAlias': serializer.toJson<String?>(modelAlias),
+      'notes': serializer.toJson<String>(notes),
       'maxTokens': serializer.toJson<int?>(maxTokens),
       'temperature': serializer.toJson<double?>(temperature),
       'ignoreEos': serializer.toJson<bool>(ignoreEos),
@@ -1318,9 +1348,10 @@ class SavedBenchmarkRow extends DataClass
     String? name,
     String? endpoint,
     Value<String?> machineName = const Value.absent(),
-    String? command,
     String? prompt,
     Value<String?> model = const Value.absent(),
+    Value<String?> modelAlias = const Value.absent(),
+    String? notes,
     Value<int?> maxTokens = const Value.absent(),
     Value<double?> temperature = const Value.absent(),
     bool? ignoreEos,
@@ -1337,9 +1368,10 @@ class SavedBenchmarkRow extends DataClass
     name: name ?? this.name,
     endpoint: endpoint ?? this.endpoint,
     machineName: machineName.present ? machineName.value : this.machineName,
-    command: command ?? this.command,
     prompt: prompt ?? this.prompt,
     model: model.present ? model.value : this.model,
+    modelAlias: modelAlias.present ? modelAlias.value : this.modelAlias,
+    notes: notes ?? this.notes,
     maxTokens: maxTokens.present ? maxTokens.value : this.maxTokens,
     temperature: temperature.present ? temperature.value : this.temperature,
     ignoreEos: ignoreEos ?? this.ignoreEos,
@@ -1361,9 +1393,12 @@ class SavedBenchmarkRow extends DataClass
       machineName: data.machineName.present
           ? data.machineName.value
           : this.machineName,
-      command: data.command.present ? data.command.value : this.command,
       prompt: data.prompt.present ? data.prompt.value : this.prompt,
       model: data.model.present ? data.model.value : this.model,
+      modelAlias: data.modelAlias.present
+          ? data.modelAlias.value
+          : this.modelAlias,
+      notes: data.notes.present ? data.notes.value : this.notes,
       maxTokens: data.maxTokens.present ? data.maxTokens.value : this.maxTokens,
       temperature: data.temperature.present
           ? data.temperature.value
@@ -1395,9 +1430,10 @@ class SavedBenchmarkRow extends DataClass
           ..write('name: $name, ')
           ..write('endpoint: $endpoint, ')
           ..write('machineName: $machineName, ')
-          ..write('command: $command, ')
           ..write('prompt: $prompt, ')
           ..write('model: $model, ')
+          ..write('modelAlias: $modelAlias, ')
+          ..write('notes: $notes, ')
           ..write('maxTokens: $maxTokens, ')
           ..write('temperature: $temperature, ')
           ..write('ignoreEos: $ignoreEos, ')
@@ -1419,9 +1455,10 @@ class SavedBenchmarkRow extends DataClass
     name,
     endpoint,
     machineName,
-    command,
     prompt,
     model,
+    modelAlias,
+    notes,
     maxTokens,
     temperature,
     ignoreEos,
@@ -1442,9 +1479,10 @@ class SavedBenchmarkRow extends DataClass
           other.name == this.name &&
           other.endpoint == this.endpoint &&
           other.machineName == this.machineName &&
-          other.command == this.command &&
           other.prompt == this.prompt &&
           other.model == this.model &&
+          other.modelAlias == this.modelAlias &&
+          other.notes == this.notes &&
           other.maxTokens == this.maxTokens &&
           other.temperature == this.temperature &&
           other.ignoreEos == this.ignoreEos &&
@@ -1463,9 +1501,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
   final Value<String> name;
   final Value<String> endpoint;
   final Value<String?> machineName;
-  final Value<String> command;
   final Value<String> prompt;
   final Value<String?> model;
+  final Value<String?> modelAlias;
+  final Value<String> notes;
   final Value<int?> maxTokens;
   final Value<double?> temperature;
   final Value<bool> ignoreEos;
@@ -1483,9 +1522,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     this.name = const Value.absent(),
     this.endpoint = const Value.absent(),
     this.machineName = const Value.absent(),
-    this.command = const Value.absent(),
     this.prompt = const Value.absent(),
     this.model = const Value.absent(),
+    this.modelAlias = const Value.absent(),
+    this.notes = const Value.absent(),
     this.maxTokens = const Value.absent(),
     this.temperature = const Value.absent(),
     this.ignoreEos = const Value.absent(),
@@ -1504,9 +1544,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     required String name,
     required String endpoint,
     this.machineName = const Value.absent(),
-    this.command = const Value.absent(),
     required String prompt,
     this.model = const Value.absent(),
+    this.modelAlias = const Value.absent(),
+    this.notes = const Value.absent(),
     this.maxTokens = const Value.absent(),
     this.temperature = const Value.absent(),
     this.ignoreEos = const Value.absent(),
@@ -1534,9 +1575,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     Expression<String>? name,
     Expression<String>? endpoint,
     Expression<String>? machineName,
-    Expression<String>? command,
     Expression<String>? prompt,
     Expression<String>? model,
+    Expression<String>? modelAlias,
+    Expression<String>? notes,
     Expression<int>? maxTokens,
     Expression<double>? temperature,
     Expression<bool>? ignoreEos,
@@ -1555,9 +1597,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
       if (name != null) 'name': name,
       if (endpoint != null) 'endpoint': endpoint,
       if (machineName != null) 'machine_name': machineName,
-      if (command != null) 'command': command,
       if (prompt != null) 'prompt': prompt,
       if (model != null) 'model': model,
+      if (modelAlias != null) 'model_alias': modelAlias,
+      if (notes != null) 'notes': notes,
       if (maxTokens != null) 'max_tokens': maxTokens,
       if (temperature != null) 'temperature': temperature,
       if (ignoreEos != null) 'ignore_eos': ignoreEos,
@@ -1579,9 +1622,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     Value<String>? name,
     Value<String>? endpoint,
     Value<String?>? machineName,
-    Value<String>? command,
     Value<String>? prompt,
     Value<String?>? model,
+    Value<String?>? modelAlias,
+    Value<String>? notes,
     Value<int?>? maxTokens,
     Value<double?>? temperature,
     Value<bool>? ignoreEos,
@@ -1600,9 +1644,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
       name: name ?? this.name,
       endpoint: endpoint ?? this.endpoint,
       machineName: machineName ?? this.machineName,
-      command: command ?? this.command,
       prompt: prompt ?? this.prompt,
       model: model ?? this.model,
+      modelAlias: modelAlias ?? this.modelAlias,
+      notes: notes ?? this.notes,
       maxTokens: maxTokens ?? this.maxTokens,
       temperature: temperature ?? this.temperature,
       ignoreEos: ignoreEos ?? this.ignoreEos,
@@ -1634,14 +1679,17 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
     if (machineName.present) {
       map['machine_name'] = Variable<String>(machineName.value);
     }
-    if (command.present) {
-      map['command'] = Variable<String>(command.value);
-    }
     if (prompt.present) {
       map['prompt'] = Variable<String>(prompt.value);
     }
     if (model.present) {
       map['model'] = Variable<String>(model.value);
+    }
+    if (modelAlias.present) {
+      map['model_alias'] = Variable<String>(modelAlias.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
     }
     if (maxTokens.present) {
       map['max_tokens'] = Variable<int>(maxTokens.value);
@@ -1691,9 +1739,10 @@ class SavedBenchmarksCompanion extends UpdateCompanion<SavedBenchmarkRow> {
           ..write('name: $name, ')
           ..write('endpoint: $endpoint, ')
           ..write('machineName: $machineName, ')
-          ..write('command: $command, ')
           ..write('prompt: $prompt, ')
           ..write('model: $model, ')
+          ..write('modelAlias: $modelAlias, ')
+          ..write('notes: $notes, ')
           ..write('maxTokens: $maxTokens, ')
           ..write('temperature: $temperature, ')
           ..write('ignoreEos: $ignoreEos, ')
@@ -3310,9 +3359,10 @@ typedef $$SavedBenchmarksTableCreateCompanionBuilder =
       required String name,
       required String endpoint,
       Value<String?> machineName,
-      Value<String> command,
       required String prompt,
       Value<String?> model,
+      Value<String?> modelAlias,
+      Value<String> notes,
       Value<int?> maxTokens,
       Value<double?> temperature,
       Value<bool> ignoreEos,
@@ -3332,9 +3382,10 @@ typedef $$SavedBenchmarksTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> endpoint,
       Value<String?> machineName,
-      Value<String> command,
       Value<String> prompt,
       Value<String?> model,
+      Value<String?> modelAlias,
+      Value<String> notes,
       Value<int?> maxTokens,
       Value<double?> temperature,
       Value<bool> ignoreEos,
@@ -3378,11 +3429,6 @@ class $$SavedBenchmarksTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get command => $composableBuilder(
-    column: $table.command,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<String> get prompt => $composableBuilder(
     column: $table.prompt,
     builder: (column) => ColumnFilters(column),
@@ -3390,6 +3436,16 @@ class $$SavedBenchmarksTableFilterComposer
 
   ColumnFilters<String> get model => $composableBuilder(
     column: $table.model,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get modelAlias => $composableBuilder(
+    column: $table.modelAlias,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3478,11 +3534,6 @@ class $$SavedBenchmarksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get command => $composableBuilder(
-    column: $table.command,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get prompt => $composableBuilder(
     column: $table.prompt,
     builder: (column) => ColumnOrderings(column),
@@ -3490,6 +3541,16 @@ class $$SavedBenchmarksTableOrderingComposer
 
   ColumnOrderings<String> get model => $composableBuilder(
     column: $table.model,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get modelAlias => $composableBuilder(
+    column: $table.modelAlias,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3572,14 +3633,19 @@ class $$SavedBenchmarksTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get command =>
-      $composableBuilder(column: $table.command, builder: (column) => column);
-
   GeneratedColumn<String> get prompt =>
       $composableBuilder(column: $table.prompt, builder: (column) => column);
 
   GeneratedColumn<String> get model =>
       $composableBuilder(column: $table.model, builder: (column) => column);
+
+  GeneratedColumn<String> get modelAlias => $composableBuilder(
+    column: $table.modelAlias,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
 
   GeneratedColumn<int> get maxTokens =>
       $composableBuilder(column: $table.maxTokens, builder: (column) => column);
@@ -3666,9 +3732,10 @@ class $$SavedBenchmarksTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> endpoint = const Value.absent(),
                 Value<String?> machineName = const Value.absent(),
-                Value<String> command = const Value.absent(),
                 Value<String> prompt = const Value.absent(),
                 Value<String?> model = const Value.absent(),
+                Value<String?> modelAlias = const Value.absent(),
+                Value<String> notes = const Value.absent(),
                 Value<int?> maxTokens = const Value.absent(),
                 Value<double?> temperature = const Value.absent(),
                 Value<bool> ignoreEos = const Value.absent(),
@@ -3686,9 +3753,10 @@ class $$SavedBenchmarksTableTableManager
                 name: name,
                 endpoint: endpoint,
                 machineName: machineName,
-                command: command,
                 prompt: prompt,
                 model: model,
+                modelAlias: modelAlias,
+                notes: notes,
                 maxTokens: maxTokens,
                 temperature: temperature,
                 ignoreEos: ignoreEos,
@@ -3708,9 +3776,10 @@ class $$SavedBenchmarksTableTableManager
                 required String name,
                 required String endpoint,
                 Value<String?> machineName = const Value.absent(),
-                Value<String> command = const Value.absent(),
                 required String prompt,
                 Value<String?> model = const Value.absent(),
+                Value<String?> modelAlias = const Value.absent(),
+                Value<String> notes = const Value.absent(),
                 Value<int?> maxTokens = const Value.absent(),
                 Value<double?> temperature = const Value.absent(),
                 Value<bool> ignoreEos = const Value.absent(),
@@ -3728,9 +3797,10 @@ class $$SavedBenchmarksTableTableManager
                 name: name,
                 endpoint: endpoint,
                 machineName: machineName,
-                command: command,
                 prompt: prompt,
                 model: model,
+                modelAlias: modelAlias,
+                notes: notes,
                 maxTokens: maxTokens,
                 temperature: temperature,
                 ignoreEos: ignoreEos,

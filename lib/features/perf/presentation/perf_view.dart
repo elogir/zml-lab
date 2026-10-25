@@ -28,7 +28,6 @@ class PerfView extends ConsumerStatefulWidget {
     required this.jobId,
     required this.jobName,
     required this.jobDescription,
-    required this.jobCommand,
     required this.machineName,
     required this.host,
     required this.port,
@@ -39,7 +38,6 @@ class PerfView extends ConsumerStatefulWidget {
   final String jobId;
   final String jobName;
   final String jobDescription;
-  final String jobCommand;
   final String machineName;
   final String host;
   final int port;
@@ -121,7 +119,6 @@ class _PerfViewState extends ConsumerState<PerfView> {
       host: widget.host,
       port: widget.port,
       jobName: widget.jobName,
-      jobCommand: widget.jobCommand,
       machineName: widget.machineName,
       machine: widget.machine,
       hardware: widget.hardware,

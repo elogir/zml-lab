@@ -214,7 +214,7 @@ class _FilterBar extends ConsumerWidget {
           children: [
             Expanded(
               child: AppSearchField(
-                hintText: 'Search names, machines, models, commands',
+                hintText: 'Search names, machines, models, notes',
                 initialValue: browse.query,
                 onChanged: browser.setQuery,
               ),
