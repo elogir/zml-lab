@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:zml_lab/core/theme/app_theme.dart';
 import 'package:zml_lab/core/widgets/app_markdown.dart';
 
@@ -26,6 +28,23 @@ void main() {
         (header.decoration! as BoxDecoration).color,
         colors.surfaceSelected,
       );
+    });
+
+    testWidgets('inline code uses the ${colors.brightness.name} palette', (
+      tester,
+    ) async {
+      // Under a Theme gpt_markdown couldn't see, it was the light default's
+      // near-black: invisible on the dark chip.
+      await tester.pumpWidget(_host('after each `matmul`.', colors));
+      final code = <CodeTextSpan>[];
+      for (final p in tester.allRenderObjects.whereType<RenderParagraph>()) {
+        p.text.visitChildren((span) {
+          if (span is CodeTextSpan) code.add(span);
+          return true;
+        });
+      }
+      expect(code, isNotEmpty);
+      expect(code.map((s) => s.style?.color), everyElement(colors.textPrimary));
     });
   }
 

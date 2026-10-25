@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../theme/app_theme.dart';
 
@@ -8,7 +8,11 @@ import '../theme/app_theme.dart';
 /// The app deliberately has no MaterialApp, but `gpt_markdown` resolves its
 /// colors through `Theme.of` and a few of its pieces (task-list checkboxes)
 /// need a `Material` ancestor — so this wraps the renderer in a minimal,
-/// palette-mapped Material theme that never leaks outside this subtree. Code
+/// palette-mapped Material theme that never leaks outside this subtree. Both
+/// come from `material_ui`, the library gpt_markdown is built on: the
+/// `Theme` in `package:flutter/material.dart` is a different class it never
+/// sees, and under it inline code fell back to the light scheme's near-black
+/// text on our dark chip. Code
 /// blocks and inline code get app-styled builders (mono, muted surfaces)
 /// instead of the package's Material defaults.
 ///
