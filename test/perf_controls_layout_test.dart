@@ -12,7 +12,7 @@ import 'package:zml_lab/features/perf/presentation/perf_view.dart';
 void main() {
   // From the narrowest the terminal split allows to a full window. Not right
   // at the breakpoints: the test font is much wider than Inter, so a width
-  // that fits one line in the app (≥ 1360) overflows here until ~1550.
+  // that fits one line in the app (≥ 1260) overflows here until ~1450.
   for (final width in [340.0, 520.0, 900.0, 1600.0]) {
     testWidgets('perf controls line up at ${width.toInt()}', (tester) async {
       tester.view.physicalSize = Size(width, 800);
@@ -93,7 +93,7 @@ void main() {
         expect(run.top, greaterThan(model.bottom));
         expect(model.width, closeTo(width, 1));
       }
-      if (width >= 1360) {
+      if (width >= 1260) {
         // Everything on one line.
         for (final r in [prompts, turns, model]) {
           expect(r.top, closeTo(duration.top, 0.01));

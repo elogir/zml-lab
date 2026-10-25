@@ -491,11 +491,9 @@ class _Controls extends StatelessWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         if (width >= _oneLineWidth) {
-          // Everything on one line: the numbers get a fixed share (wide
-          // enough for 4 digits, never ballooning), the model the rest.
-          final numberWidth = ((width - 640) / 4.5).clamp(100.0, 140.0);
-          Widget number(Widget field) =>
-              SizedBox(width: numberWidth, child: field);
+          // Everything on one line: the numbers get a fixed width (enough
+          // for 4 digits), the model all the rest.
+          Widget number(Widget field) => SizedBox(width: 110, child: field);
           return Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -608,7 +606,7 @@ class _Controls extends StatelessWidget {
   // model name, not just its first letters.
 
   /// From this width everything fits on one line.
-  static const _oneLineWidth = 1360.0;
+  static const _oneLineWidth = 1260.0;
 
   /// Below this the run controls get their own line (and below
   /// [_twoLineWidth], the choices too).
