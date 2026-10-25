@@ -586,7 +586,10 @@ class _EndpointBar extends ConsumerWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxWidth >= 460) {
+          // One line while the picker keeps ~140 px (the Metrics button
+          // takes room too).
+          final oneLine = metricsHost != null ? 700.0 : 600.0;
+          if (constraints.maxWidth >= oneLine) {
             return Row(
               children: [
                 label('Target'),

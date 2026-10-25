@@ -135,10 +135,14 @@ class PerfChartCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          // The unit at the right, or (narrow) under the title.
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSpacing.sm,
+            runSpacing: 2,
             children: [
               Text(title, style: context.text.bodyStrong),
-              const Spacer(),
               Text(unit, style: context.text.smallMuted),
             ],
           ),

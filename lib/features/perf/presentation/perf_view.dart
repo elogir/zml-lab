@@ -562,22 +562,20 @@ class _Controls extends StatelessWidget {
                     visible: false,
                     child: AppTextField(mono: true),
                   ),
-                  // …the run controls at the right, filling it.
-                  Positioned(
-                    top: 0,
-                    bottom: 0,
-                    right: 0,
+                  // …filled by Run, the whole line wide (beside fullscreen).
+                  Positioned.fill(
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        RunActions(
-                          label: 'Run benchmark',
-                          icon: AppIcons.play,
-                          running: active,
-                          onRun: active ? null : onRun,
-                          onStop: onCancel,
-                          stretch: true,
+                        Expanded(
+                          child: RunActions(
+                            label: 'Run benchmark',
+                            icon: AppIcons.play,
+                            running: active,
+                            onRun: active ? null : onRun,
+                            onStop: onCancel,
+                            stretch: true,
+                          ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Center(

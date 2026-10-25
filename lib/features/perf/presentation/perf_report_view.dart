@@ -20,6 +20,9 @@ class PerfReportView extends StatelessWidget {
 
   final PerfReport report;
 
+  /// Below this the two histograms stack.
+  static const _sideBySideWidth = 560.0;
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -65,33 +68,47 @@ class PerfReportView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: PerfChartCard(
-                  title: 'Time to first token',
-                  unit: 'requests',
-                  height: 170,
-                  child: PerfHistogramChart.fromHistogram(
-                    histogram: r.ttftHistogram,
-                    color: c.accent,
-                  ),
+          // Side by side, or (narrow) one under the other: half the width
+          // is too little for a histogram's axis labels.
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final ttft = PerfChartCard(
+                title: 'Time to first token',
+                unit: 'requests',
+                height: 170,
+                child: PerfHistogramChart.fromHistogram(
+                  histogram: r.ttftHistogram,
+                  color: c.accent,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: PerfChartCard(
-                  title: 'Inter-token latency',
-                  unit: 'gaps',
-                  height: 170,
-                  child: PerfHistogramChart.fromHistogram(
-                    histogram: r.itlHistogram,
-                    color: c.accent,
-                  ),
+              );
+              final itl = PerfChartCard(
+                title: 'Inter-token latency',
+                unit: 'gaps',
+                height: 170,
+                child: PerfHistogramChart.fromHistogram(
+                  histogram: r.itlHistogram,
+                  color: c.accent,
                 ),
-              ),
-            ],
+              );
+              if (constraints.maxWidth < _sideBySideWidth) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ttft,
+                    const SizedBox(height: AppSpacing.lg),
+                    itl,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: ttft),
+                  const SizedBox(width: AppSpacing.lg),
+                  Expanded(child: itl),
+                ],
+              );
+            },
           ),
           const SizedBox(height: AppSpacing.lg),
           PerfRequestsCard(series: r.series, height: 150),
@@ -292,36 +309,60 @@ class _StatsTable extends StatelessWidget {
 
     return AppPanel(
       padding: EdgeInsets.zero,
-      child: Table(
-        columnWidths: const {0: FlexColumnWidth(2.2)},
-        defaultColumnWidth: const FlexColumnWidth(1),
-        border: TableBorder(horizontalInside: BorderSide(color: c.borderMuted)),
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        children: [
-          TableRow(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Text('STATISTIC', style: header),
-              ),
-              for (final col in _columns)
+      child: _ScrollsBelow(
+        minWidth: 760,
+        child: Table(
+          columnWidths: const {0: FlexColumnWidth(2.2)},
+          defaultColumnWidth: const FlexColumnWidth(1),
+          border: TableBorder(
+            horizontalInside: BorderSide(color: c.borderMuted),
+          ),
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          children: [
+            TableRow(
+              children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
+                    horizontal: AppSpacing.md,
                     vertical: AppSpacing.sm,
                   ),
-                  child: Text(col, style: header, textAlign: TextAlign.right),
+                  child: Text('STATISTIC', style: header),
                 ),
-            ],
-          ),
-          for (final r in rows) row(r),
-        ],
+                for (final col in _columns)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.sm,
+                    ),
+                    child: Text(col, style: header, textAlign: TextAlign.right),
+                  ),
+              ],
+            ),
+            for (final r in rows) row(r),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// A table at least [minWidth] wide: narrower, it scrolls sideways rather
+/// than squeeze its numbers out of their cells.
+class _ScrollsBelow extends StatelessWidget {
+  const _ScrollsBelow({required this.minWidth, required this.child});
+
+  final double minWidth;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => constraints.maxWidth >= minWidth
+        ? child
+        : SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(width: minWidth, child: child),
+          ),
+  );
 }
 
 /// The accelerators over the run, from zml-smi: one row per device.
@@ -397,30 +438,38 @@ class _ChipsTable extends StatelessWidget {
 
     return AppPanel(
       padding: EdgeInsets.zero,
-      child: Table(
-        columnWidths: const {0: FlexColumnWidth(2.6), 6: FlexColumnWidth(1.6)},
-        defaultColumnWidth: const FlexColumnWidth(1),
-        border: TableBorder(horizontalInside: BorderSide(color: c.borderMuted)),
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        children: [
-          TableRow(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Text('CHIP', style: header),
-              ),
-              for (final col in _columns)
-                Padding(
-                  padding: cellPadding,
-                  child: Text(col, style: header, textAlign: TextAlign.right),
-                ),
-            ],
+      child: _ScrollsBelow(
+        minWidth: 760,
+        child: Table(
+          columnWidths: const {
+            0: FlexColumnWidth(2.6),
+            6: FlexColumnWidth(1.6),
+          },
+          defaultColumnWidth: const FlexColumnWidth(1),
+          border: TableBorder(
+            horizontalInside: BorderSide(color: c.borderMuted),
           ),
-          for (final s in chips) row(s),
-        ],
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          children: [
+            TableRow(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  child: Text('CHIP', style: header),
+                ),
+                for (final col in _columns)
+                  Padding(
+                    padding: cellPadding,
+                    child: Text(col, style: header, textAlign: TextAlign.right),
+                  ),
+              ],
+            ),
+            for (final s in chips) row(s),
+          ],
+        ),
       ),
     );
   }
