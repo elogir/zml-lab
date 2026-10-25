@@ -1,3 +1,14 @@
+import 'csv_events.dart';
+
+/// A run file's rows in the order they were recorded: the streamed chunks,
+/// and each zml-smi reading with when it was taken.
+class RunRows {
+  const RunRows({required this.events, required this.chips});
+
+  final List<PerfEvent> events;
+  final List<(int tsNs, ChipReading reading)> chips;
+}
+
 /// One device in a zml-smi sample (a row of the run's `chip` table).
 class ChipReading {
   const ChipReading({

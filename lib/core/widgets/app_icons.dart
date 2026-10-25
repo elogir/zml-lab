@@ -29,6 +29,7 @@ abstract final class AppIcons {
   static const IconData perf = LucideIcons.zap;
   static const IconData benchmarkTool = LucideIcons.flaskConical;
   static const IconData download = LucideIcons.download;
+  static const IconData upload = LucideIcons.upload;
   static const IconData restart = LucideIcons.rotateCw;
   static const IconData copy = LucideIcons.copy;
   static const IconData edit = LucideIcons.pencil;

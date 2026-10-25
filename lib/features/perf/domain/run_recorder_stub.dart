@@ -46,3 +46,9 @@ Future<void> rewriteRunMeta(String runFile, Map<String, Object?> meta) async =>
     throw UnsupportedError('run files are edited by the desktop app');
 
 Future<Map<String, Object?>?> readRunMeta(String runFile) async => null;
+
+Future<RunRows> readRunRows(String runFile) async =>
+    throw UnsupportedError('run files are read by the desktop app');
+
+Future<void> keepRunFile(String file, String runId) async =>
+    throw UnsupportedError('runs are imported by the desktop app');

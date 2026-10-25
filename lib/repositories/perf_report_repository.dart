@@ -13,6 +13,9 @@ part 'perf_report_repository.g.dart';
 /// Saved perf benchmark reports.
 abstract interface class PerfReportRepository {
   Stream<List<PerfReport>> watchReports();
+
+  /// Whether a report with [id] is saved.
+  Future<bool> exists(String id);
   Future<void> save(PerfReport report);
   Future<void> delete(String id);
 }
@@ -28,6 +31,15 @@ class DriftPerfReportRepository implements PerfReportRepository {
   )..orderBy([
     (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
   ])).watch().map((rows) => rows.map((r) => r.toModel()).toList());
+
+  @override
+  Future<bool> exists(String id) async {
+    final count = _db.perfReports.id.count();
+    final query = _db.selectOnly(_db.perfReports)
+      ..addColumns([count])
+      ..where(_db.perfReports.id.equals(id));
+    return (await query.getSingle()).read(count)! > 0;
+  }
 
   @override
   Future<void> save(PerfReport r) => _db

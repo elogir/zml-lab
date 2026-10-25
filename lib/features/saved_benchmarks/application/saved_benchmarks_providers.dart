@@ -1,10 +1,12 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../models/perf_report.dart';
+import '../../../models/run_meta.dart';
 import '../../../models/saved_benchmark.dart';
 import '../../../repositories/perf_report_repository.dart';
 import '../../../repositories/saved_benchmark_repository.dart';
 import '../../perf/domain/run_recorder.dart';
+import '../../perf/domain/run_report.dart';
 import '../domain/saved_entry.dart';
 
 part 'saved_benchmarks_providers.g.dart';
@@ -16,6 +18,18 @@ Stream<List<SavedBenchmark>> savedBenchmarksStream(Ref ref) =>
 @riverpod
 Stream<List<PerfReport>> perfReportsStream(Ref ref) =>
     ref.watch(perfReportRepositoryProvider).watchReports();
+
+/// What importing run files did ([SavedBrowser.importRuns]).
+class RunImport {
+  /// The runs saved, by name.
+  final imported = <String>[];
+
+  /// The runs already saved, skipped: their names.
+  final duplicates = <String>[];
+
+  /// The files that couldn't be imported, and why.
+  final failed = <(String file, String reason)>[];
+}
 
 /// Every saved run, perf reports first, each kind newest first.
 @riverpod
@@ -75,6 +89,53 @@ class SavedBrowser extends _$SavedBrowser {
   }
 
   void clearSelection() => state = state.copyWith(selected: const {});
+
+  /// Saves the perf runs in [files] (`.zmlrun.parquet`), each file kept as
+  /// its report's recording. A run already saved (the same `run_id`) is
+  /// skipped; a file that can't be read is reported, and the rest go in.
+  Future<RunImport> importRuns(Iterable<String> files) async {
+    final repo = ref.read(perfReportRepositoryProvider);
+    final result = RunImport();
+    for (final file in files) {
+      final name = file.split(RegExp(r'[/\\]')).last;
+      final stem = name.replaceFirst(RegExp(r'(\.zmlrun)?\.parquet$'), '');
+      try {
+        final meta = await readRunMeta(file);
+        if (meta == null) {
+          throw const FormatException('no meta.json (zml.run): not a run file');
+        }
+        final id = meta['run_id'];
+        // It names the file the run is kept in.
+        if (id is! String || !RegExp(r'^\w[\w.-]*$').hasMatch(id)) {
+          throw const FormatException('its meta.json has no usable run_id');
+        }
+        if (await repo.exists(id)) {
+          final label = runMetaField(meta, 'label');
+          result.duplicates.add(label.isEmpty ? stem : label);
+          continue;
+        }
+        final rows = await readRunRows(file);
+        if (rows.events.isEmpty) throw const FormatException('no events');
+        final report = reportFromRun(
+          meta,
+          rows,
+          fallbackName: stem,
+          fallbackDate: DateTime.now(),
+        );
+        await keepRunFile(file, id);
+        await repo.save(report);
+        result.imported.add(report.name);
+      } catch (e) {
+        result.failed.add((
+          name,
+          e is FormatException
+              ? e.message
+              : '$e'.replaceFirst(RegExp(r'^\w*(Exception|Error): '), ''),
+        ));
+      }
+    }
+    return result;
+  }
 
   /// Deletes [entries] (a perf report's recording with it) and drops them
   /// from the selection.

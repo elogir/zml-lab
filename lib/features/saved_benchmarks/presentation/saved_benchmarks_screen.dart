@@ -1,3 +1,5 @@
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -60,6 +62,7 @@ class SavedBenchmarksScreen extends ConsumerWidget {
             title: 'Saved benchmarks',
             subtitle:
                 'Named snapshots of past runs — chat benchmarks and perf reports.',
+            trailing: kIsWeb ? null : _ImportButton(),
           ),
           const SizedBox(height: AppSpacing.lg),
           _FilterBar(all: all, shown: shown.length),
@@ -111,6 +114,115 @@ class SavedBenchmarksScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Imports perf run files (`.zmlrun.parquet`, from ZML-Lab's Export run or
+/// the website) as saved runs, then says how it went.
+class _ImportButton extends ConsumerStatefulWidget {
+  const _ImportButton();
+
+  @override
+  ConsumerState<_ImportButton> createState() => _ImportButtonState();
+}
+
+class _ImportButtonState extends ConsumerState<_ImportButton> {
+  bool _busy = false;
+
+  Future<void> _import() async {
+    final files = await openFiles(
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'Perf runs', extensions: ['parquet']),
+      ],
+      confirmButtonText: 'Import',
+    );
+    if (files.isEmpty || !mounted) return;
+    setState(() => _busy = true);
+    final result = await ref.read(savedBrowserProvider.notifier).importRuns([
+      for (final f in files) f.path,
+    ]);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    await showAppDialog<void>(context, (context) => _ImportSummary(result));
+  }
+
+  @override
+  Widget build(BuildContext context) => AppButton(
+    label: _busy ? 'Importing' : 'Import',
+    icon: AppIcons.upload,
+    onPressed: _busy ? null : _import,
+  );
+}
+
+/// What an import did: the runs saved, those already saved, the files that
+/// couldn't be read and why.
+class _ImportSummary extends StatelessWidget {
+  const _ImportSummary(this.result);
+
+  final RunImport result;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final n = result.imported.length;
+    Widget line(String text, {TextStyle? style}) => Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      child: Text(
+        text,
+        style: style ?? context.text.body,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+    final sections = [
+      if (n > 0) [const SectionLabel('Imported'), ...result.imported.map(line)],
+      if (result.duplicates.isNotEmpty)
+        [
+          const SectionLabel('Already saved, skipped'),
+          ...result.duplicates.map(line),
+        ],
+      if (result.failed.isNotEmpty)
+        [
+          const SectionLabel('Couldn\'t import'),
+          for (final (file, reason) in result.failed) ...[
+            line(file, style: context.text.monoSmall),
+            Text(
+              reason,
+              style: context.text.small.copyWith(color: c.statusFailed),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+    ];
+    return AppDialogFrame(
+      icon: AppIcons.upload,
+      title: n == 0
+          ? 'Nothing imported'
+          : 'Imported $n ${n == 1 ? 'run' : 'runs'}',
+      maxWidth: 520,
+      body: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 360),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final (i, s) in sections.indexed) ...[
+                if (i > 0) const SizedBox(height: AppSpacing.lg),
+                ...s,
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        AppButton(
+          label: 'OK',
+          variant: AppButtonVariant.primary,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
     );
   }
 }
@@ -730,7 +842,8 @@ class _EmptyState extends StatelessWidget {
           Text(
             filtered
                 ? 'Try a different search or filter.'
-                : 'Run a benchmark, then Save it to keep it here.',
+                : 'Run a benchmark, then Save it to keep it here — or '
+                      'Import a perf run file.',
             style: context.text.smallMuted,
           ),
         ],

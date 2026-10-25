@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:dart_duckdb/dart_duckdb.dart';
 
+import 'csv_events.dart';
 import 'run_recorder_types.dart';
 
 export 'run_recorder_types.dart';
@@ -163,6 +164,97 @@ Future<Map<String, Object?>?> readRunMeta(String runFile) async {
   if (rows.isEmpty) return null;
   return (jsonDecode(rows.first.first! as String) as Map)
       .cast<String, Object?>();
+}
+
+/// [runFile]'s events and chip samples, in the order they were recorded —
+/// the order a live run fed them to its report. Columns the file doesn't
+/// have read as empty.
+Future<RunRows> readRunRows(String runFile) async {
+  final file = _sqlString(runFile);
+  final names = {
+    for (final row in await _query('SELECT name FROM parquet_schema($file)'))
+      row.first,
+  };
+  Future<List<List<Object?>>> rows(
+    String source,
+    Iterable<String> columns,
+  ) => _query(
+    'SELECT ${[for (final c in columns) names.contains(c) ? c : 'NULL AS $c'].join(', ')} '
+    'FROM read_parquet($file, file_row_number = true) '
+    "WHERE source = '$source' ORDER BY file_row_number",
+  );
+  int? n(Object? v) => (v as num?)?.toInt();
+  double? d(Object? v) => (v as num?)?.toDouble();
+
+  final events = <PerfEvent>[];
+  for (final r in await rows('event', const [
+    'ts_ns',
+    'request_id',
+    'seq',
+    'request_ts_ns',
+    'token_chars',
+    'reasoning_chars',
+    'input_tokens',
+    'output_tokens',
+    'error',
+  ])) {
+    final (ts, requestTs) = (n(r[0]), n(r[3]));
+    // Like the CSV parser, a row without its timestamps isn't an event.
+    if (ts == null || requestTs == null) continue;
+    events.add(
+      PerfEvent(
+        timestampNs: ts,
+        requestId: r[1] as String? ?? '',
+        seq: n(r[2]) ?? 0,
+        hasText: (n(r[4]) ?? 0) + (n(r[5]) ?? 0) > 0,
+        requestTimestampNs: requestTs,
+        inputTokens: n(r[6]) ?? 0,
+        outputTokens: n(r[7]) ?? 0,
+        concurrency: 0,
+        error: r[8] as String? ?? '',
+      ),
+    );
+  }
+
+  final chips = <(int, ChipReading)>[];
+  if (names.contains('device')) {
+    for (final r in await rows('chip', _chipColumns.keys)) {
+      final (ts, device) = (n(r[0]), n(r[1]));
+      if (ts == null || device == null) continue;
+      chips.add((
+        ts,
+        ChipReading(
+          device: device,
+          kind: r[2] as String? ?? '',
+          name: r[3] as String?,
+          utilPercent: n(r[4]),
+          powerW: d(r[5]),
+          powerLimitW: d(r[6]),
+          temperatureC: n(r[7]),
+          memUsedBytes: n(r[8]),
+          memTotalBytes: n(r[9]),
+          clockGraphicsMhz: n(r[10]),
+          clockMemMhz: n(r[11]),
+          pcieTxKbps: n(r[12]),
+          pcieRxKbps: n(r[13]),
+        ),
+      ));
+    }
+  }
+  return RunRows(events: events, chips: chips);
+}
+
+/// Keeps [file] as run [runId]'s recording (an imported run), copied to its
+/// place among the runs.
+Future<void> keepRunFile(String file, String runId) async {
+  final out = runFilePath(runId);
+  if (File(file).absolute.path == File(out).absolute.path) return;
+  await File(out).parent.create(recursive: true);
+  // Copied next to it and moved into place, so a failure never leaves half
+  // a file where the run should be.
+  final tmp = '$out.tmp';
+  await File(file).copy(tmp);
+  await File(tmp).rename(out);
 }
 
 /// Whether the benchmarker's CSV has the `reasoning` column (builds from
