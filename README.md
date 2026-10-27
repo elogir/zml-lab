@@ -15,6 +15,9 @@
   <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white" alt="Dart 3.13"></a>
 </p>
 
+> [!IMPORTANT]
+> ZML-Lab is not an official ZML product.
+
 ![The Benchmark tab: 16 requests streaming, with the server running in the terminal beside it](docs/images/benchmark.png)
 
 Start a server in the built-in terminal, point the tools at it, and watch it
