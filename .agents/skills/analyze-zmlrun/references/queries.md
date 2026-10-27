@@ -1,6 +1,6 @@
 # Queries for the usual follow-up questions
 
-Run them with `scripts/zmlrun.py sql RUN.zmlrun.parquet "…"`. The views (`events`, `tokens`, `requests`, `gaps`, `series`, `chips`, `meta`) are described in [format.md](format.md).
+Run them with `scripts/zmlrun.py sql RUN.jsonl.gz "…"`. The views (`events`, `tokens`, `requests`, `gaps`, `series`, `chips`, `meta`) are described in [format.md](format.md).
 
 The `requests` view also has:
 - `conversation`, `turn`;
@@ -124,7 +124,7 @@ FROM requests WHERE input_tokens > 0 AND tokens >= 10 ORDER BY input_tokens
 <a id="paired"></a>
 ## Two runs, request by request
 
-Run this with `zmlrun.py sql A.zmlrun.parquet B.zmlrun.parquet "…"`, which gives the views `a_` and `b_` prefixes. Same dataset and settings means same `request_id`, same prompt.
+Run this with `zmlrun.py sql A.jsonl.gz B.jsonl.gz "…"`, which gives the views `a_` and `b_` prefixes. Same dataset and settings means same `request_id`, same prompt.
 
 ```sql
 SELECT request_id,

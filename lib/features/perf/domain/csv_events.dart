@@ -17,27 +17,37 @@ class PerfEvent {
     required this.timestampNs,
     required this.requestId,
     required this.seq,
-    required this.hasText,
+    this.answerChars = 0,
+    this.reasoningChars = 0,
     required this.requestTimestampNs,
     required this.inputTokens,
     required this.outputTokens,
     required this.concurrency,
     required this.error,
+    this.ends = false,
   });
 
   final int timestampNs;
   final String requestId;
   final int seq;
 
-  /// Whether the chunk carried generated text, answer or reasoning — a
-  /// token, as the stats count them. Servers also stream empty chunks (the
-  /// opening role, the finish reason, usage).
-  final bool hasText;
+  /// Length of the chunk's answer and reasoning text, in Unicode code points
+  /// (the text itself isn't kept).
+  final int answerChars;
+  final int reasoningChars;
   final int requestTimestampNs;
   final int inputTokens;
   final int outputTokens;
   final int concurrency;
   final String error;
+
+  /// The request's response ended here: its usage chunk or its error came.
+  final bool ends;
+
+  /// Whether the chunk carried generated text, answer or reasoning — a
+  /// token, as the stats count them. Servers also stream empty chunks (the
+  /// opening role, the finish reason, usage).
+  bool get hasText => answerChars + reasoningChars > 0;
 
   bool get isError => error.isNotEmpty;
 }
@@ -114,18 +124,22 @@ class PerfCsvParser {
     final ts = int.tryParse(f[0]);
     final reqTs = int.tryParse(f[4]);
     if (ts == null || reqTs == null) return null;
+    final inputTokens = int.tryParse(f[5]) ?? 0;
     return PerfEvent(
       timestampNs: ts,
       requestId: f[1],
       seq: int.tryParse(f[2]) ?? 0,
       // f[3] is the answer text, f[11] the reasoning text.
-      hasText: f[3].isNotEmpty || (f.length > 11 && f[11].isNotEmpty),
+      answerChars: f[3].runes.length,
+      reasoningChars: f.length > 11 ? f[11].runes.length : 0,
       requestTimestampNs: reqTs,
-      inputTokens: int.tryParse(f[5]) ?? 0,
+      inputTokens: inputTokens,
       outputTokens: int.tryParse(f[6]) ?? 0,
       concurrency: int.tryParse(f[7]) ?? 0,
       // f[8], the server's kind, isn't used.
       error: f[10],
+      // Only the final usage chunk has prompt tokens.
+      ends: inputTokens > 0 || f[10].isNotEmpty,
     );
   }
 }

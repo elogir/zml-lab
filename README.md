@@ -32,12 +32,14 @@ OpenAI-compatible endpoint. Get it from the
   concurrency for a set duration, with live throughput and in-flight charts,
   then reports TTFT, inter-token and request latency percentiles. It can also
   show chip metrics from `zml-smi`. Each run is recorded as a
-  `.zmlrun.parquet` file ([format](docs/perf-run-format.md)) you can export.
+  `.jsonl.gz` file you can export. It's gzipped JSON Lines with every
+  chunk's arrival time, so anyone can check the numbers or write one from
+  another benchmarker ([format](docs/perf-run-format.md)).
 - **Terminal**: a tmux-style multiplexer beside the tools, with tabs, splits
   and web tabs. Each pane is a real PTY running your login shell.
 - **Saved benchmarks**: chat benchmarks and perf reports with search,
   filters, sorting, a card or table view and compare. You can also import
-  `.zmlrun.parquet` files.
+  `.jsonl.gz` files.
 - **Machines & Endpoints**: the local box and remote hosts, each with a live
   reachability dot, plus saved endpoints (URL and API key) to aim the tools
   at.

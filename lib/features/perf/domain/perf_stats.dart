@@ -168,7 +168,7 @@ class PerfAccumulator {
       if (last != null) _itlGapsMs.add((e.timestampNs - last) / 1e6);
       r.lastTokenTs = e.timestampNs;
     }
-    if (e.inputTokens > 0 || e.isError) r.done = _sawEnd = true;
+    if (e.ends) r.done = _sawEnd = true;
 
     // Live series bucket, indexed from the run's first request timestamp.
     final start = _minRequestTsNs!;

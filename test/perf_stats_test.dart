@@ -150,7 +150,7 @@ void main() {
               timestampNs: t * ms,
               requestId: id,
               seq: t ~/ 50,
-              hasText: true,
+              answerChars: 1,
               requestTimestampNs: 0,
               inputTokens: 0,
               outputTokens: t ~/ 50,
@@ -161,7 +161,7 @@ void main() {
           timestampNs: 2000 * ms,
           requestId: 'a',
           seq: 99,
-          hasText: true,
+          answerChars: 1,
           requestTimestampNs: 0,
           inputTokens: 0,
           outputTokens: 99,
@@ -204,12 +204,13 @@ void main() {
           seq: 0,
           // The usage chunk that ends a stream has no text, and the prompt's
           // token count.
-          hasText: !end,
+          answerChars: end ? 0 : 1,
           requestTimestampNs: sentMs * ms,
           inputTokens: end ? 10 : 0,
           outputTokens: 0,
           concurrency: 3,
           error: '',
+          ends: end,
         );
     final events = [
       // z: a short reply, ended at 0.4 s.

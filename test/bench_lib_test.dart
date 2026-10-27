@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dart_duckdb/dart_duckdb.dart';
-import 'package:dart_duckdb/open.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -106,37 +104,12 @@ File _dataset(Directory dir, int n) =>
       ]),
     );
 
-/// The DuckDB library the plugin downloads (flutter test runs without the
-/// app, so the plugin's linked copy isn't there).
-final _libduckdb =
-    '${Platform.environment['HOME']}/.pub-cache/hosted/pub.dev/'
-    'dart_duckdb-1.4.4/macos/Libraries/release/libduckdb.dylib';
-
-final String? libduckdbSkip = File(_libduckdb).existsSync()
-    ? null
-    : 'libduckdb not downloaded yet (run a macOS build once)';
-
-Future<List<List<Object?>>> duckQuery(String sql) async {
-  final db = await duckdb.open(':memory:');
-  final conn = await duckdb.connect(db);
-  try {
-    final r = await conn.query(sql);
-    return [for (final row in r.fetchAll()) row.toList()];
-  } finally {
-    await conn.dispose();
-    await db.dispose();
-  }
-}
-
 void main() {
   // Without the library (not copied into native/) these skip.
   final problem = benchLibProblem();
   final skip = problem != null;
   // ignore: avoid_print
   if (skip) print('skipping bench_lib tests: $problem');
-  if (libduckdbSkip == null) {
-    open.overrideFor(OperatingSystem.macOS, _libduckdb);
-  }
 
   late Directory tmp;
   setUp(() => tmp = Directory.systemTemp.createTempSync('bench_lib_test'));
@@ -371,22 +344,16 @@ void main() {
       expect(report.joulesPerToken, greaterThan(0));
 
       // The recording: written in the background once the run is done.
-      if (libduckdbSkip != null) return;
       for (var i = 0; i < 100 && run.runFile == null; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 100));
         run = container.read(provider);
       }
       final file = run.runFile;
       expect(file, runFilePath(report.id));
-      final counts = {
-        for (final r in await duckQuery(
-          "SELECT source, count(*) FROM read_parquet('$file') GROUP BY 1",
-        ))
-          r[0]: r[1],
-      };
-      expect(counts['event'], report.totalEvents);
-      expect(counts['chip'], greaterThanOrEqualTo(1));
-      final meta = (await readRunMeta(file!))!;
+      final rows = await readRunRows(file!);
+      expect(rows.events, hasLength(report.totalEvents));
+      expect(rows.chips, isNotEmpty);
+      final meta = (await readRunMeta(file))!;
       expect(meta['run_id'], report.id);
       expect(meta['target'], {
         'url': 'http://127.0.0.1:${server.port}/v1/',

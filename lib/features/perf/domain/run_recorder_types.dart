@@ -1,5 +1,11 @@
 import 'csv_events.dart';
 
+/// A run file's name ends with this (docs/perf-run-format.md).
+const runFileExtension = '.jsonl.gz';
+
+/// The `schema_version` of the run files ZML-Lab writes.
+const runSchemaVersion = 1;
+
 /// A run file's rows in the order they were recorded: the streamed chunks,
 /// and each zml-smi reading with when it was taken.
 class RunRows {
@@ -85,6 +91,46 @@ class ChipReading {
       );
     }
     return out;
+  }
+
+  /// This reading as a run file's `chip` line, taken at [tUs]; metrics the
+  /// device doesn't report are left out.
+  Map<String, Object> toRunLine(int tUs) => {
+    'type': 'chip',
+    't_us': tUs,
+    'device': device,
+    'kind': kind,
+    'name': ?name,
+    'util_percent': ?utilPercent,
+    'power_w': ?powerW,
+    'power_limit_w': ?powerLimitW,
+    'temperature_c': ?temperatureC,
+    'mem_used_bytes': ?memUsedBytes,
+    'mem_total_bytes': ?memTotalBytes,
+    'clock_graphics_mhz': ?clockGraphicsMhz,
+    'clock_mem_mhz': ?clockMemMhz,
+    'pcie_tx_kbps': ?pcieTxKbps,
+    'pcie_rx_kbps': ?pcieRxKbps,
+  };
+
+  /// A run file's `chip` line.
+  factory ChipReading.fromRunLine(Map<String, Object?> line) {
+    int? n(String k) => (line[k] as num?)?.toInt();
+    return ChipReading(
+      device: n('device') ?? 0,
+      kind: line['kind'] as String? ?? '',
+      name: line['name'] as String?,
+      utilPercent: n('util_percent'),
+      powerW: (line['power_w'] as num?)?.toDouble(),
+      powerLimitW: (line['power_limit_w'] as num?)?.toDouble(),
+      temperatureC: n('temperature_c'),
+      memUsedBytes: n('mem_used_bytes'),
+      memTotalBytes: n('mem_total_bytes'),
+      clockGraphicsMhz: n('clock_graphics_mhz'),
+      clockMemMhz: n('clock_mem_mhz'),
+      pcieTxKbps: n('pcie_tx_kbps'),
+      pcieRxKbps: n('pcie_rx_kbps'),
+    );
   }
 
   /// This device as it's listed in `meta.json`'s `hardware.chips`.

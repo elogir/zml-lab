@@ -3,7 +3,6 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  dart_duckdb
   file_selector_windows
   flutter_inappwebview_windows
   screen_retriever_windows

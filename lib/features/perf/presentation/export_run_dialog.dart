@@ -10,7 +10,7 @@ import 'run_meta_form.dart';
 /// "Export run": the run's meta.json, prefilled with what was detected (the
 /// hardware from the target machine or zml-smi), to correct and complete
 /// (name, server version and commit, notes, tags…); then where to save the
-/// `.zmlrun.parquet`. [overrides] (path → text) go over the file's values: a
+/// `.jsonl.gz`. [overrides] (path → text) go over the file's values: a
 /// saved run's name and model, as ZML-Lab shows them. Resolves to the
 /// exported path, or null.
 Future<String?> showExportRunDialog(
@@ -28,7 +28,7 @@ String _fileName(String label) {
       .replaceAll(RegExp(r'[^\w.\- ]+'), ' ')
       .trim()
       .replaceAll(RegExp(r'\s+'), '-');
-  return '${slug.isEmpty ? 'run' : slug}.zmlrun.parquet';
+  return '${slug.isEmpty ? 'run' : slug}$runFileExtension';
 }
 
 class ExportRunDialog extends StatefulWidget {
@@ -85,13 +85,17 @@ class _ExportRunDialogState extends State<ExportRunDialog> {
     final location = await getSaveLocation(
       suggestedName: _fileName(_fields['label']!.text),
       acceptedTypeGroups: const [
-        XTypeGroup(label: 'Parquet', extensions: ['parquet']),
+        XTypeGroup(label: 'Perf run', extensions: ['gz']),
       ],
       confirmButtonText: 'Export',
     );
     if (location == null || !mounted) return;
     var out = location.path;
-    if (!out.endsWith('.parquet')) out = '$out.zmlrun.parquet';
+    if (!out.endsWith(runFileExtension)) {
+      out =
+          '${out.replaceFirst(RegExp(r'(\.jsonl)?(\.gz)?$'), '')}'
+          '$runFileExtension';
+    }
     setState(() {
       _busy = true;
       _error = null;

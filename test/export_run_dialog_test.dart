@@ -1,7 +1,5 @@
 import 'dart:io';
 
-import 'package:dart_duckdb/dart_duckdb.dart' show OperatingSystem;
-import 'package:dart_duckdb/open.dart';
 import 'package:flutter/material.dart' show DefaultMaterialLocalizations;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,12 +8,6 @@ import 'package:zml_lab/core/widgets/widgets.dart';
 import 'package:zml_lab/features/perf/domain/run_recorder.dart';
 import 'package:zml_lab/features/perf/presentation/export_run_dialog.dart';
 import 'package:zml_lab/models/run_meta.dart';
-
-/// The DuckDB library the plugin downloads (flutter test runs without the
-/// app, so the plugin's linked copy isn't there).
-final _libduckdb =
-    '${Platform.environment['HOME']}/.pub-cache/hosted/pub.dev/'
-    'dart_duckdb-1.4.4/macos/Libraries/release/libduckdb.dylib';
 
 void main() {
   const meta = {
@@ -89,7 +81,6 @@ void main() {
   });
 
   test('a run file takes edited details, and still exports', () async {
-    open.overrideFor(OperatingSystem.macOS, _libduckdb);
     final tmp = Directory.systemTemp.createTempSync('rewrite_meta_test');
     debugRunsDir = tmp.path;
     addTearDown(() {
@@ -105,14 +96,13 @@ void main() {
     final runFile = (await spool.finish(meta))!;
     final edited = withRunMetaFields(meta, {'notes': 'fp8 build'});
     await rewriteRunMeta(runFile, edited);
-    expect(await readRunMeta(runFile), edited);
-    final copy = '${tmp.path}/copy.zmlrun.parquet';
+    expect((await readRunMeta(runFile))!..remove('t0_unix_us'), edited);
+    final copy = '${tmp.path}/copy.jsonl.gz';
     await exportRun(runFile: runFile, meta: edited, out: copy);
     expect(File(copy).existsSync(), isTrue);
-  }, skip: !File(_libduckdb).existsSync());
+  });
 
   testWidgets('the dialog opens prefilled from the run file', (tester) async {
-    open.overrideFor(OperatingSystem.macOS, _libduckdb);
     final tmp = Directory.systemTemp.createTempSync('export_dialog_test');
     debugRunsDir = tmp.path;
     addTearDown(() {
@@ -149,7 +139,7 @@ void main() {
         ),
       ),
     );
-    // readRunMeta runs DuckDB on its own thread.
+    // readRunMeta reads the file asynchronously.
     for (
       var i = 0;
       i < 50 && find.text('Server commit').evaluate().isEmpty;
@@ -183,5 +173,5 @@ void main() {
     expect(find.text('Quantization'), findsNothing);
     expect(find.byType(AppTextField), findsNWidgets(runMetaFields.length));
     expect(find.text('Export'), findsOneWidget);
-  }, skip: !File(_libduckdb).existsSync());
+  });
 }

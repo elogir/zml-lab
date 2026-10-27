@@ -81,7 +81,7 @@ class PerfRun {
   /// Whether [report] has been saved to the library already.
   final bool saved;
 
-  /// The finished run's recording (`.zmlrun.parquet`), once written — what
+  /// The finished run's recording (`.jsonl.gz`), once written — what
   /// "Export run" exports. Null while running, or if recording failed.
   final String? runFile;
 
@@ -159,7 +159,7 @@ class PerfController extends _$PerfController {
   String? _hardware;
 
   // The run's recording (run_recorder.dart): spooled while it streams,
-  // written as its .zmlrun.parquet when it ends.
+  // written as its .jsonl.gz when it ends.
   String _runId = '';
   DateTime? _startedAt;
   RunSpool? _spool;
@@ -442,7 +442,7 @@ class PerfController extends _$PerfController {
     }
   }
 
-  /// Writes the finished run's .zmlrun.parquet (DuckDB, off the UI isolate)
+  /// Writes the finished run's .jsonl.gz (off the UI isolate)
   /// and records where it is.
   Future<void> _writeRunFile(int seq, PerfReport report) async {
     final spool = _spool;
@@ -476,7 +476,7 @@ class PerfController extends _$PerfController {
     final datasetPath = ref.read(settingsControllerProvider).perfDatasetPath;
     final client = clientInfo();
     return {
-      'schema_version': 1,
+      'schema_version': runSchemaVersion,
       'run_id': report.id,
       'label': [
         if (p.model.isNotEmpty) p.model.split('/').last,
@@ -609,7 +609,7 @@ class PerfController extends _$PerfController {
     _stopRecording();
     final params = _runParams ?? state.params;
     final report = PerfReport(
-      // The recording is kept as runs/<id>.zmlrun.parquet.
+      // The recording is kept as runs/<id>.jsonl.gz.
       id: _runId,
       name: _jobName,
       jobName: _jobName,

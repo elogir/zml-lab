@@ -3,14 +3,14 @@
 # requires-python = ">=3.10"
 # dependencies = ["duckdb>=1.1"]
 # ///
-"""Analyze LLM serving runs recorded as .zmlrun.parquet files.
+"""Analyze LLM serving runs recorded as perf run files (.jsonl.gz).
 
-  zmlrun.py report RUN.zmlrun.parquet          findings + the evidence behind them
-  zmlrun.py compare A.zmlrun.parquet B.zmlrun.parquet
-  zmlrun.py sql RUN.zmlrun.parquet "SELECT ..."  ad-hoc SQL over ready-made views
-  zmlrun.py meta RUN.zmlrun.parquet            the run's meta.json
+  zmlrun.py report RUN.jsonl.gz           findings + the evidence behind them
+  zmlrun.py compare A.jsonl.gz B.jsonl.gz
+  zmlrun.py sql RUN.jsonl.gz "SELECT ..."  ad-hoc SQL over ready-made views
+  zmlrun.py meta RUN.jsonl.gz             the run's meta.json
 
-Views available to `sql` (see references/format.md): run, events, tokens,
+Views available to `sql` (see references/format.md): lines, events, tokens,
 requests, gaps, series, chips, meta.
 """
 
@@ -35,33 +35,63 @@ def _q(s: str) -> str:
 def load(con: duckdb.DuckDBPyConnection, path: str, p: str = "") -> dict:
     """Creates the views for one run (names prefixed with p) and returns its
     meta.json (empty when absent)."""
-    src = f"read_parquet({_q(path)})"
-    cols = {r[0] for r in con.execute(f"DESCRIBE SELECT * FROM {src}").fetchall()}
-    rc = "reasoning_chars" if "reasoning_chars" in cols else "0"
-    con.execute(f"CREATE OR REPLACE VIEW {p}run AS SELECT * FROM {src}")
+    rows = con.execute(f"SELECT json FROM read_ndjson_objects({_q(path)}) LIMIT 1").fetchall()
+    meta = json.loads(rows[0][0]) if rows else {}
+    if meta.get("type") != "meta" or meta.get("schema_version") != 1 or "t0_unix_us" not in meta:
+        sys.exit(f"{path}: not a perf run file (its first line isn't a meta line)")
+    t0 = int(meta.pop("t0_unix_us"))
+    meta.pop("type")
+    # Every field listed, so the types don't depend on the lines DuckDB samples.
+    con.execute(f"""
+      CREATE OR REPLACE VIEW {p}lines AS
+      SELECT * FROM read_json({_q(path)}, format = 'newline_delimited', columns = {{
+        type: 'VARCHAR',
+        id: 'VARCHAR', conversation: 'VARCHAR', turn: 'INTEGER',
+        sent_us: 'BIGINT', end_us: 'BIGINT',
+        input_tokens: 'INTEGER', output_tokens: 'INTEGER', error: 'VARCHAR',
+        chunk_us: 'BIGINT[]', answer_chars: 'INTEGER[]', reasoning_chars: 'INTEGER[]',
+        t_us: 'BIGINT', device: 'INTEGER', kind: 'VARCHAR', name: 'VARCHAR',
+        util_percent: 'INTEGER', power_w: 'DOUBLE', power_limit_w: 'DOUBLE',
+        temperature_c: 'INTEGER', mem_used_bytes: 'BIGINT', mem_total_bytes: 'BIGINT',
+        clock_graphics_mhz: 'INTEGER', clock_mem_mhz: 'INTEGER',
+        pcie_tx_kbps: 'INTEGER', pcie_rx_kbps: 'INTEGER'}})""")
+    # A row per streamed chunk, plus one for a request's end when its last
+    # chunk isn't it (its error, or a [DONE] after the last chunk): the
+    # stream as the benchmarker logged it, on the epoch ns clock. seq counts
+    # a conversation's rows across its turns.
     con.execute(f"""
       CREATE OR REPLACE VIEW {p}events AS
-      SELECT ts_ns, request_id, seq, request_ts_ns, token_chars,
-             {rc} AS reasoning_chars, output_tokens, input_tokens,
-             coalesce(error, '') AS error,
-             token_chars + {rc} > 0 AS is_token
-      FROM {p}run WHERE source = 'event'""")
-    # Runs without chip samples have no chip columns at all.
-    chip_cols = {
-        "device": "INTEGER", "kind": "VARCHAR", "name": "VARCHAR",
-        "util_percent": "INTEGER", "power_w": "DOUBLE", "power_limit_w": "DOUBLE",
-        "temperature_c": "INTEGER", "mem_used_bytes": "BIGINT",
-        "mem_total_bytes": "BIGINT", "clock_graphics_mhz": "INTEGER",
-        "clock_mem_mhz": "INTEGER", "pcie_tx_kbps": "INTEGER", "pcie_rx_kbps": "INTEGER",
-    }
-    sel = ", ".join(
-        (c if c in cols else f"NULL::{t} AS {c}") for c, t in chip_cols.items()
-    )
-    has_chips = "device" in cols
+      WITH r AS (SELECT * FROM {p}lines WHERE type = 'request'),
+      c AS (
+        SELECT id, conversation, turn, sent_us, end_us, output_tokens, input_tokens, error,
+               unnest(chunk_us) AS t_us, unnest(answer_chars) AS token_chars,
+               unnest(reasoning_chars) AS reasoning_chars,
+               unnest(range(len(chunk_us))) AS k, len(chunk_us) AS n
+        FROM r),
+      e AS (
+        SELECT id, conversation, turn, sent_us, output_tokens, t_us, token_chars, reasoning_chars, k,
+               error IS NULL AND k = n - 1 AND end_us = t_us AS ends,
+               CASE WHEN k = n - 1 AND (end_us IS NULL OR (error IS NULL AND end_us = t_us))
+                    THEN coalesce(input_tokens, 0) ELSE 0 END AS input_tokens,
+               '' AS error
+        FROM c
+        UNION ALL
+        SELECT id, conversation, turn, sent_us, output_tokens, end_us, 0, 0, len(chunk_us),
+               true, coalesce(input_tokens, 0), coalesce(error, '')
+        FROM r
+        WHERE end_us IS NOT NULL AND (error IS NOT NULL OR end_us IS DISTINCT FROM chunk_us[-1]))
+      SELECT ({t0} + t_us) * 1000 AS ts_ns, id AS request_id,
+             row_number() OVER (PARTITION BY coalesce(conversation, id) ORDER BY turn, id, k) - 1 AS seq,
+             ({t0} + sent_us) * 1000 AS request_ts_ns, token_chars, reasoning_chars,
+             output_tokens, input_tokens, error, ends,
+             token_chars + reasoning_chars > 0 AS is_token
+      FROM e""")
     con.execute(f"""
       CREATE OR REPLACE VIEW {p}chips AS
-      SELECT ts_ns, {sel} FROM {p}run
-      WHERE {"source = 'chip'" if has_chips else "false"}""")
+      SELECT ({t0} + t_us) * 1000 AS ts_ns, device, kind, name, util_percent, power_w,
+             power_limit_w, temperature_c, mem_used_bytes, mem_total_bytes,
+             clock_graphics_mhz, clock_mem_mhz, pcie_tx_kbps, pcie_rx_kbps
+      FROM {p}lines WHERE type = 'chip'""")
     con.execute(f"CREATE OR REPLACE VIEW {p}tokens AS SELECT * FROM {p}events WHERE is_token")
     con.execute(f"""
       CREATE OR REPLACE VIEW {p}requests AS
@@ -77,7 +107,7 @@ def load(con: duckdb.DuckDBPyConnection, path: str, p: str = "") -> dict:
              max(input_tokens) AS input_tokens,
              bool_or(error <> '') AS failed,
              any_value(error) FILTER (WHERE error <> '') AS error,
-             bool_or(input_tokens > 0 OR error <> '') AS ended
+             bool_or(ends) AS ended
       FROM {p}events GROUP BY request_id""")
     con.execute(f"""
       CREATE OR REPLACE VIEW {p}gaps AS
@@ -99,7 +129,7 @@ def load(con: duckdb.DuckDBPyConnection, path: str, p: str = "") -> dict:
         SELECT greatest(0, (ts_ns - t0) // {BUCKET_NS}) AS b, count(*) AS n
         FROM {p}tokens, t GROUP BY 1),
       tp AS (
-        SELECT pts.i, coalesce(sum(b.n), 0) / ((pts.i - greatest(0, pts.i - 9) + 1) * 0.1) AS tps
+        SELECT pts.i, coalesce(sum(b.n), 0) / ((pts.i - greatest(0, pts.i - 9) + 1) / 10) AS tps
         FROM pts LEFT JOIN b ON b.b BETWEEN greatest(0, pts.i - 9) AND pts.i GROUP BY pts.i),
       r AS (
         SELECT sent_ns, first_token_ns, last_ns,
@@ -116,10 +146,6 @@ def load(con: duckdb.DuckDBPyConnection, path: str, p: str = "") -> dict:
       SELECT fl.i, (fl.i + 1) * 100 AS elapsed_ms, fl.t_ns, tp.tps AS tokens_per_second,
              fl.in_flight, fl.waiting, fl.in_flight - fl.waiting AS decoding
       FROM fl JOIN tp USING (i) ORDER BY fl.i""")
-    rows = con.execute(
-        f"SELECT decode(value) FROM parquet_kv_metadata({_q(path)}) "
-        "WHERE decode(key) = 'zml.run'").fetchall()
-    meta = json.loads(rows[0][0]) if rows else {}
     con.execute(f"CREATE OR REPLACE TABLE {p}meta AS SELECT {_q(json.dumps(meta))}::JSON AS meta")
     return meta
 

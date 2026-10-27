@@ -1,3 +1,4 @@
+import 'csv_events.dart';
 import 'run_recorder_types.dart';
 
 export 'run_recorder_types.dart';
@@ -35,6 +36,12 @@ class RunSpool {
 
   Future<void> discard() async {}
 }
+
+List<String> runFileLines(
+  Map<String, Object?> meta,
+  List<PerfEvent> events,
+  List<(int tsNs, ChipReading reading)> chips,
+) => throw UnsupportedError('runs are recorded by the desktop app');
 
 Future<void> exportRun({
   required String runFile,

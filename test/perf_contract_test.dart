@@ -1,72 +1,138 @@
 // The app's perf statistics against the run format's SQL
 // (docs/perf-run-format.md, "Metrics"): the same run is recorded to its
-// Parquet file, the doc's definitions run on it in DuckDB, and every number
+// run file, the doc's definitions run on it in DuckDB, and every number
 // must match what PerfAccumulator computed from the stream.
+//
+// DuckDB is Python's, through uv (as the analyze-zmlrun skill runs it): the
+// app doesn't ship it. Without uv these skip.
+import 'dart:convert';
 import 'dart:io';
 
-import 'package:dart_duckdb/dart_duckdb.dart';
-import 'package:dart_duckdb/open.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zml_lab/features/perf/domain/chip_metrics.dart';
 import 'package:zml_lab/features/perf/domain/csv_events.dart';
 import 'package:zml_lab/features/perf/domain/perf_stats.dart';
 import 'package:zml_lab/features/perf/domain/run_recorder.dart';
 
-/// The DuckDB library the plugin downloads (flutter test runs without the
-/// app, so the plugin's linked copy isn't there).
-final _libduckdb =
-    '${Platform.environment['HOME']}/.pub-cache/hosted/pub.dev/'
-    'dart_duckdb-1.4.4/macos/Libraries/release/libduckdb.dylib';
+final _uv = Process.runSync('which', ['uv']).stdout.toString().trim();
 
-// The doc's views, verbatim.
+/// Runs [setup] then each of [queries] in one DuckDB connection; returns
+/// each query's rows.
+Future<List<List<List<Object?>>>> _duckdb(
+  String setup,
+  List<String> queries,
+) async {
+  const script = '''
+import duckdb, json, sys
+req = json.load(sys.stdin)
+con = duckdb.connect()
+con.execute(req["setup"])
+json.dump([con.execute(q).fetchall() for q in req["queries"]], sys.stdout, default=float)
+''';
+  final p = await Process.start(_uv, [
+    'run',
+    '--quiet',
+    '--no-project',
+    '--with',
+    'duckdb>=1.1',
+    'python',
+    '-c',
+    script,
+  ]);
+  p.stdin.write(jsonEncode({'setup': setup, 'queries': queries}));
+  await p.stdin.close();
+  final out = p.stdout.transform(utf8.decoder).join();
+  final err = p.stderr.transform(utf8.decoder).join();
+  if (await p.exitCode != 0) throw StateError('DuckDB: ${await err}');
+  return [
+    for (final rows in jsonDecode(await out) as List)
+      [for (final row in rows as List) (row as List).cast<Object?>()],
+  ];
+}
+
+// The doc's loading views, verbatim but for the file's name.
+String _loadingViews(String file) =>
+    '''
+CREATE VIEW lines AS
+SELECT * FROM read_json('${file.replaceAll("'", "''")}', format = 'newline_delimited', columns = {
+  type: 'VARCHAR',
+  id: 'VARCHAR', conversation: 'VARCHAR', turn: 'INTEGER',
+  sent_us: 'BIGINT', end_us: 'BIGINT',
+  input_tokens: 'INTEGER', output_tokens: 'INTEGER', error: 'VARCHAR',
+  chunk_us: 'BIGINT[]', answer_chars: 'INTEGER[]', reasoning_chars: 'INTEGER[]',
+  t_us: 'BIGINT', device: 'INTEGER', kind: 'VARCHAR', name: 'VARCHAR',
+  util_percent: 'INTEGER', power_w: 'DOUBLE', power_limit_w: 'DOUBLE',
+  temperature_c: 'INTEGER', mem_used_bytes: 'BIGINT', mem_total_bytes: 'BIGINT',
+  clock_graphics_mhz: 'INTEGER', clock_mem_mhz: 'INTEGER',
+  pcie_tx_kbps: 'INTEGER', pcie_rx_kbps: 'INTEGER'
+});
+
+CREATE VIEW chunks AS
+SELECT id AS request_id, sent_us,
+       unnest(chunk_us)        AS t_us,
+       unnest(answer_chars)    AS answer_chars,
+       unnest(reasoning_chars) AS reasoning_chars
+FROM lines WHERE type = 'request';
+
+CREATE VIEW chips AS
+SELECT t_us, device, kind, name, util_percent, power_w, power_limit_w,
+       temperature_c, mem_used_bytes, mem_total_bytes, clock_graphics_mhz,
+       clock_mem_mhz, pcie_tx_kbps, pcie_rx_kbps
+FROM lines WHERE type = 'chip';
+''';
+
+// The doc's metric and time-series views, verbatim.
 const _views = '''
 CREATE VIEW tokens AS
-SELECT * FROM events WHERE token_chars + reasoning_chars > 0;
+SELECT * FROM chunks WHERE answer_chars + reasoning_chars > 0;
 
 CREATE VIEW requests AS
-SELECT request_id,
-       min(request_ts_ns)                                               AS sent_ns,
-       min(ts_ns) FILTER (WHERE token_chars + reasoning_chars > 0)      AS first_token_ns,
-       max(ts_ns)                                                       AS last_ns,
-       max(output_tokens)                                               AS output_tokens,
-       max(input_tokens)                                                AS input_tokens,
-       bool_or(error <> '')                                             AS failed,
-       bool_or(input_tokens > 0 OR error <> '')                         AS ended
-FROM events GROUP BY request_id;
+SELECT r.id, r.sent_us, c.first_token_us,
+       greatest(c.last_chunk_us, r.end_us) AS last_us,
+       r.output_tokens, r.input_tokens,
+       r.error IS NOT NULL                 AS failed,
+       r.end_us IS NOT NULL                AS ended
+FROM lines r LEFT JOIN (
+  SELECT request_id,
+         min(t_us) FILTER (WHERE answer_chars + reasoning_chars > 0) AS first_token_us,
+         max(t_us)                                                    AS last_chunk_us
+  FROM chunks GROUP BY request_id
+) c ON c.request_id = r.id
+WHERE r.type = 'request';
 
 CREATE VIEW points AS
-WITH t AS (SELECT min(request_ts_ns) AS t0 FROM events)
-SELECT range AS i, t0 + (range + 1) * 100000000 AS t_ns
-FROM t, range((SELECT max(greatest(0, (ts_ns - t0) // 100000000)) + 1
-               FROM events, t));
+WITH t AS (SELECT min(sent_us) AS t0 FROM requests)
+SELECT range AS i, t0 + (range + 1) * 100000 AS t_us
+FROM t, range((SELECT max(greatest(0, (last_us - t0) // 100000)) + 1
+               FROM requests, t));
 ''';
 
 // The doc's time series, verbatim.
 const _throughputSeries = '''
-WITH t AS (SELECT min(request_ts_ns) AS t0 FROM events),
+WITH t AS (SELECT min(sent_us) AS t0 FROM requests),
 buckets AS (
-  SELECT greatest(0, (ts_ns - t0) // 100000000) AS b, count(*) AS tokens
+  SELECT greatest(0, (t_us - t0) // 100000) AS b, count(*) AS tokens
   FROM tokens, t GROUP BY 1
 )
 SELECT p.i, (p.i + 1) * 100 AS elapsed_ms,
-       coalesce(sum(b.tokens), 0) / ((p.i - greatest(0, p.i - 9) + 1) * 0.1)
+       coalesce(sum(b.tokens), 0) / ((p.i - greatest(0, p.i - 9) + 1) / 10)
          AS tokens_per_second
 FROM points p LEFT JOIN buckets b ON b.b BETWEEN greatest(0, p.i - 9) AND p.i
 GROUP BY p.i ORDER BY p.i''';
 
 const _inFlightSeries = '''
 WITH r AS (
-  SELECT sent_ns, first_token_ns, last_ns,
+  SELECT sent_us, first_token_us, last_us,
          ended OR NOT (SELECT bool_or(ended) FROM requests) AS ends_at_last
   FROM requests
 )
 SELECT p.i, (p.i + 1) * 100 AS elapsed_ms,
-       count(*) FILTER (WHERE r.sent_ns <= p.t_ns
-                          AND (NOT r.ends_at_last OR p.t_ns < r.last_ns))
+       count(*) FILTER (WHERE r.sent_us <= p.t_us
+                          AND (NOT r.ends_at_last OR p.t_us < r.last_us))
          AS in_flight,
-       count(*) FILTER (WHERE r.sent_ns <= p.t_ns
-                          AND (NOT r.ends_at_last OR p.t_ns < r.last_ns)
-                          AND (r.first_token_ns IS NULL OR p.t_ns < r.first_token_ns))
+       count(*) FILTER (WHERE r.sent_us <= p.t_us
+                          AND (NOT r.ends_at_last OR p.t_us < r.last_us)
+                          AND (r.first_token_us IS NULL OR p.t_us < r.first_token_us))
          AS waiting
 FROM points p, r
 GROUP BY p.i ORDER BY p.i''';
@@ -74,25 +140,23 @@ GROUP BY p.i ORDER BY p.i''';
 // Each statistic's values, as the doc defines them.
 const _values = {
   'Time to first token':
-      'SELECT (first_token_ns - sent_ns) / 1e6 AS v FROM requests '
-      'WHERE first_token_ns IS NOT NULL',
+      'SELECT (first_token_us - sent_us) / 1e3 AS v FROM requests '
+      'WHERE first_token_us IS NOT NULL',
   'Inter-token latency':
       'SELECT gap_ms AS v FROM ('
-      '  SELECT (ts_ns - lag(ts_ns) OVER (PARTITION BY request_id '
-      '          ORDER BY ts_ns)) / 1e6 AS gap_ms FROM tokens'
+      '  SELECT (t_us - lag(t_us) OVER (PARTITION BY request_id '
+      '          ORDER BY t_us)) / 1e3 AS gap_ms FROM tokens'
       ') WHERE gap_ms IS NOT NULL',
-  'Request latency': 'SELECT (last_ns - sent_ns) / 1e6 AS v FROM requests',
+  'Request latency': 'SELECT (last_us - sent_us) / 1e3 AS v FROM requests',
   'Output sequence length': 'SELECT output_tokens AS v FROM requests',
   'Input sequence length':
       'SELECT input_tokens AS v FROM requests WHERE input_tokens > 0',
 };
 
 const _throughput = '''
-SELECT (SELECT count(*) FROM tokens)
-         / ((max(ts_ns) - min(request_ts_ns)) / 1e9) AS tokens_per_second,
-       count(DISTINCT request_id)
-         / ((max(ts_ns) - min(request_ts_ns)) / 1e9) AS requests_per_second
-FROM events''';
+SELECT (SELECT count(*) FROM tokens) / ((max(last_us) - min(sent_us)) / 1e6) AS tokens_per_second,
+       count(*)                      / ((max(last_us) - min(sent_us)) / 1e6) AS requests_per_second
+FROM requests''';
 
 String _field(Object v) {
   final s = '$v';
@@ -181,12 +245,9 @@ String _vllmLikeRun() {
 }
 
 void main() {
-  final skip = !File(_libduckdb).existsSync()
-      ? 'libduckdb not downloaded yet (run a macOS build once)'
-      : null;
+  final skip = _uv.isEmpty ? 'uv not found (it runs the SQL in DuckDB)' : null;
 
   late Directory tmp;
-  setUpAll(() => open.overrideFor(OperatingSystem.macOS, _libduckdb));
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('perf_contract_test');
     debugRunsDir = tmp.path;
@@ -196,24 +257,13 @@ void main() {
     tmp.deleteSync(recursive: true);
   });
 
-  /// The recorded run [file] in DuckDB with the doc's views, for [body].
-  Future<T> onRun<T>(String file, Future<T> Function(Connection) body) async {
-    final db = await duckdb.open(':memory:');
-    final conn = await duckdb.connect(db);
-    try {
-      for (final source in ['event', 'chip']) {
-        await conn.execute(
-          'CREATE VIEW ${source}s AS SELECT * FROM '
-          "read_parquet('$file') WHERE source = '$source'",
-        );
-      }
-      await conn.execute(_views);
-      return await body(conn);
-    } finally {
-      await conn.dispose();
-      await db.dispose();
-    }
-  }
+  /// [queries] over the recorded run [file], with the doc's views (and
+  /// [setup] after them).
+  Future<List<List<List<Object?>>>> onRun(
+    String file,
+    List<String> queries, {
+    String setup = '',
+  }) => _duckdb('${_loadingViews(file)}$_views$setup', queries);
 
   /// Records [csv] as a run and runs the doc's SQL on it: per statistic
   /// [avg, min, max, p50, p75, p90, p95, p99, p999], throughput, and the
@@ -224,39 +274,41 @@ void main() {
   contract(String csv) async {
     final spool = await RunSpool.create('run');
     spool.addEvents(csv);
-    final file = (await spool.finish({'schema_version': 1}))!;
-    return onRun(file, (conn) async {
-      Future<List<Object?>> one(String sql) async =>
-          (await conn.query(sql)).fetchAll().single.toList();
-      final stats = <String, List<double>>{};
-      for (final MapEntry(key: label, value: values) in _values.entries) {
-        final row = await one(
-          'SELECT avg(v), min(v), max(v), '
-          '${[
-            for (final q in [0.5, 0.75, 0.9, 0.95, 0.99, 0.999]) 'quantile_cont(v, $q)',
-          ].join(', ')} '
-          'FROM ($values)',
-        );
-        if (row.first == null) continue; // no values: no row in the report
-        stats[label] = [for (final v in row) (v! as num).toDouble()];
-      }
-      final throughput = [
-        for (final v in await one(_throughput)) (v! as num).toDouble(),
-      ];
-      final rates = (await conn.query(_throughputSeries)).fetchAll();
-      final inFlight = (await conn.query(_inFlightSeries)).fetchAll();
-      expect(inFlight, hasLength(rates.length));
-      final series = [
-        for (final (k, rate) in rates.indexed)
-          (
-            (rate[1]! as num).toInt(),
-            (rate[2]! as num).toDouble(),
-            (inFlight[k][2]! as num).toInt(),
-            (inFlight[k][3]! as num).toInt(),
-          ),
-      ];
-      return (stats, throughput, series);
-    });
+    final file = (await spool.finish({}))!;
+    final labels = _values.keys.toList();
+    final results = await onRun(file, [
+      for (final values in _values.values)
+        'SELECT avg(v), min(v), max(v), '
+            '${[
+              for (final q in [0.5, 0.75, 0.9, 0.95, 0.99, 0.999]) 'quantile_cont(v, $q)',
+            ].join(', ')} '
+            'FROM ($values)',
+      _throughput,
+      _throughputSeries,
+      _inFlightSeries,
+    ]);
+    final stats = <String, List<double>>{};
+    for (final (i, label) in labels.indexed) {
+      final row = results[i].single;
+      if (row.first == null) continue; // no values: no row in the report
+      stats[label] = [for (final v in row) (v! as num).toDouble()];
+    }
+    final throughput = [
+      for (final v in results[labels.length].single) (v! as num).toDouble(),
+    ];
+    final rates = results[labels.length + 1];
+    final inFlight = results[labels.length + 2];
+    expect(inFlight, hasLength(rates.length));
+    final series = [
+      for (final (k, rate) in rates.indexed)
+        (
+          (rate[1]! as num).toInt(),
+          (rate[2]! as num).toDouble(),
+          (inFlight[k][2]! as num).toInt(),
+          (inFlight[k][3]! as num).toInt(),
+        ),
+    ];
+    return (stats, throughput, series);
   }
 
   Future<PerfAccumulator> expectParity(String csv) async {
@@ -284,7 +336,7 @@ void main() {
     for (final (i, (elapsedMs, tps, inFlight, waiting)) in series.indexed) {
       final p = points[i];
       expect(p.elapsedMs, elapsedMs, reason: 'point $i');
-      expect(p.tps, closeTo(tps, 1e-9), reason: 'tok/s at point $i');
+      expect(p.tps, tps, reason: 'tok/s at point $i');
       expect(p.active, inFlight, reason: 'in flight at point $i');
       expect(p.waiting, waiting, reason: 'waiting at point $i');
     }
@@ -345,13 +397,11 @@ void main() {
       spool.addChipSample(ts, readings);
       chips.add(ts, readings);
     }
-    final file = (await spool.finish({'schema_version': 1}))!;
-    final (rows, joulesPerToken) = await onRun(file, (conn) async {
-      await conn.execute(_energyView);
-      final rows = (await conn.query(_chipStats)).fetchAll();
-      final jpt = (await conn.query(_joulesPerToken)).fetchAll().single[0];
-      return (rows, jpt);
-    });
+    final file = (await spool.finish({}))!;
+    final [rows, [[joulesPerToken]]] = await onRun(file, [
+      _chipStats,
+      _joulesPerToken,
+    ], setup: _energyView);
 
     final got = chips.stats();
     expect(got, hasLength(rows.length));
@@ -419,9 +469,9 @@ const _energyView = '''
 CREATE VIEW energy AS
 SELECT device, sum(j) AS energy_j FROM (
   SELECT device,
-         (power_w + lag(power_w) OVER w) / 2 * (ts_ns - lag(ts_ns) OVER w) / 1e9 AS j
+         (power_w + lag(power_w) OVER w) / 2 * (t_us - lag(t_us) OVER w) / 1e6 AS j
   FROM chips WHERE power_w IS NOT NULL
-  WINDOW w AS (PARTITION BY device ORDER BY ts_ns)
+  WINDOW w AS (PARTITION BY device ORDER BY t_us)
 ) GROUP BY device;
 ''';
 

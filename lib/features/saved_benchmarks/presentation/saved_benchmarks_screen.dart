@@ -118,8 +118,8 @@ class SavedBenchmarksScreen extends ConsumerWidget {
   }
 }
 
-/// Imports perf run files (`.zmlrun.parquet`, from ZML-Lab's Export run or
-/// the website) as saved runs, then says how it went.
+/// Imports perf run files (`.jsonl.gz`, from ZML-Lab's Export run,
+/// the website or another benchmarker) as saved runs, then says how it went.
 class _ImportButton extends ConsumerStatefulWidget {
   const _ImportButton();
 
@@ -133,7 +133,7 @@ class _ImportButtonState extends ConsumerState<_ImportButton> {
   Future<void> _import() async {
     final files = await openFiles(
       acceptedTypeGroups: const [
-        XTypeGroup(label: 'Perf runs', extensions: ['parquet']),
+        XTypeGroup(label: 'Perf runs', extensions: ['gz']),
       ],
       confirmButtonText: 'Import',
     );

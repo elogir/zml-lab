@@ -628,7 +628,7 @@ class _StatusBar extends StatelessWidget {
   final bool saved;
   final String? exportedTo;
 
-  /// Builds the text for the copy button (async — may shell out to duckdb).
+  /// Builds the text for the copy button.
   /// Null until there's a finished report to copy.
   final Future<String> Function()? copyText;
   final VoidCallback? onSave;

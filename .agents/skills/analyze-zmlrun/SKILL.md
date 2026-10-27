@@ -1,11 +1,11 @@
 ---
 name: analyze-zmlrun
-description: Analyze LLM serving performance from a .zmlrun.parquet run file (a perf run recorded by ZML-Lab, with per-token stream timestamps, accelerator samples and meta.json) together with the server's launch command. It measures throughput, time to first token, inter-token latency, queueing, decode steps by batch, stalls around prefills and chip usage, and compares two servers or builds. From that, it proposes server-side improvements, each with an experiment to verify it. Use this whenever someone hands over a .zmlrun.parquet or "zmlrun" file, a perf run or a benchmark trace of llmd, vLLM, SGLang or any OpenAI-compatible server, and asks why it is slow, how to make it faster, what changed between two runs or how two servers compare, even if they never name the file format.
+description: Analyze LLM serving performance from a perf run file, a .jsonl.gz whose first line is a meta line (recorded by ZML-Lab or another benchmarker, with per-chunk stream timestamps, accelerator samples and meta.json) together with the server's launch command. It measures throughput, time to first token, inter-token latency, queueing, decode steps by batch, stalls around prefills and chip usage, and compares two servers or builds. From that, it proposes server-side improvements, each with an experiment to verify it. Use this whenever someone hands over such a .jsonl.gz or "zmlrun" file, a perf run or a benchmark trace of llmd, vLLM, SGLang or any OpenAI-compatible server, and asks why it is slow, how to make it faster, what changed between two runs or how two servers compare, even if they never name the file format.
 ---
 
 # Analyze a serving run
 
-A `.zmlrun.parquet` file is a load test of an LLM server, recorded from the client:
+A `.jsonl.gz` file is a load test of an LLM server, recorded from the client:
 - a fixed number of concurrent streaming chat requests (ShareGPT prompts), with every streamed chunk timestamped as it arrived;
 - the accelerators sampled about every 500 ms through `zml-smi`, when it was reachable;
 - the run's settings and context in `meta.json`.
@@ -17,10 +17,10 @@ Your job is to turn the run into a diagnosis of the server and a ranked list of 
 `scripts/zmlrun.py`, next to this file, wraps DuckDB. Call it by its full path, from wherever this skill is installed (for example `<repo>/.agents/skills/analyze-zmlrun/scripts/zmlrun.py`). It runs through `uv` (`uv run` installs DuckDB on first use; with DuckDB already installed, `python3 …/zmlrun.py` works too):
 
 ```sh
-zmlrun.py report RUN.zmlrun.parquet                  # findings, then the evidence behind them
-zmlrun.py compare A.zmlrun.parquet B.zmlrun.parquet  # side by side, paired by request
-zmlrun.py sql RUN.zmlrun.parquet "SELECT …"          # ad-hoc SQL over ready-made views
-zmlrun.py meta RUN.zmlrun.parquet                    # the run's meta.json
+zmlrun.py report RUN.jsonl.gz             # findings, then the evidence behind them
+zmlrun.py compare A.jsonl.gz B.jsonl.gz   # side by side, paired by request
+zmlrun.py sql RUN.jsonl.gz "SELECT …"     # ad-hoc SQL over ready-made views
+zmlrun.py meta RUN.jsonl.gz               # the run's meta.json
 ```
 
 The `sql` command creates these views, so a query can use them directly:

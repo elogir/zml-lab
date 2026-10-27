@@ -90,7 +90,7 @@ class SavedBrowser extends _$SavedBrowser {
 
   void clearSelection() => state = state.copyWith(selected: const {});
 
-  /// Saves the perf runs in [files] (`.zmlrun.parquet`), each file kept as
+  /// Saves the perf runs in [files] (`.jsonl.gz`), each file kept as
   /// its report's recording. A run already saved (the same `run_id`) is
   /// skipped; a file that can't be read is reported, and the rest go in.
   Future<RunImport> importRuns(Iterable<String> files) async {
@@ -98,11 +98,11 @@ class SavedBrowser extends _$SavedBrowser {
     final result = RunImport();
     for (final file in files) {
       final name = file.split(RegExp(r'[/\\]')).last;
-      final stem = name.replaceFirst(RegExp(r'(\.zmlrun)?\.parquet$'), '');
+      final stem = name.replaceFirst(RegExp(r'(\.jsonl)?(\.gz)?$'), '');
       try {
         final meta = await readRunMeta(file);
         if (meta == null) {
-          throw const FormatException('no meta.json (zml.run): not a run file');
+          throw const FormatException('no meta line: not a run file');
         }
         final id = meta['run_id'];
         // It names the file the run is kept in.

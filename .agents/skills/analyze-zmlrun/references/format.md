@@ -1,47 +1,57 @@
-# The .zmlrun.parquet format (v1)
+# The perf run format
 
-One Parquet file per run (zstd). It holds:
-- one table, with a row per streamed chunk (`source = 'event'`) and a row per accelerator sample (`source = 'chip'`);
-- `meta.json` in the footer's key-value metadata, under the key `zml.run`.
+One gzipped JSON Lines file per run (`.jsonl.gz`): one JSON object per line, each with a `type`. The full spec is ZML-Lab's `docs/perf-run-format.md`.
+- The first line is `meta.json`, with `"type": "meta"`.
+- Then come `"type": "request"` lines, one per HTTP request, with the arrival time of every chunk it streamed.
+- Then come `"type": "chip"` lines, one per accelerator sample per device.
 
-```sql
-CREATE VIEW run    AS SELECT * FROM read_parquet('x.zmlrun.parquet');
-CREATE VIEW events AS SELECT * FROM run WHERE source = 'event';
-CREATE VIEW chips  AS SELECT * FROM run WHERE source = 'chip';
-SELECT decode(value)::JSON AS meta
-FROM parquet_kv_metadata('x.zmlrun.parquet') WHERE decode(key) = 'zml.run';
--- Several runs: read_parquet([...], filename = true)
+```jsonc
+{"type":"meta","schema_version":1,"t0_unix_us":1792876902319189,"run_id":"p-…","label":"zml · c=64", …}
+{"type":"request","id":"QWJhYvA_0-0","conversation":"QWJhYvA_0","turn":0,"sent_us":0,"end_us":4754177,"input_tokens":120,"output_tokens":258,"error":null,"chunk_us":[866563,916373,…],"answer_chars":[0,0,…],"reasoning_chars":[2,5,…]}
+{"type":"chip","t_us":-1153562,"device":0,"kind":"cuda","name":"NVIDIA GB300","util_percent":0,"power_w":497.544, …}
 ```
+
+`zcat x.jsonl.gz | jq -c 'select(.type == "request")' | head` shows the raw lines.
 
 ## The clock
 
-All timestamps are nanoseconds since the Unix epoch, on the clock of the machine that ran the benchmark (the client). Events and chip samples share that clock. The server's own clock is never involved: compare timestamps with server logs only roughly, allowing for clock skew.
+Times in the file are integer **microseconds since `t0_unix_us`** (in the meta line), and t0 is when the run's first request was sent. Chip samples taken before that have negative times. Every time comes from the clock of the machine that ran the benchmark (the client), so requests and chip samples share it. The server's own clock is never involved: compare times with server logs only roughly, allowing for clock skew.
 
-## Columns
+`scripts/zmlrun.py` turns them back into **nanoseconds since the Unix epoch** (`ts_ns`, `request_ts_ns`) in its `events` and `chips` views.
 
-| Column | Type | event | chip | Meaning |
-| --- | --- | :-: | :-: | --- |
-| `source` | VARCHAR | ✓ | ✓ | `'event'` or `'chip'` |
-| `ts_ns` | BIGINT | ✓ | ✓ | When the chunk or sample arrived |
-| `request_id` | VARCHAR | ✓ | | `<conversation>-<turn>`: one HTTP request (see below) |
-| `seq` | INTEGER | ✓ | | Chunk number within the **conversation**; it keeps counting across turns |
-| `request_ts_ns` | BIGINT | ✓ | | When the request was sent |
-| `token_chars` | INTEGER | ✓ | | Characters of answer text in the chunk. `0` for empty chunks: the opening role chunk, the finish chunk and the usage chunk. The text itself isn't kept |
-| `reasoning_chars` | INTEGER | ✓ | | Characters of reasoning (thinking) text, streamed as `reasoning_content` or `reasoning`. Missing in files recorded before it existed: treat it as 0 |
-| `output_tokens` | INTEGER | ✓ | | Chunks with a choice received so far in this request. The role and finish chunks count too |
-| `input_tokens` | INTEGER | ✓ | | Prompt tokens, from the final usage chunk. Only finished requests have it, and only on that row; `0` elsewhere |
-| `error` | VARCHAR | ✓ | | Empty, or the request's error, on its last row |
-| `device` | INTEGER | | ✓ | Device index in zml-smi |
-| `kind` | VARCHAR | | ✓ | `cuda` · `rocm` · `oneapi` · `neuron` · `tpu` |
-| `name` | VARCHAR | | ✓ | Device name |
-| `util_percent` | INTEGER | | ✓ | Utilization: the share of time a kernel was running, not a measure of FLOP efficiency |
-| `power_w`, `power_limit_w` | DOUBLE | | ✓ | Power draw and its limit |
-| `temperature_c` | INTEGER | | ✓ | Temperature |
-| `mem_used_bytes`, `mem_total_bytes` | BIGINT | | ✓ | Device memory. Servers usually preallocate their KV cache, so "used" is often near the total |
-| `clock_graphics_mhz`, `clock_mem_mhz` | INTEGER | | ✓ | Clocks |
-| `pcie_tx_kbps`, `pcie_rx_kbps` | INTEGER | | ✓ | PCIe traffic |
+## Lines
 
-**When a run has no chip samples** (zml-smi wasn't reachable), the chip columns are **absent from the file**, not null. `scripts/zmlrun.py` handles that; your own SQL over `read_parquet` must check the columns first (`DESCRIBE`).
+`request`:
+
+| Field | Meaning |
+| --- | --- |
+| `id` | `<conversation>-<turn>`: one HTTP request (see below) |
+| `conversation`, `turn` | The two halves of `id` |
+| `sent_us` | When the request was sent |
+| `chunk_us` | When each streamed chunk arrived, empty ones included: the opening role chunk, the finish chunk and the usage chunk |
+| `answer_chars` | Per chunk, the characters of answer text (code points). The text itself isn't kept |
+| `reasoning_chars` | Per chunk, the characters of reasoning (thinking) text, streamed as `reasoning_content` or `reasoning` |
+| `end_us` | When the response ended: the usage chunk arrived (the last chunk) or the error did. `null` when the run's end cut the request off, or the server sends no usage |
+| `input_tokens` | Prompt tokens, from the usage chunk. `null` when not reported |
+| `output_tokens` | Chunks with a choice. The role and finish chunks count too |
+| `error` | `null`, or why the request failed |
+
+`chip`:
+
+| Field | Meaning |
+| --- | --- |
+| `t_us` | When the sample arrived |
+| `device` | Device index in zml-smi |
+| `kind` | `cuda` · `rocm` · `oneapi` · `neuron` · `tpu` |
+| `name` | Device name |
+| `util_percent` | Utilization: the share of time a kernel was running, not a measure of FLOP efficiency |
+| `power_w`, `power_limit_w` | Power draw and its limit |
+| `temperature_c` | Temperature |
+| `mem_used_bytes`, `mem_total_bytes` | Device memory. Servers usually preallocate their KV cache, so "used" is often near the total |
+| `clock_graphics_mhz`, `clock_mem_mhz` | Clocks |
+| `pcie_tx_kbps`, `pcie_rx_kbps` | PCIe traffic |
+
+A metric the device doesn't report is left out of its line. A run without chip samples (zml-smi wasn't reachable) has no chip lines.
 
 **`request_id` is `<conversation id>_<n>-<turn>`.** `<turn>` is the message's index in the ShareGPT conversation, so a conversation's user turns are 0, 2, 4, …. Each turn is its own request. With `params.turns = "first"`, only turn 0 is sent.
 
@@ -55,7 +65,7 @@ All timestamps are nanoseconds since the Unix epoch, on the clock of the machine
 
 ZML-Lab keeps the dataset under `~/Library/Application Support/ZML-Lab/`.
 
-**A request is finished** when its usage chunk arrived (`input_tokens > 0`) or it failed. Requests still streaming when the run's duration ran out never finish: they have no usage, and their latency and length are truncated.
+**A request is finished** when it has an end (`end_us`): its usage chunk arrived or it failed. Requests still streaming when the run's duration ran out never finish: they have no usage, and their latency and length are truncated.
 
 ## meta.json
 
@@ -63,7 +73,9 @@ Every field is optional unless marked otherwise.
 
 ```jsonc
 {
-  "schema_version": 1, "run_id": "p-…",       // required
+  "type": "meta", "schema_version": 1,        // required
+  "t0_unix_us": 1792876902319189,             // required: the times' origin
+  "run_id": "p-…",                            // required
   "label": "…",                               // how the run is named in charts
   "notes": "", "tags": [],
   "started_at": "…", "ended_at": "…",         // ISO 8601, UTC
@@ -101,29 +113,14 @@ Its requests were cancelled at the instant the measured ones were sent, so the r
 
 ## Metric definitions (DuckDB SQL)
 
-A **token** is a chunk that carries text, answer or reasoning. Empty chunks don't count.
+A **token** is a chunk that carries text, answer or reasoning. Empty chunks don't count. Over `zmlrun.py`'s views:
 
 ```sql
-CREATE VIEW tokens AS SELECT * FROM events WHERE token_chars + reasoning_chars > 0;
-
-CREATE VIEW requests AS
-SELECT request_id,
-       min(request_ts_ns)                                          AS sent_ns,
-       min(ts_ns) FILTER (WHERE token_chars + reasoning_chars > 0) AS first_token_ns,
-       max(ts_ns)                                                  AS last_ns,
-       max(output_tokens)                                          AS output_tokens,
-       max(input_tokens)                                           AS input_tokens,
-       bool_or(error <> '')                                        AS failed,
-       bool_or(input_tokens > 0 OR error <> '')                    AS ended
-FROM events GROUP BY request_id;
-
 -- TTFT
 SELECT quantile_cont((first_token_ns - sent_ns) / 1e6, [0.5, 0.9, 0.99]) FROM requests
 WHERE first_token_ns IS NOT NULL;
 -- Inter-token latency: gaps between consecutive tokens of a request
-SELECT quantile_cont(gap_ms, [0.5, 0.9, 0.99]) FROM (
-  SELECT (ts_ns - lag(ts_ns) OVER (PARTITION BY request_id ORDER BY ts_ns)) / 1e6 AS gap_ms
-  FROM tokens) WHERE gap_ms IS NOT NULL;
+SELECT quantile_cont(gap_ms, [0.5, 0.9, 0.99]) FROM gaps;
 -- Throughput: tokens over the time from the first request sent to the last event
 SELECT (SELECT count(*) FROM tokens) / ((max(ts_ns) - min(request_ts_ns)) / 1e9) FROM events;
 ```
@@ -141,13 +138,13 @@ A request that never finished stays in flight until the end. `scripts/zmlrun.py`
 
 | View | Columns |
 | --- | --- |
-| `run` | the file as is |
-| `events` | the event columns above, with `reasoning_chars` as 0 when absent, `error` with no nulls, and `is_token` |
+| `lines` | the file's lines as is, every field a column (null where a line doesn't have it) |
+| `events` | the stream as the benchmarker logged it: a row per chunk, plus one for a request's end when that isn't its last chunk (an error). `ts_ns`, `request_id`, `seq` (counts a conversation's rows across its turns), `request_ts_ns`, `token_chars` (answer), `reasoning_chars`, `output_tokens`, `input_tokens` (on the request's end), `error` (`''` or the error, on its end), `ends`, `is_token` |
 | `tokens` | `events` where `is_token` |
 | `requests` | `request_id`, `conversation`, `turn`, `sent_ns`, `first_token_ns`, `last_token_ns` (last text chunk), `last_ns` (last event, including usage), `tokens` (text chunks), `output_tokens`, `input_tokens`, `failed`, `error`, `ended` |
 | `gaps` | `request_id`, `prev_ns`, `ts_ns`, `gap_ms`: consecutive tokens of one request |
 | `series` | `i`, `elapsed_ms`, `t_ns` (end of the 100 ms bucket), `tokens_per_second`, `in_flight`, `waiting`, `decoding` |
-| `chips` | `ts_ns` and the chip columns, all of them (null when the file has none) |
+| `chips` | `ts_ns` and the chip fields, all of them (null when a device doesn't report one) |
 | `meta` | one row, `meta` JSON |
 
 With several files, every view is prefixed `a_`, `b_`, ….

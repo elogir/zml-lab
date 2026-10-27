@@ -1,12 +1,11 @@
-// Importing perf run files (.zmlrun.parquet) into Saved benchmarks: a run
+// Importing perf run files (.jsonl.gz) into Saved benchmarks: a run
 // exported from ZML-Lab comes back with the numbers its saved report had,
-// the same file twice is one run, and unreadable files are reported.
+// another benchmarker's run reads too, the same file twice is one run, and
+// unreadable files are reported.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:dart_duckdb/dart_duckdb.dart';
-import 'package:dart_duckdb/open.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,12 +21,6 @@ import 'package:zml_lab/features/saved_benchmarks/domain/saved_entry.dart';
 import 'package:zml_lab/models/perf_report.dart';
 import 'package:zml_lab/models/run_meta.dart';
 import 'package:zml_lab/repositories/perf_report_repository.dart';
-
-/// The DuckDB library the plugin downloads (flutter test runs without the
-/// app, so the plugin's linked copy isn't there).
-final _libduckdb =
-    '${Platform.environment['HOME']}/.pub-cache/hosted/pub.dev/'
-    'dart_duckdb-1.4.4/macos/Libraries/release/libduckdb.dylib';
 
 const _runId = 'p-1792836000000000';
 
@@ -129,14 +122,9 @@ PerfReport _liveReport(String csv, List<(int, List<ChipReading>)> samples) {
 }
 
 void main() {
-  final skip = !File(_libduckdb).existsSync()
-      ? 'libduckdb not downloaded yet (run a macOS build once)'
-      : null;
-
   late Directory tmp;
   late AppDatabase db;
   late ProviderContainer container;
-  setUpAll(() => open.overrideFor(OperatingSystem.macOS, _libduckdb));
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('run_import_test');
     debugRunsDir = '${tmp.path}/runs';
@@ -196,7 +184,7 @@ void main() {
       }),
     );
     await rewriteRunMeta(runFile, edited);
-    final exported = '${tmp.path}/llmd-fp8.zmlrun.parquet';
+    final exported = '${tmp.path}/llmd-fp8.jsonl.gz';
     await exportRun(runFile: runFile, meta: edited, out: exported);
     final original = (await saved()).single;
 
@@ -231,13 +219,64 @@ void main() {
     );
     // The file is kept as its recording: Export run and Edit details work.
     expect(runFileExists(_runId), isTrue);
-    expect(await readRunMeta(runFilePath(_runId)), edited);
-  }, skip: skip);
+    expect(
+      (await readRunMeta(runFilePath(_runId)))!..remove('t0_unix_us'),
+      edited,
+    );
+  });
+
+  test('a run another benchmarker wrote imports too', () async {
+    // The least a writer has to say: no conversations or turns, an end
+    // after the last chunk (the [DONE]), no usage, no chips.
+    final file = '${tmp.path}/vllm-bench.jsonl.gz';
+    File(file).writeAsBytesSync(
+      gzip.encode(
+        utf8.encode(
+          '${[
+            {'type': 'meta', 'schema_version': 1, 't0_unix_us': 1793000000000000, 'run_id': 'other-1', 'label': 'vLLM bench'},
+            {
+              'type': 'request',
+              'id': 'a',
+              'sent_us': 0,
+              'end_us': 150000,
+              'output_tokens': 3,
+              'chunk_us': [100000, 120000, 140000],
+              'answer_chars': [1, 1, 1],
+              'reasoning_chars': [0, 0, 0],
+            },
+            {
+              'type': 'request',
+              'id': 'b',
+              'sent_us': 10000,
+              'end_us': 300000,
+              'output_tokens': 2,
+              'error': 'boom',
+              'chunk_us': [210000, 260000],
+              'answer_chars': [2, 0],
+              'reasoning_chars': [0, 3],
+            },
+          ].map(jsonEncode).join('\n')}\n',
+        ),
+      ),
+    );
+
+    final result = await browser().importRuns([file]);
+    expect(result.failed, isEmpty);
+    final report = (await saved()).single;
+    expect(report.name, 'vLLM bench');
+    expect(report.totalRequests, 2);
+    expect(report.errorCount, 1);
+    // First tokens 100 and 200 ms after their requests; gaps 20, 20, 50 ms.
+    expect(report.stat('Time to first token')!.p50, closeTo(150, 1e-9));
+    expect(report.stat('Inter-token latency')!.p50, closeTo(20, 1e-9));
+    // 5 tokens from the first request to the last moment, the error at 0.3 s.
+    expect(report.tokensPerSecond, closeTo(5 / 0.3, 1e-9));
+  });
 
   test('the same run twice is saved once', () async {
     final csv = File('test/fixtures/perf_events.csv').readAsStringSync();
     final file = await record(csv, const [], _autoMeta);
-    final copy = '${tmp.path}/again.zmlrun.parquet';
+    final copy = '${tmp.path}/again.jsonl.gz';
     File(file).copySync(copy);
 
     final first = await browser().importRuns([file]);
@@ -247,40 +286,44 @@ void main() {
     expect(second.duplicates, ['Qwen3-8B · c=4', 'Qwen3-8B · c=4']);
     expect(second.failed, isEmpty);
     expect([for (final r in await saved()) r.id], [_runId]);
-  }, skip: skip);
+  });
 
   test('files that can\'t be imported are reported; the rest go in', () async {
-    final notParquet = File('${tmp.path}/notes.parquet')
-      ..writeAsStringSync('not a parquet file');
-    final noMeta = '${tmp.path}/plain.parquet';
-    final duck = await duckdb.connect(await duckdb.open(':memory:'));
-    await duck.execute(
-      "COPY (SELECT 'event' AS source, 1 AS ts_ns) TO '$noMeta' "
-      '(FORMAT parquet)',
-    );
-    await duck.dispose();
+    final notGzip = File('${tmp.path}/notes.jsonl.gz')
+      ..writeAsStringSync('not a run file');
+    final noMeta = File('${tmp.path}/plain.jsonl.gz')
+      ..writeAsBytesSync(gzip.encode(utf8.encode('{"type":"request"}\n')));
+    final v2 = File('${tmp.path}/v2.jsonl.gz')
+      ..writeAsBytesSync(
+        gzip.encode(
+          utf8.encode(
+            '{"type":"meta","schema_version":2,"t0_unix_us":0,"run_id":"x"}\n',
+          ),
+        ),
+      );
     final csv = File('test/fixtures/perf_events.csv').readAsStringSync();
-    final noRunId = '${tmp.path}/no-id.zmlrun.parquet';
-    File(
-      await record(csv, const [], {'schema_version': 1}),
-    ).renameSync(noRunId);
+    final noRunId = '${tmp.path}/no-id.jsonl.gz';
+    File(await record(csv, const [], const {})).renameSync(noRunId);
     final good = await record(csv, const [], _autoMeta);
 
     final result = await browser().importRuns([
-      notParquet.path,
-      noMeta,
+      notGzip.path,
+      noMeta.path,
+      v2.path,
       noRunId,
       good,
     ]);
     expect(result.imported, ['Qwen3-8B · c=4']);
     expect(
       [for (final (file, _) in result.failed) file],
-      ['notes.parquet', 'plain.parquet', 'no-id.zmlrun.parquet'],
+      ['notes.jsonl.gz', 'plain.jsonl.gz', 'v2.jsonl.gz', 'no-id.jsonl.gz'],
     );
+    expect(result.failed[0].$2, contains('not a run file'));
     expect(result.failed[1].$2, contains('not a run file'));
-    expect(result.failed[2].$2, contains('run_id'));
+    expect(result.failed[2].$2, contains('not a run file'));
+    expect(result.failed[3].$2, contains('run_id'));
     expect([for (final r in await saved()) r.id], [_runId]);
-  }, skip: skip);
+  });
 
   test('a run without a label or machine still gets a name', () {
     const ms = 1000000;

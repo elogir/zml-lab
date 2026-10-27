@@ -3,7 +3,6 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  dart_duckdb
   file_selector_linux
   screen_retriever_linux
   window_manager

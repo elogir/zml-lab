@@ -55,7 +55,6 @@ dependencies:
   ffi: ^2.2.0
   crypto: ^3.0.7
   file_selector: ^1.1.0
-  dart_duckdb: 1.4.4
   cryptography: ^2.9.0
 dev_dependencies:
   flutter_test:
