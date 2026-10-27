@@ -39,8 +39,47 @@ Stream<ChatToken> streamChat(
   double? temperature,
   String model = '',
   bool ignoreEos = false,
-}) async* {
+}) {
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+  StreamSubscription<ChatToken>? sub;
+  late final StreamController<ChatToken> controller;
+  controller = StreamController(
+    onListen: () => sub =
+        _chatEvents(
+          client,
+          endpoint,
+          messages,
+          maxTokens: maxTokens,
+          temperature: temperature,
+          model: model,
+          ignoreEos: ignoreEos,
+        ).listen(
+          controller.add,
+          onError: controller.addError,
+          onDone: controller.close,
+        ),
+    // Closed here, not in the generator's `finally`: a cancelled generator
+    // only gets there at its next event, and a server that queues the request
+    // (llmd at batch size 1) sends none until the reply before it ends — so
+    // the abandoned request held the server until then. Not awaited, for the
+    // same reason.
+    onCancel: () {
+      client.close(force: true);
+      unawaited(sub?.cancel());
+    },
+  );
+  return controller.stream;
+}
+
+Stream<ChatToken> _chatEvents(
+  HttpClient client,
+  ChatEndpoint endpoint,
+  List<Map<String, String>> messages, {
+  int? maxTokens,
+  double? temperature,
+  required String model,
+  required bool ignoreEos,
+}) async* {
   try {
     final request = await client.postUrl(endpoint.chatCompletions);
     request.headers.contentType = ContentType.json;
@@ -189,8 +228,9 @@ typedef ChatBatchDelta = ({
 /// background isolate and emits their progress merged into one list per
 /// [interval]. Receiving and parsing hundreds of SSE streams is tens of
 /// thousands of events a second; on the UI isolate that alone starved
-/// rendering. Cancelling the subscription kills the isolate (closing every
-/// socket). The stream closes once every request has finished.
+/// rendering. Cancelling the subscription tells the worker to abort every
+/// request (closing their sockets, so the server stops generating them) and
+/// exit. The stream closes once every request has finished.
 Stream<List<ChatBatchDelta>> streamChatBatch(
   ChatEndpoint endpoint,
   List<Map<String, String>> messages, {
@@ -203,42 +243,74 @@ Stream<List<ChatBatchDelta>> streamChatBatch(
 }) {
   final fromWorker = ReceivePort();
   Isolate? worker;
+  SendPort? toWorker;
   var cancelled = false;
+  var stopSent = false;
+  Timer? kill;
+  // Called once the worker and its control port exist, whichever is last.
+  void stop() {
+    final port = toWorker;
+    if (port != null && !stopSent) {
+      stopSent = true;
+      port.send(null);
+    }
+    // Only if it hangs: killing an isolate leaves its sockets open (for
+    // seconds, or until the reply ends), and the server generating replies.
+    final w = worker;
+    if (w != null) {
+      kill ??= Timer(
+        const Duration(seconds: 2),
+        () => w.kill(priority: Isolate.immediate),
+      );
+    }
+  }
+
   late final StreamController<List<ChatBatchDelta>> controller;
   controller = StreamController(
     onListen: () async {
       fromWorker.listen((msg) {
         if (msg == null) {
+          // The worker exited (done, stopped or killed).
+          kill?.cancel();
           fromWorker.close();
-          controller.close();
-        } else {
+          if (!cancelled) controller.close();
+        } else if (msg is SendPort) {
+          toWorker = msg;
+          if (cancelled) stop();
+        } else if (!cancelled) {
           controller.add((msg as List).cast<ChatBatchDelta>());
         }
       });
       try {
-        worker = await Isolate.spawn(_chatBatchWorker, (
-          fromWorker.sendPort,
-          endpoint,
-          messages,
-          count,
-          maxTokens,
-          temperature,
-          model,
-          ignoreEos,
-          interval.inMicroseconds,
-        ), debugName: 'benchmark batch');
+        worker = await Isolate.spawn(
+          _chatBatchWorker,
+          (
+            fromWorker.sendPort,
+            endpoint,
+            messages,
+            count,
+            maxTokens,
+            temperature,
+            model,
+            ignoreEos,
+            interval.inMicroseconds,
+          ),
+          onExit: fromWorker.sendPort,
+          debugName: 'benchmark batch',
+        );
       } catch (e) {
         controller.addError(e);
         fromWorker.close();
         await controller.close();
         return;
       }
-      if (cancelled) worker?.kill(priority: Isolate.immediate);
+      if (cancelled) stop();
     },
+    // The port stays open for the worker's control port (when cancelled
+    // before it arrived) and its exit.
     onCancel: () {
       cancelled = true;
-      worker?.kill(priority: Isolate.immediate);
-      fromWorker.close();
+      stop();
     },
   );
   return controller.stream;
@@ -341,49 +413,63 @@ Future<void> _chatBatchWorker(
     }
   }
 
+  // The caller's stop: abort every request (closing its socket) and exit.
+  final subs = <StreamSubscription<ChatToken>>[];
+  final control = RawReceivePort();
+  control.handler = (_) {
+    ticker.cancel();
+    for (final s in subs) {
+      unawaited(s.cancel());
+    }
+    Isolate.exit(out, null);
+  };
+  out.send(control.sendPort);
+
   for (final p in progress) {
     p
       ..startUs = now()
       ..dirty = true;
-    streamChat(
-      endpoint,
-      messages,
-      maxTokens: maxTokens,
-      temperature: temperature,
-      model: model,
-      ignoreEos: ignoreEos,
-    ).listen(
-      (tok) {
-        final content = tok.content;
-        final reasoning = tok.reasoning;
-        final hasContent = content != null && content.isNotEmpty;
-        final hasReasoning = reasoning != null && reasoning.isNotEmpty;
-        if (hasContent || hasReasoning) p.firstTokenUs ??= now();
-        if (hasReasoning) {
-          p.reasoning.write(reasoning);
-          p.chunks++;
-        }
-        if (hasContent) {
-          p.content.write(content);
-          p.chunks++;
-        }
-        if (tok.completionTokens != null && tok.completionTokens! > 0) {
-          p.completionTokens = tok.completionTokens;
-        }
-        if (tok.finishReason != null) p.finishReason = tok.finishReason;
-        p.dirty = true;
-      },
-      onError: (Object e) {
-        final s = e.toString();
-        finish(
-          p,
-          error: s.startsWith('Exception: ')
-              ? s.substring('Exception: '.length)
-              : s,
-        );
-      },
-      onDone: () => finish(p),
-      cancelOnError: true,
+    subs.add(
+      streamChat(
+        endpoint,
+        messages,
+        maxTokens: maxTokens,
+        temperature: temperature,
+        model: model,
+        ignoreEos: ignoreEos,
+      ).listen(
+        (tok) {
+          final content = tok.content;
+          final reasoning = tok.reasoning;
+          final hasContent = content != null && content.isNotEmpty;
+          final hasReasoning = reasoning != null && reasoning.isNotEmpty;
+          if (hasContent || hasReasoning) p.firstTokenUs ??= now();
+          if (hasReasoning) {
+            p.reasoning.write(reasoning);
+            p.chunks++;
+          }
+          if (hasContent) {
+            p.content.write(content);
+            p.chunks++;
+          }
+          if (tok.completionTokens != null && tok.completionTokens! > 0) {
+            p.completionTokens = tok.completionTokens;
+          }
+          if (tok.finishReason != null) p.finishReason = tok.finishReason;
+          p.dirty = true;
+        },
+        onError: (Object e) {
+          final s = e.toString();
+          finish(
+            p,
+            error: s.startsWith('Exception: ')
+                ? s.substring('Exception: '.length)
+                : s,
+          );
+        },
+        onDone: () => finish(p),
+        cancelOnError: true,
+      ),
     );
   }
 }
