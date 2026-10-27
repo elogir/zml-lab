@@ -1,7 +1,7 @@
 name: zml_lab
 description: "Desktop app for launching ML inference servers by hand and benchmarking them: chat and perf benchmarks, saved and compared runs, machines and endpoints."
 publish_to: 'none'
-version: 1.0.0+1
+version: 0.1.7+8
 
 environment:
   sdk: ^3.12.2
