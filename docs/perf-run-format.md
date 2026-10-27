@@ -14,7 +14,7 @@ A run is **one gzipped [JSON Lines](https://jsonlines.org) file**,
   (`"type": "chip"`), one accelerator reading from `zml-smi`.
 
 ```jsonc
-{"type":"meta","schema_version":1,"t0_unix_us":1792876902319189,"run_id":"p-1792876900967068","label":"zml · c=64", …}
+{"type":"meta","schema_version":1,"t0_unix_us":1792876902319189,"run_id":"p-1792876900000000","label":"zml · c=64", …}
 {"type":"request","id":"QWJhYvA_0-0","conversation":"QWJhYvA_0","turn":0,"sent_us":0,"end_us":4754177,"input_tokens":120,"output_tokens":258,"error":null,"chunk_us":[866563,916373,964244,…],"answer_chars":[0,0,0,…],"reasoning_chars":[2,5,3,…]}
 {"type":"chip","t_us":-1153562,"device":0,"kind":"cuda","name":"NVIDIA GB300","util_percent":0,"power_w":497.544,"power_limit_w":1400.0,"temperature_c":44, …}
 ```

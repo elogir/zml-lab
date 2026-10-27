@@ -1,6 +1,9 @@
-# Builds and publishes a release when a version tag is pushed:
+# Builds and publishes a release when a version tag is pushed, on the commit
+# that sets pubspec.yaml's version to the tag's (1.2.0+<build>):
 #
-#   git tag v1.2.0 && git push origin v1.2.0
+#   git tag -a v1.2.0 -m v1.2.0 && git push origin v1.2.0
+#
+# The release skill (/release, .agents/skills/release) does all of it.
 #
 # The release gets zml-lab-macos.tar.gz and its signature, which installed
 # apps pick up (lib/features/updates), and ZML-Lab.dmg for a first install.
@@ -31,6 +34,12 @@ jobs:
             echo "::error::Tags are v<major>.<minor>.<patch>, not $GITHUB_REF_NAME"
             exit 1
           fi
+          # The bundle's version and build number are pubspec's.
+          pubspec=$(sed -n 's/^version: *//p' pubspec.yaml)
+          if [ "${pubspec%%+*}" != "$version" ]; then
+            echo "::error::$GITHUB_REF_NAME doesn't match pubspec.yaml's version, $pubspec"
+            exit 1
+          fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
 
       - uses: subosito/flutter-action@v2
@@ -53,8 +62,6 @@ jobs:
       - name: Build
         run: >-
           flutter build macos --release
-          --build-name="$VERSION"
-          --build-number="$GITHUB_RUN_NUMBER"
           --dart-define=ZML_LAB_VERSION="$VERSION"
 
       - name: Code-sign

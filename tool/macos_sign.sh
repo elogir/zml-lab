@@ -9,8 +9,7 @@
 #   tool/macos_sign.sh build/macos/Build/Products/Release/ZML-Lab.app
 #
 # The certificate (.p12, base64) and its password come from the environment,
-# ZML_LAB_CODESIGN_P12 and ZML_LAB_CODESIGN_PASSWORD: GitHub secrets in CI,
-# path/to/certificate.{p12,password} locally:
+# ZML_LAB_CODESIGN_P12 and ZML_LAB_CODESIGN_PASSWORD (GitHub secrets in CI):
 #
 #   ZML_LAB_CODESIGN_P12=$(base64 -i path/to/certificate.p12) \
 #   ZML_LAB_CODESIGN_PASSWORD=... \
