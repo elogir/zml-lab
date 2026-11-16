@@ -157,7 +157,7 @@ class BenchmarkController extends _$BenchmarkController {
 
   /// Null = the server's default sampling temperature.
   void setTemperature(double? temperature) =>
-      state = state.copyWith(temperature: temperature?.clamp(0.0, 2.0));
+      state = state.copyWith(temperature: sanitizeTemperature(temperature));
 
   /// Replies run to the token cap, past EOS.
   void setIgnoreEos(bool on) => state = state.copyWith(ignoreEos: on);

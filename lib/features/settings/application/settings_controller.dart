@@ -8,6 +8,12 @@ import '../../../repositories/settings_repository.dart';
 
 part 'settings_controller.g.dart';
 
+/// A sampling temperature as typed: no upper cap (servers accept different
+/// ranges), negatives floor at 0, and a non-finite value (`Infinity`, `NaN`,
+/// which JSON can't carry) means the server's default.
+double? sanitizeTemperature(double? t) =>
+    t == null || !t.isFinite ? null : (t < 0 ? 0.0 : t);
+
 /// The live app settings. Starts from built-in defaults; [load] (called once
 /// at startup, before the first frame) patches in whatever was persisted.
 /// Every setter clamps, updates state, and writes through — a value equal to
@@ -57,7 +63,7 @@ class SettingsController extends _$SettingsController {
         final n => n < 1 ? 1 : n,
       },
       benchMaxTokens: i('benchMaxTokens'),
-      benchTemperature: d('benchTemperature')?.clamp(0.0, 2.0),
+      benchTemperature: sanitizeTemperature(d('benchTemperature')),
       benchModel: raw['benchModel'] ?? def.benchModel,
       benchIgnoreEos: raw['benchIgnoreEos'] == 'true',
       benchCopyTemplate: raw['benchCopyTemplate'] ?? def.benchCopyTemplate,
@@ -138,7 +144,7 @@ class SettingsController extends _$SettingsController {
   }
 
   void setBenchTemperature(double? temperature) {
-    final v = temperature?.clamp(0.0, 2.0);
+    final v = sanitizeTemperature(temperature);
     state = state.copyWith(benchTemperature: v);
     v == null
         ? _repo.remove('benchTemperature')
